@@ -14,23 +14,15 @@
 package org.eclipse.jetty.ee9.osgi.annotations;
 
 import java.io.File;
-import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
-import java.util.Comparator;
-import java.util.Enumeration;
 import java.util.Set;
-import java.util.StringTokenizer;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jetty.osgi.util.BundleFileLocatorHelperFactory;
 import org.eclipse.jetty.util.FileID;
-import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.osgi.framework.Bundle;
-import org.osgi.framework.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,25 +101,31 @@ public class AnnotationParser extends org.eclipse.jetty.ee9.annotations.Annotati
         if (r == null)
             return;
 
-        if (FileID.isJavaArchive(r.getPath()))
-        {
-            parseJar(handlers, r);
+        if (!r.exists())
             return;
-        }
 
         if (r.isDirectory())
         {
             parseDir(handlers, r);
             return;
         }
-
-        if (FileID.isClassFile(r.getPath()))
+        else
         {
-            parseClass(handlers, null, r.getPath());
+            if (FileID.isJavaArchive(r.getFileName()))
+            {
+                parseJar(handlers, r);
+                return;
+            }
+
+            if (FileID.isClassFile(r.getFileName()))
+            {
+                parseClass(handlers, null, r);
+                return;
+            }
         }
         
-        //Not already parsed, it could be a file that actually is compressed but does not have
-        //.jar/.zip etc extension, such as equinox urls, so try to parse it
+        // Not already parsed, it could be a file that actually is compressed but does not have
+        // .jar/.zip etc extension, such as equinox urls, so try to parse it
         try
         {
             parseJar(handlers, r);

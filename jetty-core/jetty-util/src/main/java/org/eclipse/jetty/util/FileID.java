@@ -19,6 +19,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -38,6 +39,7 @@ public class FileID
      */
     public static String getBasename(Path path)
     {
+        Objects.requireNonNull(path);
         Path filename = path.getFileName();
         if (filename == null)
             return "";
@@ -366,11 +368,27 @@ public class FileID
      */
     public static boolean isClassFile(Path path)
     {
+        if (path == null)
+            return false;
+
         Path fileNamePath = path.getFileName();
         if (fileNamePath == null)
             return false;
-        
-        String filename = fileNamePath.toString();
+
+        return isClassFile(fileNamePath.toString());
+    }
+
+    /**
+     * Predicate to test for class files
+     *
+     * @param filename the filename to test
+     * @return true if the filename ends with {@code .class}
+     */
+    public static boolean isClassFile(String filename)
+    {
+        if (StringUtil.isBlank(filename))
+            return false;
+
         // has to end in ".class"
         if (!StringUtil.asciiEndsWithIgnoreCase(filename, ".class"))
             return false;
@@ -404,6 +422,8 @@ public class FileID
      */
     public static boolean isHidden(Path path)
     {
+        Objects.requireNonNull(path);
+
         int count = path.getNameCount();
         for (int i = 0; i < count; i++)
         {
@@ -443,6 +463,9 @@ public class FileID
      */
     public static boolean isHidden(Path base, Path path)
     {
+        Objects.requireNonNull(base);
+        Objects.requireNonNull(path);
+
         // Work with the path in relative form, from the base onwards to the path
         return isHidden(base.relativize(path));
     }
@@ -492,6 +515,9 @@ public class FileID
      */
     public static boolean isMetaInfVersions(Path path)
     {
+        if (path == null)
+            return false;
+
         if (path.getNameCount() < 3)
             return false;
 
@@ -531,6 +557,9 @@ public class FileID
      */
     public static boolean isModuleInfoClass(Path path)
     {
+        if (path == null)
+            return false;
+
         Path filenameSegment = path.getFileName();
         if (filenameSegment == null)
             return false;
