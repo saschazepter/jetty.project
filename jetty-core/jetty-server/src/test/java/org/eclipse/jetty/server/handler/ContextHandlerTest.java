@@ -888,7 +888,6 @@ public class ContextHandlerTest
         );
     }
 
-    @Tag("flaky")
     @ParameterizedTest
     @MethodSource("badTempDirs")
     public void testSetTempDirectoryBad(boolean persistent, File badTempDir)

@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 /**
  * MongoSessionDataStoreTest
  */
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers(disabledWithoutDocker = false)
 public class MongoSessionDataStoreTest extends AbstractSessionDataStoreTest
 {
 
