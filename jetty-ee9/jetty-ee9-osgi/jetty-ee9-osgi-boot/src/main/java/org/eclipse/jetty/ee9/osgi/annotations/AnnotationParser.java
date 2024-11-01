@@ -83,14 +83,12 @@ public class AnnotationParser extends org.eclipse.jetty.ee9.annotations.Annotati
     public void parse(Set<? extends Handler> handlers, Bundle bundle)
         throws Exception
     {
-
         Resource bundleResource = _bundleToResource.get(bundle);
         if (bundleResource == null)
             return;
 
         if (!_parsed.add(_bundleToUri.get(bundle)))
             return;
-
 
         parse(handlers, bundleResource);
     }

@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +32,7 @@ import org.eclipse.jetty.util.FileID;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
+import org.eclipse.jetty.util.resource.Resources;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -583,15 +585,23 @@ public class AnnotationParser
      */
     protected void parseDir(Set<? extends Handler> handlers, Resource dirResource) throws Exception
     {
+        Objects.requireNonNull(handlers);
+        Objects.requireNonNull(dirResource);
+
         if (LOG.isDebugEnabled())
             LOG.debug("Scanning dir {}", dirResource);
 
-        assert dirResource.isDirectory();
+        if (!Resources.isDirectory(dirResource))
+            return;
 
         ExceptionUtil.MultiException multiException = new ExceptionUtil.MultiException();
 
         for (Resource candidate : dirResource.getAllResources())
         {
+            // Skip ones that don't exist
+            if (!Resources.exists(candidate))
+                continue;
+
             // Skip directories
             if (candidate.isDirectory())
                 continue;
@@ -629,11 +639,13 @@ public class AnnotationParser
      */
     protected void parseJar(Set<? extends Handler> handlers, Resource jarResource) throws Exception
     {
-        if (jarResource == null)
-            return;
+        Objects.requireNonNull(jarResource);
 
         if (LOG.isDebugEnabled())
             LOG.debug("Scanning jar {}", jarResource);
+
+        if (!Resources.isReadableFile(jarResource))
+            return;
 
         try (ResourceFactory.Closeable resourceFactory = ResourceFactory.closeable())
         {
@@ -654,6 +666,11 @@ public class AnnotationParser
     @Deprecated(since = "12.0.16", forRemoval = true)
     protected void parseClass(Set<? extends Handler> handlers, Resource containingResource, Path classFile) throws IOException
     {
+        Objects.requireNonNull(classFile);
+
+        if (!(Files.isRegularFile(classFile) && Files.isReadable(classFile)))
+            return;
+
         try (InputStream inputStream = Files.newInputStream(classFile))
         {
             parseClass(handlers, containingResource, classFile.toUri(), inputStream);
@@ -670,6 +687,11 @@ public class AnnotationParser
      */
     protected void parseClass(Set<? extends Handler> handlers, Resource containingResource, Resource classFile) throws IOException
     {
+        Objects.requireNonNull(classFile);
+
+        if (!Resources.isReadableFile(classFile))
+            return;
+
         try (InputStream inputStream = IOResources.asInputStream(classFile))
         {
             parseClass(handlers, containingResource, classFile.getURI(), inputStream);
@@ -687,6 +709,11 @@ public class AnnotationParser
      */
     private void parseClass(Set<? extends Handler> handlers, Resource containingResource, URI classFileRef, InputStream inputStream) throws IOException
     {
+        Objects.requireNonNull(handlers);
+        Objects.requireNonNull(containingResource);
+        Objects.requireNonNull(classFileRef);
+        Objects.requireNonNull(inputStream);
+
         if (LOG.isDebugEnabled())
             LOG.debug("Parse class from {}", classFileRef);
 
