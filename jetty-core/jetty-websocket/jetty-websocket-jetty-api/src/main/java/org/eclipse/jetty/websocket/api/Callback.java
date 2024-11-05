@@ -72,15 +72,27 @@ public interface Callback
             @Override
             public void succeed()
             {
-                callback.succeed();
-                completed.run();
+                try
+                {
+                    callback.succeed();
+                }
+                finally
+                {
+                    completed.run();
+                }
             }
 
             @Override
             public void fail(Throwable x)
             {
-                callback.fail(x);
-                completed.run();
+                try
+                {
+                    callback.fail(x);
+                }
+                finally
+                {
+                    completed.run();
+                }
             }
         };
     }

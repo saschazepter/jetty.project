@@ -120,6 +120,11 @@ public interface Frame
             _frame = frame;
         }
 
+        public Frame getWrapped()
+        {
+            return _frame;
+        }
+
         @Override
         public byte[] getMask()
         {
