@@ -89,6 +89,8 @@ updates:
         versions: [ ">=1.4.0"]
       - dependency-name: "org.mortbay.jasper:*"
         versions: [ ">=10.0.0"]
+      - dependency-name: "org.jboss.threads:*"
+        versions: [ ">=3.7.0"]
 
   - package-ecosystem: "maven"
     directory: "/"
@@ -185,6 +187,8 @@ updates:
         versions: [ ">=12" ]
       - dependency-name: "org.mortbay.jasper:*"
         versions: [ ">=10.1.0"]
+      - dependency-name: "org.jboss.threads:*"
+        versions: [ ">=3.7.0"]
 
   - package-ecosystem: "maven"
     directory: "/"
