@@ -91,6 +91,8 @@ updates:
         versions: [ ">=10.0.0"]
       - dependency-name: "org.jboss.threads:*"
         versions: [ ">=3.7.0"]
+      - dependency-name: "com.hazelcast:*"
+        versions: [ ">=5.4"]
 
   - package-ecosystem: "maven"
     directory: "/"
@@ -189,6 +191,8 @@ updates:
         versions: [ ">=10.1.0"]
       - dependency-name: "org.jboss.threads:*"
         versions: [ ">=3.7.0"]
+      - dependency-name: "com.hazelcast:*"
+        versions: [ ">=5.4"]
 
   - package-ecosystem: "maven"
     directory: "/"
