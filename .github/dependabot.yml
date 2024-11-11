@@ -239,4 +239,7 @@ updates:
         versions: [ ">=3.12" ]
       - dependency-name: "org.junit.jupiter:*"
         versions: [ ">=5.11" ]
+      - dependency-name: "javax.websocket:*"
+        versions: [ ">=1.1"]
+
 
