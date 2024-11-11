@@ -237,4 +237,6 @@ updates:
         versions: [ ">=2.3" ]
       - dependency-name: "org.eclipse.platform:org.eclipse.osgi.services"
         versions: [ ">=3.12" ]
+      - dependency-name: "org.junit.jupiter:*"
+        versions: [ ">=5.11" ]
 
