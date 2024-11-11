@@ -241,5 +241,6 @@ updates:
         versions: [ ">=5.11" ]
       - dependency-name: "javax.websocket:*"
         versions: [ ">=1.1"]
-
+      - dependency-name: "org.infinispan.protostream:*"
+        versions: [ ">4.5" ]
 
