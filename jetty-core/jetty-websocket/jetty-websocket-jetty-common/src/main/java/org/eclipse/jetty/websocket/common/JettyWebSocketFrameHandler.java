@@ -221,12 +221,8 @@ public class JettyWebSocketFrameHandler implements FrameHandler
             case OpCode.PING -> onPingFrame(frame, coreCallback);
             case OpCode.PONG -> onPongFrame(frame, coreCallback);
             case OpCode.CLOSE -> onCloseFrame(frame, coreCallback);
-            default ->
-            {
-                coreCallback.failed(new IllegalStateException());
-                return;
-            }
-        };
+            default -> coreCallback.failed(new IllegalStateException());
+        }
     }
 
     @Override
