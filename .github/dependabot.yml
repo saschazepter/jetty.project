@@ -243,4 +243,6 @@ updates:
         versions: [ ">=1.1"]
       - dependency-name: "org.infinispan.protostream:*"
         versions: [ ">4.5" ]
+      - dependency-name: "org.apache.avro:*"
+        versions: [ ">=1.12" ]
 
