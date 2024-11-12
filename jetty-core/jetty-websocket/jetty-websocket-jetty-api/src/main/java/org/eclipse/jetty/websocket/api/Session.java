@@ -227,6 +227,7 @@ public interface Session extends Configurable, Closeable
          * or data frames either BINARY or TEXT.</p>
          *
          * @param frame the received frame
+         * @param callback the callback to complete once the frame has been processed.
          */
         default void onWebSocketFrame(Frame frame, Callback callback)
         {
@@ -284,6 +285,7 @@ public interface Session extends Configurable, Closeable
          * <p>A WebSocket BINARY message has been received.</p>
          *
          * @param payload the raw payload array received
+         * @param callback the callback to complete when the payload has been processed
          */
         default void onWebSocketBinary(ByteBuffer payload, Callback callback)
         {
