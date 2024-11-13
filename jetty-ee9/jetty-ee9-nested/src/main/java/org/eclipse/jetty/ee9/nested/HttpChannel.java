@@ -172,7 +172,10 @@ public class HttpChannel implements Runnable, HttpOutput.Interceptor
      */
     public HttpInput.Content produceContent()
     {
-        Content.Chunk chunk = getCoreRequest().read();
+        ContextHandler.CoreContextRequest coreContextRequest = getCoreRequest();
+        if (coreContextRequest == null)
+            return null;
+        Content.Chunk chunk = coreContextRequest.read();
         if (chunk == null)
             return null;
 
