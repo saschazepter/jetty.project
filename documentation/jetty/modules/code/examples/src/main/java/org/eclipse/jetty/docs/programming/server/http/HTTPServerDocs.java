@@ -33,11 +33,11 @@ import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.ee10.servlet.DefaultServlet;
-import org.eclipse.jetty.ee10.servlet.ResourceServlet;
-import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee10.servlet.ServletHolder;
-import org.eclipse.jetty.ee10.webapp.WebAppContext;
+import org.eclipse.jetty.ee11.servlet.DefaultServlet;
+import org.eclipse.jetty.ee11.servlet.ResourceServlet;
+import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee11.servlet.ServletHolder;
+import org.eclipse.jetty.ee11.webapp.WebAppContext;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
@@ -46,7 +46,7 @@ import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.http.MultiPart;
+import org.eclipse.jetty.http.MultiPartConfig;
 import org.eclipse.jetty.http.MultiPartFormData;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
@@ -92,6 +92,7 @@ import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.unixdomain.server.UnixDomainServerConnector;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.ClassMatcher;
 import org.eclipse.jetty.util.Fields;
 import org.eclipse.jetty.util.NanoTime;
 import org.eclipse.jetty.util.Promise;
@@ -773,23 +774,29 @@ public class HTTPServerDocs
                 if (MimeTypes.Type.FORM_ENCODED.is(contentType))
                 {
                     // Convert the request content into Fields.
-                    CompletableFuture<Fields> completableFields = FormFields.from(request); // <1>
-
-                    // When all the request content has arrived, process the fields.
-                    completableFields.whenComplete((fields, failure) -> // <2>
+                    FormFields.onFields(request, new Promise.Invocable<>() // <1>
                     {
-                        if (failure == null)
+                        @Override
+                        public void succeeded(Fields fields) // <2>
                         {
                             processFields(fields);
                             // Send a simple 200 response, completing the callback.
                             response.setStatus(HttpStatus.OK_200);
                             callback.succeeded();
                         }
-                        else
+
+                        @Override
+                        public void failed(Throwable failure)
                         {
                             // Reading the request content failed.
                             // Send an error response, completing the callback.
                             Response.writeError(request, response, callback, failure);
+                        }
+
+                        @Override
+                        public InvocationType getInvocationType() // <3>
+                        {
+                            return InvocationType.NON_BLOCKING;
                         }
                     });
 
@@ -822,21 +829,17 @@ public class HTTPServerDocs
                 String contentType = request.getHeaders().get(HttpHeader.CONTENT_TYPE);
                 if (MimeTypes.Type.MULTIPART_FORM_DATA.is(contentType))
                 {
-                    // Extract the multipart boundary.
-                    String boundary = MultiPart.extractBoundary(contentType);
-
-                    // Create and configure the multipart parser.
-                    MultiPartFormData.Parser parser = new MultiPartFormData.Parser(boundary);
-                    // By default, uploaded files are stored in this directory, to
-                    // avoid to read the file content (which can be large) in memory.
-                    parser.setFilesDirectory(Path.of("/tmp"));
+                    // Configuration for the MultiPart parser.
+                    MultiPartConfig config = new MultiPartConfig.Builder()
+                        // By default, uploaded files are stored in this directory, to
+                        // avoid to read the file content (which can be large) in memory.
+                        .location(Path.of("/tmp"))
+                        .build();
                     // Convert the request content into parts.
-                    CompletableFuture<MultiPartFormData.Parts> completableParts = parser.parse(request); // <1>
-
-                    // When all the request content has arrived, process the parts.
-                    completableParts.whenComplete((parts, failure) -> // <2>
+                    MultiPartFormData.onParts(request, request, contentType, config, new Promise.Invocable<>() // <1>
                     {
-                        if (failure == null)
+                        @Override
+                        public void succeeded(MultiPartFormData.Parts parts) // <2>
                         {
                             // Use the Parts API to process the parts.
                             processParts(parts);
@@ -844,11 +847,19 @@ public class HTTPServerDocs
                             response.setStatus(HttpStatus.OK_200);
                             callback.succeeded();
                         }
-                        else
+
+                        @Override
+                        public void failed(Throwable failure)
                         {
                             // Reading the request content failed.
                             // Send an error response, completing the callback.
                             Response.writeError(request, response, callback, failure);
+                        }
+
+                        @Override
+                        public InvocationType getInvocationType() // <3>
+                        {
+                            return InvocationType.NON_BLOCKING;
                         }
                     });
 
@@ -1193,6 +1204,48 @@ public class HTTPServerDocs
 
         server.start();
         // end::webAppContextHandler[]
+    }
+
+    public void webAppContextClassLoader() throws Exception
+    {
+        // tag::webAppContextClassLoader[]
+        Server server = new Server();
+        Connector connector = new ServerConnector(server);
+        server.addConnector(connector);
+
+        // Create a WebAppContext.
+        WebAppContext context = new WebAppContext();
+
+        // Keep Servlet specification behaviour
+        context.setParentLoaderPriority(false);
+
+        // Add hidden classes by package (with exclusion) and by location
+        context.addHiddenClassMatcher(new ClassMatcher(
+            "org.example.package.",
+            "-org.example.package.SpecificClass",
+            "file:/usr/local/server/lib/some.jar"
+        ));
+
+        // Add protected classes by class name and JPMS module
+        context.addProtectedClassMatcher(new ClassMatcher(
+            "org.example.package.SpecificClass",
+            "jrt:/modulename"
+        ));
+
+        // Add addition class path items to the context loader
+        context.setExtraClasspath("file:/usr/local/server/context/lib/context.jar;file:/usr/local/server/context/classes/");
+
+        // end::webAppContextClassLoader[]
+
+        // Link the context to the server.
+        server.setHandler(context);
+
+        // Configure the path of the packaged web application (file or directory).
+        context.setWar("/path/to/webapp.war");
+        // Configure the contextPath.
+        context.setContextPath("/app");
+
+        server.start();
     }
 
     public void resourceHandler() throws Exception
