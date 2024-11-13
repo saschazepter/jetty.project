@@ -16,13 +16,10 @@ package org.eclipse.jetty.ee11.servlet;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritePendingException;
-import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
-import java.nio.charset.CoderResult;
-import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CancellationException;
 
 import jakarta.servlet.RequestDispatcher;
@@ -723,6 +720,17 @@ public class HttpOutput extends ServletOutputStream
     @Override
     public void write(byte[] b, int off, int len) throws IOException
     {
+        write(b, off, len, null);
+    }
+
+    @FunctionalInterface
+    private interface IORunnable
+    {
+        void run() throws IOException;
+    }
+
+    private void write(byte[] b, int off, int len, IORunnable onComplete) throws IOException
+    {
         if (LOG.isDebugEnabled())
             LOG.debug("write(array {})", BufferUtil.toDetailString(ByteBuffer.wrap(b, off, len)));
 
@@ -784,6 +792,8 @@ public class HttpOutput extends ServletOutputStream
                     if (LOG.isDebugEnabled())
                         LOG.debug("write(array) {} aggregated !flush {}",
                             stateString(), _aggregate);
+                    if (onComplete != null)
+                        onComplete.run();
                     return;
                 }
 
@@ -799,8 +809,27 @@ public class HttpOutput extends ServletOutputStream
 
         if (async)
         {
+            IORunnable copy = onComplete;
             // Do the asynchronous writing from the callback
-            new AsyncWrite(b, off, len, last).iterate();
+            new AsyncWrite(b, off, len, last)
+            {
+                @Override
+                protected void onCompleted(Throwable causeOrNull)
+                {
+                    if (copy != null)
+                    {
+                        try
+                        {
+                            copy.run();
+                        }
+                        catch (Throwable x)
+                        {
+                            causeOrNull = ExceptionUtil.combine(causeOrNull, x);
+                        }
+                    }
+                    super.onCompleted(causeOrNull);
+                }
+            }.iterate();
             return;
         }
 
@@ -820,6 +849,10 @@ public class HttpOutput extends ServletOutputStream
                 if (len > 0 && !last && len <= _commitSize && len <= maximizeAggregateSpace())
                 {
                     BufferUtil.append(byteBuffer, b, off, len);
+                    IORunnable copy = onComplete;
+                    onComplete = null;
+                    if (copy != null)
+                        copy.run();
                     onWriteComplete(false, null);
                     return;
                 }
@@ -849,10 +882,16 @@ public class HttpOutput extends ServletOutputStream
                 channelWrite(BufferUtil.EMPTY_BUFFER, true);
             }
 
+            IORunnable copy = onComplete;
+            onComplete = null;
+            if (copy != null)
+                copy.run();
             onWriteComplete(last, null);
         }
         catch (Throwable t)
         {
+            if (onComplete != null)
+                onComplete.run();
             onWriteComplete(last, t);
             throw t;
         }
@@ -1026,72 +1065,10 @@ public class HttpOutput extends ServletOutputStream
         s = String.valueOf(s);
 
         String charset = _servletChannel.getServletContextResponse().getCharacterEncoding(false);
-        CharsetEncoder encoder = _encoder.take();
-        if (encoder == null || !encoder.charset().name().equalsIgnoreCase(charset))
-        {
-            encoder = Charset.forName(charset).newEncoder();
-            encoder.onMalformedInput(CodingErrorAction.REPLACE);
-            encoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
-        }
-        ByteBufferPool pool = _servletChannel.getRequest().getComponents().getByteBufferPool();
-        RetainableByteBuffer out = pool.acquire((int)(1 + (s.length() + 2) * encoder.averageBytesPerChar()), false);
-        try
-        {
-            CharBuffer in = CharBuffer.wrap(s);
-            CharBuffer crlf = eoln ? CharBuffer.wrap("\r\n") : null;
-            ByteBuffer byteBuffer = out.getByteBuffer();
-            BufferUtil.flipToFill(byteBuffer);
 
-            while (true)
-            {
-                CoderResult result;
-                if (in.hasRemaining())
-                {
-                    result = encoder.encode(in, byteBuffer, crlf == null);
-                    if (result.isUnderflow())
-                        if (crlf == null)
-                            break;
-                        else
-                            continue;
-                }
-                else if (crlf != null && crlf.hasRemaining())
-                {
-                    result = encoder.encode(crlf, byteBuffer, true);
-                    if (result.isUnderflow())
-                    {
-                        if (!encoder.flush(byteBuffer).isUnderflow())
-                            result.throwException();
-                        break;
-                    }
-                }
-                else
-                    break;
-
-                if (result.isOverflow())
-                {
-                    BufferUtil.flipToFlush(byteBuffer, 0);
-                    RetainableByteBuffer bigger = pool.acquire(out.capacity() + s.length() + 2, out.isDirect());
-                    BufferUtil.flipToFill(bigger.getByteBuffer());
-                    bigger.getByteBuffer().put(byteBuffer);
-                    out.release();
-                    BufferUtil.flipToFill(bigger.getByteBuffer());
-                    out = bigger;
-                    byteBuffer = bigger.getByteBuffer();
-                    continue;
-                }
-
-                result.throwException();
-            }
-
-            BufferUtil.flipToFlush(byteBuffer, 0);
-            write(byteBuffer.array(), byteBuffer.arrayOffset(), byteBuffer.remaining());
-        }
-        finally
-        {
-            out.release();
-            encoder.reset();
-            _encoder.offer(encoder);
-        }
+        byte[] bytes = s.getBytes(charset);
+        IORunnable r = eoln ? () -> write("\r\n".getBytes(StandardCharsets.UTF_8)) : null;
+        write(bytes, 0, bytes.length, r);
     }
 
     /**
