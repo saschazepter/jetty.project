@@ -19,7 +19,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritePendingException;
 import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CancellationException;
 
 import jakarta.servlet.RequestDispatcher;
@@ -809,18 +808,18 @@ public class HttpOutput extends ServletOutputStream
 
         if (async)
         {
-            IORunnable copy = onComplete;
+            IORunnable finalOnComplete = onComplete;
             // Do the asynchronous writing from the callback
             new AsyncWrite(b, off, len, last)
             {
                 @Override
                 protected void onCompleted(Throwable causeOrNull)
                 {
-                    if (copy != null)
+                    if (finalOnComplete != null)
                     {
                         try
                         {
-                            copy.run();
+                            finalOnComplete.run();
                         }
                         catch (Throwable x)
                         {
@@ -849,10 +848,10 @@ public class HttpOutput extends ServletOutputStream
                 if (len > 0 && !last && len <= _commitSize && len <= maximizeAggregateSpace())
                 {
                     BufferUtil.append(byteBuffer, b, off, len);
-                    IORunnable copy = onComplete;
+                    IORunnable runOnComplete = onComplete;
                     onComplete = null;
-                    if (copy != null)
-                        copy.run();
+                    if (runOnComplete != null)
+                        runOnComplete.run();
                     onWriteComplete(false, null);
                     return;
                 }
@@ -882,10 +881,10 @@ public class HttpOutput extends ServletOutputStream
                 channelWrite(BufferUtil.EMPTY_BUFFER, true);
             }
 
-            IORunnable copy = onComplete;
+            IORunnable runOnComplete = onComplete;
             onComplete = null;
-            if (copy != null)
-                copy.run();
+            if (runOnComplete != null)
+                runOnComplete.run();
             onWriteComplete(last, null);
         }
         catch (Throwable t)
@@ -1067,8 +1066,8 @@ public class HttpOutput extends ServletOutputStream
         String charset = _servletChannel.getServletContextResponse().getCharacterEncoding(false);
 
         byte[] bytes = s.getBytes(charset);
-        IORunnable r = eoln ? () -> write("\r\n".getBytes(StandardCharsets.UTF_8)) : null;
-        write(bytes, 0, bytes.length, r);
+        IORunnable onComplete = eoln ? () -> write(IO.CRLF_BYTES) : null;
+        write(bytes, 0, bytes.length, onComplete);
     }
 
     /**
