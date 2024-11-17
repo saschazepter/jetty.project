@@ -55,6 +55,48 @@
             </Item>
           </Array>
         </Arg>
+        <Call name="includeMethod">
+          <Arg>
+            <Call class="org.eclipse.jetty.util.StringUtil" name="csvSplit">
+              <Arg><Property name="jetty.threadlimit.include.method" default="" /></Arg>
+            </Call>
+          </Arg>
+        </Call>
+        <Call name="excludeMethod">
+          <Arg>
+            <Call class="org.eclipse.jetty.util.StringUtil" name="csvSplit">
+              <Arg><Property name="jetty.threadlimit.exclude.method" default="" /></Arg>
+            </Call>
+          </Arg>
+        </Call>
+        <Call name="includePath">
+          <Arg>
+            <Call class="org.eclipse.jetty.util.StringUtil" name="csvSplit">
+              <Arg><Property name="jetty.threadlimit.include.path" default="" /></Arg>
+            </Call>
+          </Arg>
+        </Call>
+        <Call name="excludePath">
+          <Arg>
+            <Call class="org.eclipse.jetty.util.StringUtil" name="csvSplit">
+              <Arg><Property name="jetty.threadlimit.exclude.path" default="" /></Arg>
+            </Call>
+          </Arg>
+        </Call>
+        <Call name="includeInetAddressPattern">
+          <Arg>
+            <Call class="org.eclipse.jetty.util.StringUtil" name="csvSplit">
+              <Arg><Property name="jetty.threadlimit.include.inet" default="" /></Arg>
+            </Call>
+          </Arg>
+        </Call>
+        <Call name="excludeInetAddressPattern">
+          <Arg>
+            <Call class="org.eclipse.jetty.util.StringUtil" name="csvSplit">
+              <Arg><Property name="jetty.threadlimit.exclude.inet" default="" /></Arg>
+            </Call>
+          </Arg>
+        </Call>
       </New>
     </Arg>
   </Call>
