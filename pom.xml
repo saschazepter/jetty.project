@@ -955,28 +955,28 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.eclipse.jetty.compression</groupId>
         <artifactId>jetty-compression-brotli</artifactId>
-        <groupId>org.eclipse.jetty.compression</groupId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.eclipse.jetty.compression</groupId>
         <artifactId>jetty-compression-common</artifactId>
-        <groupId>org.eclipse.jetty.compression</groupId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.eclipse.jetty.compression</groupId>
         <artifactId>jetty-compression-gzip</artifactId>
-        <groupId>org.eclipse.jetty.compression</groupId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.eclipse.jetty.compression</groupId>
         <artifactId>jetty-compression-server</artifactId>
-        <groupId>org.eclipse.jetty.compression</groupId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <artifactId>jetty-compression-zstandard</artifactId>
         <groupId>org.eclipse.jetty.compression</groupId>
+        <artifactId>jetty-compression-zstandard</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
