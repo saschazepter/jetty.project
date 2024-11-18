@@ -11,28 +11,21 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.compression.brotli;
+package org.eclipse.jetty.compression.gzip.internal;
 
-import org.eclipse.jetty.compression.DecoderConfig;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.zip.GZIPInputStream;
 
-public class BrotliDecoderConfig implements DecoderConfig
+import org.eclipse.jetty.compression.gzip.GzipDecoderConfig;
+
+/**
+ * A {@link GZIPInputStream} that you can configure, unlike the JVM default provided one.
+ */
+public class ConfigurableGzipInputStream extends GZIPInputStream
 {
-    /**
-     * Default Buffer Size as found in Brotli4j.
-     */
-    private static final int DEFAULT_BUFFER_SIZE = 16384;
-    private static final int MIN_BUFFER_SIZE = 32;
-    private int bufferSize = DEFAULT_BUFFER_SIZE;
-
-    @Override
-    public int getBufferSize()
+    public ConfigurableGzipInputStream(InputStream in, GzipDecoderConfig config) throws IOException
     {
-        return bufferSize;
-    }
-
-    @Override
-    public void setBufferSize(int size)
-    {
-        this.bufferSize = Math.max(MIN_BUFFER_SIZE, size);
+        super(in, config.getBufferSize());
     }
 }

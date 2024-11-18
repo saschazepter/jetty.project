@@ -11,19 +11,19 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.compression.brotli;
+package org.eclipse.jetty.compression.brotli.internal;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.aayushatharva.brotli4j.encoder.Encoder;
 import com.aayushatharva.brotli4j.encoder.EncoderJNI;
 import org.eclipse.jetty.compression.EncoderSink;
+import org.eclipse.jetty.compression.brotli.BrotliEncoderConfig;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class BrotliEncoderSink extends EncoderSink
 {
@@ -44,23 +44,21 @@ public class BrotliEncoderSink extends EncoderSink
         /**
          * Finish operation completed.
          */
-        FINISHED;
+        FINISHED
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(BrotliEncoderSink.class);
     private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
-    private final BrotliCompression compression;
     private final EncoderJNI.Wrapper encoder;
     private final ByteBuffer inputBuffer;
-    private final AtomicReference<State> state = new AtomicReference<State>(State.PROCESSING);
+    private final AtomicReference<State> state = new AtomicReference<>(State.PROCESSING);
 
-    public BrotliEncoderSink(BrotliCompression compression, Content.Sink sink, BrotliEncoderConfig config)
+    public BrotliEncoderSink(Content.Sink sink, BrotliEncoderConfig config)
     {
         super(sink);
-        this.compression = compression;
         try
         {
-            this.encoder = new EncoderJNI.Wrapper(config.getBufferSize(), config.getCompressionLevel(), config.getLgWindow(), config.getMode());
+            Encoder.Mode mode = Encoder.Mode.of(config.getStrategy());
+            this.encoder = new EncoderJNI.Wrapper(config.getBufferSize(), config.getCompressionLevel(), config.getLgWindow(), mode);
             this.inputBuffer = encoder.getInputBuffer();
         }
         catch (IOException e)
@@ -94,7 +92,7 @@ public class BrotliEncoderSink extends EncoderSink
                             }
 
                             // the only place the input buffer gets set.
-                            int len = BufferUtil.put(content, inputBuffer);
+                            BufferUtil.put(content, inputBuffer);
                             // do not flip input buffer, that's not what Brotli4j expects/wants.
                         }
                         // content is fully consumed.
@@ -173,10 +171,5 @@ public class BrotliEncoderSink extends EncoderSink
     protected void release()
     {
         this.encoder.destroy();
-    }
-
-    private State getState()
-    {
-        return state.get();
     }
 }

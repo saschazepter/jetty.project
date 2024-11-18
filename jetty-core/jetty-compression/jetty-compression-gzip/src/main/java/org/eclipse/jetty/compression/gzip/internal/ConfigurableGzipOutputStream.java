@@ -11,32 +11,25 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.compression.gzip;
+package org.eclipse.jetty.compression.gzip.internal;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.zip.GZIPOutputStream;
 
+import org.eclipse.jetty.compression.gzip.GzipEncoderConfig;
+
 /**
- * A {@link GZIPOutputStream} that you can configure, unlike the
- * JVM default provided one.
+ * A {@link GZIPOutputStream} that you can configure, unlike the JVM default provided one.
  */
-public class ConfiguredGzipOutputStream extends GZIPOutputStream
+public class ConfigurableGzipOutputStream extends GZIPOutputStream
 {
-    public ConfiguredGzipOutputStream(OutputStream outputStream, GzipEncoderConfig config) throws IOException
+    public ConfigurableGzipOutputStream(OutputStream outputStream, GzipEncoderConfig config) throws IOException
     {
         super(outputStream, config.getBufferSize(), config.isSyncFlush());
         def.setStrategy(config.getStrategy());
         def.setLevel(config.getCompressionLevel());
-    }
-
-    /**
-     * @see java.util.zip.Deflater#setDictionary(byte[])
-     */
-    public void setDictionary(byte[] dictionary)
-    {
-        def.setDictionary(dictionary);
     }
 
     /**
@@ -45,13 +38,5 @@ public class ConfiguredGzipOutputStream extends GZIPOutputStream
     public void setDictionary(ByteBuffer dictionary)
     {
         def.setDictionary(dictionary);
-    }
-
-    /**
-     * @see java.util.zip.Deflater#setDictionary(byte[], int, int)
-     */
-    public void setDictionary(byte[] dictionary, int off, int len)
-    {
-        def.setDictionary(dictionary, off, len);
     }
 }

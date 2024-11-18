@@ -11,12 +11,14 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.compression.zstandard;
+package org.eclipse.jetty.compression.zstandard.internal;
 
 import java.nio.ByteBuffer;
 
 import com.github.luben.zstd.ZstdDecompressCtx;
 import org.eclipse.jetty.compression.DecoderSource;
+import org.eclipse.jetty.compression.zstandard.ZstandardCompression;
+import org.eclipse.jetty.compression.zstandard.ZstandardDecoderConfig;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.io.RetainableByteBuffer;
 
@@ -24,7 +26,6 @@ public class ZstandardDecoderSource extends DecoderSource
 {
     private final ZstandardCompression compression;
     private final ZstdDecompressCtx decompressCtx;
-    private final int bufferSize;
 
     public ZstandardDecoderSource(ZstandardCompression compression, Content.Source src, ZstandardDecoderConfig config)
     {
@@ -32,7 +33,6 @@ public class ZstandardDecoderSource extends DecoderSource
         this.compression = compression;
         this.decompressCtx = new ZstdDecompressCtx();
         this.decompressCtx.setMagicless(config.isMagicless());
-        this.bufferSize = config.getBufferSize();
     }
 
     @Override

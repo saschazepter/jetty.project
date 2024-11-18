@@ -11,12 +11,13 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.compression.server;
+package org.eclipse.jetty.compression.server.internal;
 
 import java.util.ListIterator;
 
 import org.eclipse.jetty.compression.Compression;
 import org.eclipse.jetty.compression.DecoderSource;
+import org.eclipse.jetty.compression.server.CompressionHandler;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
@@ -26,14 +27,11 @@ import org.eclipse.jetty.util.component.Destroyable;
 
 public class DecompressionRequest extends Request.Wrapper implements Destroyable
 {
-    private Compression compression;
-    private HttpFields fields;
-    private DecoderSource decoderSource;
+    private final Compression compression;
+    private final HttpFields fields;
+    private final DecoderSource decoderSource;
 
-    public DecompressionRequest(
-        Compression compression,
-        Request request,
-        CompressionConfig config)
+    public DecompressionRequest(Compression compression, Request request)
     {
         super(request);
         this.compression = compression;

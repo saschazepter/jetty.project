@@ -20,20 +20,15 @@ import java.util.List;
 
 import org.eclipse.jetty.http.EtagUtils;
 import org.eclipse.jetty.http.HttpField;
-import org.eclipse.jetty.http.HttpFields;
-import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class Compression extends ContainerLifeCycle
 {
-    private static final Logger LOG = LoggerFactory.getLogger(Compression.class);
     private final String encodingName;
     private final String etagSuffix;
     private final String etagSuffixQuote;
@@ -46,34 +41,6 @@ public abstract class Compression extends ContainerLifeCycle
         encodingName = encoding;
         etagSuffix = StringUtil.isEmpty(EtagUtils.ETAG_SEPARATOR) ? "" : (EtagUtils.ETAG_SEPARATOR + encodingName);
         etagSuffixQuote = etagSuffix + "\"";
-    }
-
-    /**
-     * Test if the {@code Accept-Encoding} request header and {@code Content-Length} response
-     * header are suitable to allow compression for the response compression implementation.
-     *
-     * @param headers the request headers
-     * @param contentLength the content length
-     * @return true if compression is allowed
-     */
-    public boolean acceptsCompression(HttpFields headers, long contentLength)
-    {
-        if (contentLength >= 0 && contentLength < getMinCompressSize())
-        {
-            if (LOG.isDebugEnabled())
-                LOG.debug("{} excluded minCompressSize {}", this, headers);
-            return false;
-        }
-
-        // check the accept encoding header
-        if (!headers.contains(HttpHeader.ACCEPT_ENCODING, getEncodingName()))
-        {
-            if (LOG.isDebugEnabled())
-                LOG.debug("{} excluded not {} acceptable {}", this, getEncodingName(), headers);
-            return false;
-        }
-
-        return true;
     }
 
     /**

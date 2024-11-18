@@ -11,13 +11,14 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.compression.server;
+package org.eclipse.jetty.compression.server.internal;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jetty.compression.Compression;
 import org.eclipse.jetty.compression.EncoderSink;
+import org.eclipse.jetty.compression.server.CompressionConfig;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.MimeTypes;
@@ -25,13 +26,9 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.thread.Invocable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class CompressionResponse extends Response.Wrapper implements Callback, Invocable
 {
-    private static final Logger LOG = LoggerFactory.getLogger(CompressionResponse.class);
-
     enum State
     {
         MIGHT_COMPRESS,
@@ -42,8 +39,8 @@ public class CompressionResponse extends Response.Wrapper implements Callback, I
     private final Callback callback;
     private final CompressionConfig config;
     private final Compression compression;
+    private final AtomicReference<State> state = new AtomicReference<>(State.MIGHT_COMPRESS);
     private EncoderSink encoderSink;
-    private AtomicReference<State> state = new AtomicReference<>(State.MIGHT_COMPRESS);
     private boolean last;
 
     public CompressionResponse(Compression compression, Request request, Response wrapped, Callback callback, CompressionConfig config)
@@ -118,10 +115,7 @@ public class CompressionResponse extends Response.Wrapper implements Callback, I
                 if (last)
                     this.last = true;
             }
-            case NOT_COMPRESSING ->
-            {
-                super.write(last, content, callback);
-            }
+            case NOT_COMPRESSING -> super.write(last, content, callback);
         }
     }
 }

@@ -45,7 +45,6 @@ public abstract class EncoderSink implements Content.Sink
         }
         catch (Throwable t)
         {
-            // TODO: do we need to tell the delegate that we failed?
             callback.failed(t);
             return;
         }
@@ -80,13 +79,13 @@ public abstract class EncoderSink implements Content.Sink
     {
         private enum State
         {
-            // Intial state, nothing has been attempted yet
+            // Initial state, nothing has been attempted yet
             INITIAL,
             // We have started compressing
             COMPRESSING,
             // The last content is being encoded and is being flushed
             FINISHING,
-            // The final content has been send (final state)
+            // The final content has been sent (final state)
             FINISHED
         }
 
@@ -128,7 +127,7 @@ public abstract class EncoderSink implements Content.Sink
         }
 
         @Override
-        protected Action process() throws Throwable
+        protected Action process()
         {
             if (state.get() == State.FINISHED)
                 return Action.SUCCEEDED;

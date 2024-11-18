@@ -10,7 +10,6 @@ compression
 experimental
 
 [depend]
-compression-api
 compression
 
 [lib]
