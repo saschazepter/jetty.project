@@ -65,4 +65,22 @@ etc/jetty-eager-content.xml
 
 ## Whether requests should be rejected if they exceed maxRetainedBytes.
 # jetty.eager.content.rejectWhenExceeded=false
+
+## A comma-separated list of HTTP methods to include when matching a request.
+# jetty.eager.include.method=
+
+## A comma-separated list of HTTP methods to exclude when matching a request.
+# jetty.eager.exclude.method=
+
+## A comma-separated list of URI path patterns to include when matching a request.
+# jetty.eager.include.path=
+
+## A comma-separated list of URI path patterns to exclude when matching a request.
+# jetty.eager.exclude.path=
+
+## A comma-separated list of remote addresses patterns to include when matching a request.
+# jetty.eager.include.inet=
+
+## A comma-separated list of remote addresses patterns to exclude when matching a request.
+# jetty.eager.exclude.inet=
 #end::documentation[]
