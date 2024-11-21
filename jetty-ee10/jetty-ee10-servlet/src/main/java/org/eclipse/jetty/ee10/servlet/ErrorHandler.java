@@ -85,6 +85,7 @@ public class ErrorHandler implements Request.Handler
         }
 
         ServletContextRequest servletContextRequest = Request.as(request, ServletContextRequest.class);
+        servletContextRequest.getServletChannel().associate(request, response, callback);
         HttpServletRequest httpServletRequest = servletContextRequest.getServletApiRequest();
         HttpServletResponse httpServletResponse = servletContextRequest.getHttpServletResponse();
         ServletContextHandler contextHandler = servletContextRequest.getServletContext().getServletContextHandler();
@@ -111,6 +112,7 @@ public class ErrorHandler implements Request.Handler
                 }
                 finally
                 {
+                    httpServletResponse.flushBuffer();
                     contextHandler.requestDestroyed(servletContextRequest, httpServletRequest);
                 }
                 callback.succeeded();

@@ -20,6 +20,7 @@ import java.util.Map;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.eclipse.jetty.server.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,7 +139,8 @@ public class ErrorPageErrorHandler extends ErrorHandler implements ErrorHandler.
             errorPage = _errorPages.get(GLOBAL_ERROR_PAGE);
         }
 
-        if (LOG.isDebugEnabled())
+
+ if (LOG.isDebugEnabled())
         {
             StringBuilder dbg = new StringBuilder();
             dbg.append("getErrorPage(");

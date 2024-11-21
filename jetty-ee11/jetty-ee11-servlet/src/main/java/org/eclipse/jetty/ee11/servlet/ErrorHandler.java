@@ -24,8 +24,10 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
@@ -65,7 +67,9 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
         generateCacheControl(response);
 
         ServletContextRequest servletContextRequest = Request.as(request, ServletContextRequest.class);
+        servletContextRequest.getServletChannel().associate(request, response, callback);
         HttpServletRequest httpServletRequest = servletContextRequest.getServletApiRequest();
+
         HttpServletResponse httpServletResponse = servletContextRequest.getHttpServletResponse();
         ServletContextHandler contextHandler = servletContextRequest.getServletContext().getServletContextHandler();
         String cacheControl = getCacheControl();
@@ -91,6 +95,7 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
                 }
                 finally
                 {
+                    httpServletResponse.flushBuffer();
                     contextHandler.requestDestroyed(servletContextRequest, httpServletRequest);
                 }
                 callback.succeeded();
