@@ -14,8 +14,9 @@ experimental
 server
 
 [lib]
+lib/compression/jetty-compression-common-${jetty.version}.jar
 lib/compression/jetty-compression-server-${jetty.version}.jar
 
 [xml]
-etc/jetty-compression-handler.xml
+etc/jetty-compression.xml
 

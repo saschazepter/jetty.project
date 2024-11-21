@@ -1,24 +1,9 @@
-
 [description]
-Applies ThreadLimitHandler to entire server, to limit the threads per IP address for DOS protection.
+Installs ThreadLimitHandler at the root of the `Handler` tree, to limit
+the number of requests per IP address, for denial-of-service protection.
 
-[tags]
-server
+[deprecated]
+Use 'thread-limit' module instead.
 
 [depend]
-server
-
-[xml]
-etc/jetty-threadlimit.xml
-
-[ini-template]
-## Select style of proxy forwarded header
-#jetty.threadlimit.forwardedHeader=X-Forwarded-For
-#jetty.threadlimit.forwardedHeader=Forwarded
-
-## Enabled by default?
-#jetty.threadlimit.enabled=true
-
-## Thread limit per remote IP
-#jetty.threadlimit.threadLimit=10
-
+thread-limit

@@ -27,9 +27,9 @@ public class ZstandardEncoderConfig implements EncoderConfig
     /**
      * Default Buffer Size as found in zstd-jni.
      */
-    public static final int DEFAULT_BUFFER_SIZE;
-    public static final int MIN_BUFFER_SIZE = 32;
-    private static final Logger LOG = LoggerFactory.getLogger(ZstandardDecoderConfig.class);
+    private static final int DEFAULT_BUFFER_SIZE;
+    private static final int MIN_BUFFER_SIZE = 32;
+    private static final Logger LOG = LoggerFactory.getLogger(ZstandardEncoderConfig.class);
 
     static
     {
