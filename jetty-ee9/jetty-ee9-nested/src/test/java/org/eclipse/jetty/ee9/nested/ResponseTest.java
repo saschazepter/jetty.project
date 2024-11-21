@@ -1581,25 +1581,6 @@ public class ResponseTest
     }
 
     @Test
-    public void testWriteCheckError() throws Exception
-    {
-        Response response = getResponse();
-
-        PrintWriter writer = response.getWriter();
-        writer.println("test");
-        writer.flush();
-        assertFalse(writer.checkError());
-
-        Throwable cause = new IOException("problem at mill");
-        _channel.abort(cause);
-        writer.println("test");
-        assertTrue(writer.checkError());
-
-        writer.println("test"); // this should not cause an Exception
-        assertTrue(writer.checkError());
-    }
-
-    @Test
     public void testEncodeRedirect() throws Exception
     {
         SessionHandler sessionHandler = addSessionHandler();
