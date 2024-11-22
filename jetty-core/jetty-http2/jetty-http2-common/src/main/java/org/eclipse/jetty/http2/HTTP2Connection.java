@@ -145,7 +145,6 @@ public class HTTP2Connection extends AbstractConnection implements Parser.Listen
         if (LOG.isDebugEnabled())
             LOG.debug("HTTP2 Close {} ", this);
         super.onClose(cause);
-
         LifeCycle.stop(strategy);
     }
 
@@ -375,7 +374,8 @@ public class HTTP2Connection extends AbstractConnection implements Parser.Listen
                     {
                         shutdown = true;
                         session.onShutdown();
-                        return null;
+                        // The onShutDown() call above may have produced a task.
+                        return pollTask();
                     }
                 }
             }

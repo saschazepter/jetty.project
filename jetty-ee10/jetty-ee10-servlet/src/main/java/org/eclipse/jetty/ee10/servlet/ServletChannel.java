@@ -539,13 +539,13 @@ public class ServletChannel
 
                     case READ_CALLBACK:
                     {
-                        _context.run(() -> _servletContextRequest.getHttpInput().run());
+                        _context.run(_servletContextRequest.getHttpInput()::readCallback);
                         break;
                     }
 
                     case WRITE_CALLBACK:
                     {
-                        _context.run(() -> _servletContextRequest.getHttpOutput().run());
+                        _context.run(_servletContextRequest.getHttpOutput()::writeCallback);
                         break;
                     }
 
@@ -661,20 +661,15 @@ public class ServletChannel
             LOG.warn(request == null ? "unknown request" : request.getServletApiRequest().getRequestURI(), failure);
         }
 
-        if (isCommitted())
+        try
+        {
+            boolean abort = _state.onError(failure);
+            if (abort)
+                abort(failure);
+        }
+        catch (Throwable x)
         {
             abort(failure);
-        }
-        else
-        {
-            try
-            {
-                _state.onError(failure);
-            }
-            catch (IllegalStateException e)
-            {
-                abort(failure);
-            }
         }
     }
 

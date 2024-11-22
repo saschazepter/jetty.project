@@ -699,7 +699,7 @@ public interface HttpFields extends Iterable<HttpField>, Supplier<HttpFields>
      * @return the value of the field as a {@code long},
      * or -1 if no such field is present
      * @throws NumberFormatException if the value of the field
-     * cannot be converted to a {@link long}
+     * cannot be converted to a {@code long}
      */
     default long getLongField(String name) throws NumberFormatException
     {
@@ -715,7 +715,7 @@ public interface HttpFields extends Iterable<HttpField>, Supplier<HttpFields>
      * @return the value of the field as a {@code long},
      * or -1 if no such field is present
      * @throws NumberFormatException if the value of the field
-     * cannot be converted to a {@link long}
+     * cannot be converted to a {@code long}
      */
     default long getLongField(HttpHeader header) throws NumberFormatException
     {
@@ -925,6 +925,21 @@ public interface HttpFields extends Iterable<HttpField>, Supplier<HttpFields>
             size++;
         }
         return size;
+    }
+
+    /**
+     * <p>Wraps an instance of {@link HttpFields} as a {@link Map}.</p>
+     * <p>If the provided {@link HttpFields} is an instance of {@link HttpFields.Mutable} then changes to the
+     * {@link Map} will be reflected in the underlying {@link HttpFields}.
+     * Otherwise, any modification to the {@link Map} will throw {@link UnsupportedOperationException}.</p>
+     * @param fields the {@link HttpFields} to convert to a {@link Map}.
+     * @return an {@link Map} representing the contents of the {@link HttpFields}.
+     */
+    static Map<String, List<String>> asMap(HttpFields fields)
+    {
+        return (fields instanceof HttpFields.Mutable mutable)
+            ? new HttpFieldsMap.Mutable(mutable)
+            : new HttpFieldsMap.Immutable(fields);
     }
 
     /**

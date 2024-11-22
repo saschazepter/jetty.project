@@ -40,12 +40,15 @@ import org.eclipse.jetty.client.Connection;
 import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.Destination;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.HttpClientTransport;
 import org.eclipse.jetty.client.HttpProxy;
 import org.eclipse.jetty.client.InputStreamResponseListener;
 import org.eclipse.jetty.client.Origin;
 import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.client.Result;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
@@ -59,6 +62,7 @@ import org.eclipse.jetty.http2.api.Session;
 import org.eclipse.jetty.http2.api.Stream;
 import org.eclipse.jetty.http2.api.server.ServerSessionListener;
 import org.eclipse.jetty.http2.client.HTTP2Client;
+import org.eclipse.jetty.http2.client.transport.ClientConnectionFactoryOverHTTP2;
 import org.eclipse.jetty.http2.client.transport.HttpClientTransportOverHTTP2;
 import org.eclipse.jetty.http2.client.transport.internal.HttpChannelOverHTTP2;
 import org.eclipse.jetty.http2.client.transport.internal.HttpConnectionOverHTTP2;
@@ -91,6 +95,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -103,10 +108,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class HttpClientTransportOverHTTP2Test extends AbstractTest
 {
     @Test
-    public void testPropertiesAreForwarded() throws Exception
+    public void testPropertiesAreForwardedOverHTTP2() throws Exception
     {
-        HTTP2Client http2Client = new HTTP2Client();
-        try (HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP2(http2Client)))
+        ClientConnector clientConnector = new ClientConnector();
+        HTTP2Client http2Client = new HTTP2Client(clientConnector);
+        testPropertiesAreForwarded(http2Client, new HttpClientTransportOverHTTP2(http2Client));
+    }
+
+    @Test
+    public void testPropertiesAreForwardedDynamic() throws Exception
+    {
+        ClientConnector clientConnector = new ClientConnector();
+        HTTP2Client http2Client = new HTTP2Client(clientConnector);
+        testPropertiesAreForwarded(http2Client, new HttpClientTransportDynamic(clientConnector, new ClientConnectionFactoryOverHTTP2.HTTP2(http2Client)));
+    }
+
+    private void testPropertiesAreForwarded(HTTP2Client http2Client, HttpClientTransport httpClientTransport) throws Exception
+    {
+        try (HttpClient httpClient = new HttpClient(httpClientTransport))
         {
             Executor executor = new QueuedThreadPool();
             httpClient.setExecutor(executor);
@@ -125,6 +144,8 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
             assertEquals(httpClient.getIdleTimeout(), http2Client.getIdleTimeout());
             assertEquals(httpClient.isUseInputDirectByteBuffers(), http2Client.isUseInputDirectByteBuffers());
             assertEquals(httpClient.isUseOutputDirectByteBuffers(), http2Client.isUseOutputDirectByteBuffers());
+            assertEquals(httpClient.getRequestBufferSize(), http2Client.getMaxRequestHeadersSize());
+            assertEquals(httpClient.getMaxResponseHeadersSize(), http2Client.getMaxResponseHeadersSize());
         }
         assertTrue(http2Client.isStopped());
     }
@@ -824,6 +845,54 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
         ContentResponse response = completable.get(15, TimeUnit.SECONDS);
 
         assertEquals(HttpStatus.OK_200, response.getStatus());
+    }
+
+    @Test
+    public void testUnreadRequestContentDrainsResponseContent() throws Exception
+    {
+        start(new Handler.Abstract()
+        {
+            @Override
+            public boolean handle(Request request, org.eclipse.jetty.server.Response response, Callback callback)
+            {
+                // Do not read the request content,
+                // the server will reset the stream,
+                // then send a response with content.
+                ByteBuffer content = ByteBuffer.allocate(1024);
+                response.getHeaders().put(HttpHeader.CONTENT_LENGTH, content.remaining());
+                response.write(true, content, callback);
+                return true;
+            }
+        });
+
+        AtomicReference<Content.Source> contentSourceRef = new AtomicReference<>();
+        AtomicReference<Content.Chunk> chunkRef = new AtomicReference<>();
+        CountDownLatch responseFailureLatch = new CountDownLatch(1);
+        AtomicReference<Result> resultRef = new AtomicReference<>();
+        httpClient.newRequest("localhost", connector.getLocalPort())
+            .method(HttpMethod.POST)
+            .body(new AsyncRequestContent(ByteBuffer.allocate(1024)))
+            .onResponseContentSource((response, contentSource) -> contentSourceRef.set(contentSource))
+            // The request is failed before the response, verify that
+            // reading at the request failure event yields a failure chunk.
+            .onRequestFailure((request, failure) -> chunkRef.set(contentSourceRef.get().read()))
+            .onResponseFailure((response, failure) -> responseFailureLatch.countDown())
+            .send(resultRef::set);
+
+        // Wait for the RST_STREAM to arrive and drain the response content.
+        assertTrue(responseFailureLatch.await(5, TimeUnit.SECONDS));
+
+        // Verify that the chunk read at the request failure event is a failure chunk.
+        Content.Chunk chunk = chunkRef.get();
+        assertTrue(Content.Chunk.isFailure(chunk, true));
+        // Reading more also yields a failure chunk.
+        chunk = contentSourceRef.get().read();
+        assertTrue(Content.Chunk.isFailure(chunk, true));
+
+        Result result = await().atMost(5, TimeUnit.SECONDS).until(resultRef::get, notNullValue());
+        assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
+        assertNotNull(result.getRequestFailure());
+        assertNotNull(result.getResponseFailure());
     }
 
     @Test

@@ -29,6 +29,7 @@ import java.util.EventListener;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -63,6 +64,7 @@ import jakarta.servlet.http.HttpSessionIdListener;
 import jakarta.servlet.http.HttpSessionListener;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.HttpCookie;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
@@ -1000,17 +1002,17 @@ public class ContextHandler extends ScopedHandler implements Attributes, Supplie
         if (!_servletRequestListeners.isEmpty())
         {
             final ServletRequestEvent sre = new ServletRequestEvent(_apiContext, request);
-            for (int i = _servletRequestListeners.size(); i-- > 0; )
+            for (ListIterator<ServletRequestListener> i = TypeUtil.listIteratorAtEnd(_servletRequestListeners); i.hasPrevious();)
             {
-                _servletRequestListeners.get(i).requestDestroyed(sre);
+                i.previous().requestDestroyed(sre);
             }
         }
 
         if (!_servletRequestAttributeListeners.isEmpty())
         {
-            for (int i = _servletRequestAttributeListeners.size(); i-- > 0; )
+            for (ListIterator<ServletRequestAttributeListener> i = TypeUtil.listIteratorAtEnd(_servletRequestAttributeListeners); i.hasPrevious();)
             {
-                baseRequest.removeEventListener(_servletRequestAttributeListeners.get(i));
+                baseRequest.removeEventListener(i.previous());
             }
         }
     }
@@ -1070,11 +1072,11 @@ public class ContextHandler extends ScopedHandler implements Attributes, Supplie
     {
         if (!_contextListeners.isEmpty())
         {
-            for (int i = _contextListeners.size(); i-- > 0; )
+            for (ListIterator<ContextScopeListener> i = TypeUtil.listIteratorAtEnd(_contextListeners); i.hasPrevious();)
             {
                 try
                 {
-                    _contextListeners.get(i).exitScope(_apiContext, request);
+                    i.previous().exitScope(_apiContext, request);
                 }
                 catch (Throwable e)
                 {
@@ -2808,6 +2810,15 @@ public class ContextHandler extends ScopedHandler implements Attributes, Supplie
 
             CoreContextRequest coreContextRequest = new CoreContextRequest(request, this.getContext(), httpChannel);
             httpChannel.onRequest(coreContextRequest);
+            HttpChannel channel = httpChannel;
+            org.eclipse.jetty.server.Request.addCompletionListener(coreContextRequest, x ->
+            {
+                // WebSocket needs a reference to the HttpServletRequest,
+                // so do not recycle the HttpChannel if it's a WebSocket
+                // request, no matter if the response is successful or not.
+                if (!request.getHeaders().contains(HttpHeader.SEC_WEBSOCKET_VERSION))
+                    channel.recycle();
+            });
             return coreContextRequest;
         }
 

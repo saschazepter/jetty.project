@@ -179,9 +179,15 @@ public class HTTP2Stream implements Stream, Attachable, Closeable, Callback, Dum
         }
         session.dataConsumed(this, flowControlLength);
         if (resetFailure != null)
+        {
+            close();
+            session.removeStream(this);
             callback.failed(resetFailure);
+        }
         else
+        {
             session.reset(this, frame, callback);
+        }
     }
 
     private boolean startWrite(Callback callback)
@@ -609,13 +615,17 @@ public class HTTP2Stream implements Stream, Attachable, Closeable, Callback, Dum
             failure = frame.getFailure();
             flowControlLength = drain();
         }
-        close();
-        boolean removed = session.removeStream(this);
         session.dataConsumed(this, flowControlLength);
-        if (removed)
-            notifyFailure(this, frame, callback);
-        else
-            callback.succeeded();
+        close();
+
+        notifyFailure(this, frame, new Nested(callback)
+        {
+            @Override
+            public void completed()
+            {
+                session.removeStream(HTTP2Stream.this);
+            }
+        });
     }
 
     private int drain()
@@ -959,7 +969,7 @@ public class HTTP2Stream implements Stream, Attachable, Closeable, Callback, Dum
     @Override
     public String toString()
     {
-        return String.format("%s#%d@%x{sendWindow=%s,recvWindow=%s,queue=%d,demand=%b,reset=%b/%b,%s,age=%d,attachment=%s}",
+        return String.format("%s#%d@%x{sendWindow=%s,recvWindow=%s,queue=%d,demand=%b,reset=%b/%b,%s,age=%d,request=%s,attachment=%s}",
             getClass().getSimpleName(),
             getId(),
             session.hashCode(),
@@ -971,6 +981,7 @@ public class HTTP2Stream implements Stream, Attachable, Closeable, Callback, Dum
             remoteReset,
             closeState,
             NanoTime.millisSince(creationNanoTime),
+            request,
             attachment);
     }
 

@@ -42,7 +42,7 @@ import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IteratingCallback;
 import org.eclipse.jetty.util.IteratingNestedCallback;
 import org.eclipse.jetty.util.NanoTime;
-import org.junit.jupiter.api.Assertions;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -263,7 +263,7 @@ public class HttpClientDemandTest extends AbstractTest
             .timeout(5, TimeUnit.SECONDS)
             .send(result ->
             {
-                Assertions.assertFalse(result.isFailed(), String.valueOf(result.getFailure()));
+                assertFalse(result.isFailed(), String.valueOf(result.getFailure()));
                 Response response = result.getResponse();
                 assertEquals(HttpStatus.OK_200, response.getStatus());
                 resultLatch.countDown();
@@ -346,7 +346,7 @@ public class HttpClientDemandTest extends AbstractTest
             .onResponseContentAsync(listener2)
             .send(result ->
             {
-                Assertions.assertFalse(result.isFailed(), String.valueOf(result.getFailure()));
+                assertFalse(result.isFailed(), String.valueOf(result.getFailure()));
                 Response response = result.getResponse();
                 assertEquals(HttpStatus.OK_200, response.getStatus());
                 resultLatch.countDown();
@@ -415,8 +415,8 @@ public class HttpClientDemandTest extends AbstractTest
             })
             .send(result ->
             {
-                Assertions.assertTrue(result.isSucceeded());
-                Assertions.assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
+                assertTrue(result.isSucceeded());
+                assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
                 resultLatch.countDown();
             });
         assertTrue(resultLatch.await(5, TimeUnit.SECONDS));
@@ -480,8 +480,8 @@ public class HttpClientDemandTest extends AbstractTest
             })
             .send(result ->
             {
-                Assertions.assertTrue(result.isSucceeded());
-                Assertions.assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
+                assertTrue(result.isSucceeded());
+                assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
                 resultLatch.countDown();
             });
 
@@ -540,8 +540,8 @@ public class HttpClientDemandTest extends AbstractTest
             })
             .send(result ->
             {
-                Assertions.assertTrue(result.isSucceeded());
-                Assertions.assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
+                assertTrue(result.isSucceeded());
+                assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
                 resultLatch.countDown();
             });
 
@@ -572,8 +572,8 @@ public class HttpClientDemandTest extends AbstractTest
             .onResponseContentSource((response, contentSource) -> contentSource.demand(() -> new Thread(new Accumulator(contentSource, chunks)).start()))
             .send(result ->
             {
-                Assertions.assertTrue(result.isSucceeded());
-                Assertions.assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
+                assertTrue(result.isSucceeded());
+                assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
                 resultLatch.countDown();
             });
 
@@ -590,7 +590,7 @@ public class HttpClientDemandTest extends AbstractTest
         assertThat(accumulatedSize, is(totalBytes));
     }
 
-    private static class Accumulator implements Runnable
+    private static class Accumulator implements Invocable.Task
     {
         private final Content.Source contentSource;
         private final List<Content.Chunk> chunks;
@@ -613,6 +613,12 @@ public class HttpClientDemandTest extends AbstractTest
             chunks.add(chunk);
             if (!chunk.isLast())
                 contentSource.demand(this);
+        }
+
+        @Override
+        public InvocationType getInvocationType()
+        {
+            return InvocationType.NON_BLOCKING;
         }
     }
 

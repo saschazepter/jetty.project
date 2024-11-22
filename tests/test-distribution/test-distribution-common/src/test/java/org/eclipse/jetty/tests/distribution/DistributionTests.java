@@ -479,7 +479,7 @@ public class DistributionTests extends AbstractJettyHomeTest
                 startHttpClient(ssl);
                 URI serverUri = URI.create(scheme + "://localhost:" + port + "/test");
                 ContentResponse response = client.GET(serverUri);
-                assertEquals(HttpStatus.OK_200, response.getStatus());
+                assertEquals(HttpStatus.OK_200, response.getStatus(), response.getContentAsString());
                 String content = response.getContentAsString();
                 assertThat(content, containsString("WebSocketEcho: success"));
                 assertThat(content, containsString("ConnectTimeout: 4999"));
@@ -528,7 +528,7 @@ public class DistributionTests extends AbstractJettyHomeTest
                 startHttpClient(scheme.equals("https"));
                 URI serverUri = URI.create(scheme + "://localhost:" + port + "/test");
                 ContentResponse response = client.GET(serverUri);
-                assertEquals(HttpStatus.OK_200, response.getStatus());
+                assertEquals(HttpStatus.OK_200, response.getStatus(), response.getContentAsString());
                 String content = response.getContentAsString();
                 assertThat(content, containsString("WebSocketEcho: success"));
                 assertThat(content, containsString("ConnectTimeout: 4999"));
@@ -1540,9 +1540,10 @@ public class DistributionTests extends AbstractJettyHomeTest
         }
     }
 
-    @Test
     @DisabledForJreRange(max = JRE.JAVA_20)
-    public void testVirtualThreadPool() throws Exception
+    @ParameterizedTest
+    @ValueSource(strings = {"threadpool-virtual", "threadpool-all-virtual"})
+    public void testVirtualThreadPool(String threadPoolModule) throws Exception
     {
         Path jettyBase = newTestJettyBaseDirectory();
         String jettyVersion = System.getProperty("jettyVersion");
@@ -1551,7 +1552,7 @@ public class DistributionTests extends AbstractJettyHomeTest
             .jettyBase(jettyBase)
             .build();
 
-        try (JettyHomeTester.Run run1 = distribution.start("--add-modules=threadpool-virtual,http"))
+        try (JettyHomeTester.Run run1 = distribution.start("--add-modules=http," + threadPoolModule))
         {
             assertTrue(run1.awaitFor(START_TIMEOUT, TimeUnit.SECONDS));
             assertEquals(0, run1.getExitValue());
@@ -1939,6 +1940,59 @@ public class DistributionTests extends AbstractJettyHomeTest
                     .timeout(15, TimeUnit.SECONDS)
                     .send();
                 assertEquals(HttpStatus.OK_200, response.getStatus());
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ee8", "ee9", "ee10"})
+    public void testLimitHandlers(String env) throws Exception
+    {
+        String jettyVersion = System.getProperty("jettyVersion");
+        JettyHomeTester distribution = JettyHomeTester.Builder.newInstance()
+            .jettyVersion(jettyVersion)
+            .build();
+
+        String[] modules = {
+            "http",
+            "qos",
+            "size-limit",
+            "thread-limit",
+            toEnvironment("webapp", env),
+            toEnvironment("deploy", env)
+        };
+        try (JettyHomeTester.Run run1 = distribution.start("--add-modules=" + String.join(",", modules)))
+        {
+            assertTrue(run1.awaitFor(START_TIMEOUT, TimeUnit.SECONDS));
+            assertEquals(0, run1.getExitValue());
+
+            Path jettyLogging = distribution.getJettyBase().resolve("resources/jetty-logging.properties");
+            String loggingConfig = """
+                org.eclipse.jetty.LEVEL=DEBUG
+                """;
+            Files.writeString(jettyLogging, loggingConfig, StandardOpenOption.TRUNCATE_EXISTING);
+
+            Path war = distribution.resolveArtifact("org.eclipse.jetty." + env + ".demos:jetty-" + env + "-demo-simple-webapp:war:" + jettyVersion);
+            distribution.installWar(war, "test");
+
+            int port = Tester.freePort();
+            try (JettyHomeTester.Run run2 = distribution.start("jetty.http.selectors=1", "jetty.http.port=" + port))
+            {
+                try
+                {
+                    assertTrue(run2.awaitConsoleLogsFor("Started oejs.Server@", START_TIMEOUT, TimeUnit.SECONDS));
+
+                    startHttpClient();
+                    URI serverUri = URI.create("http://localhost:" + port + "/test/");
+                    ContentResponse response = client.newRequest(serverUri)
+                        .timeout(15, TimeUnit.SECONDS)
+                        .send();
+                    assertEquals(HttpStatus.OK_200, response.getStatus());
+                }
+                finally
+                {
+                    run2.getLogs().forEach(System.err::println);
+                }
             }
         }
     }

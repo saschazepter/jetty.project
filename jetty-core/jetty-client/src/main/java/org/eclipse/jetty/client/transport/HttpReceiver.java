@@ -15,6 +15,7 @@ package org.eclipse.jetty.client.transport;
 
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jetty.client.ContentDecoder;
@@ -67,8 +68,8 @@ public abstract class HttpReceiver
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpReceiver.class);
 
-    private final SerializedInvoker invoker = new SerializedInvoker();
     private final HttpChannel channel;
+    private final SerializedInvoker invoker;
     private ResponseState responseState = ResponseState.IDLE;
     private NotifiableContentSource contentSource;
     private Throwable failure;
@@ -76,6 +77,8 @@ public abstract class HttpReceiver
     protected HttpReceiver(HttpChannel channel)
     {
         this.channel = channel;
+        Executor executor = channel.getHttpDestination().getHttpClient().getExecutor();
+        invoker = new SerializedInvoker(HttpReceiver.class.getSimpleName(), executor);
     }
 
     /**
@@ -332,19 +335,8 @@ public abstract class HttpReceiver
             if (exchange.isResponseCompleteOrTerminated())
                 return;
 
-            responseContentAvailable();
+            contentSource.onDataAvailable();
         });
-    }
-
-    /**
-     * Method to be invoked when response content is available to be read.
-     * <p>
-     * This method directly invokes the demand callback, assuming the caller
-     * is already serialized with other events.
-     */
-    protected void responseContentAvailable()
-    {
-        contentSource.onDataAvailable();
     }
 
     /**
@@ -720,6 +712,9 @@ public abstract class HttpReceiver
 
             current = HttpReceiver.this.read(false);
 
+            if (LOG.isDebugEnabled())
+                LOG.debug("Read {} from {}", current, this);
+
             try (AutoLock ignored = lock.lock())
             {
                 if (currentChunk != null)
@@ -739,6 +734,7 @@ public abstract class HttpReceiver
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("onDataAvailable on {}", this);
+            invoker.assertCurrentThreadInvoking();
             // The onDataAvailable() method is only ever called
             // by the invoker so avoid using the invoker again.
             invokeDemandCallback(false);
@@ -762,6 +758,8 @@ public abstract class HttpReceiver
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("Processing demand on {}", this);
+
+            invoker.assertCurrentThreadInvoking();
 
             Content.Chunk current;
             try (AutoLock ignored = lock.lock())
@@ -802,9 +800,14 @@ public abstract class HttpReceiver
             try
             {
                 if (invoke)
+                {
                     invoker.run(demandCallback);
+                }
                 else
+                {
+                    invoker.assertCurrentThreadInvoking();
                     demandCallback.run();
+                }
             }
             catch (Throwable x)
             {

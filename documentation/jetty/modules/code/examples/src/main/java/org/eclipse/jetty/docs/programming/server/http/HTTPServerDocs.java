@@ -35,7 +35,6 @@ import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.ee10.servlet.DefaultServlet;
 import org.eclipse.jetty.ee10.servlet.ResourceServlet;
-import org.eclipse.jetty.ee10.servlet.ResourceServlet;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.ee10.webapp.WebAppContext;
@@ -47,7 +46,7 @@ import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.http.MultiPart;
+import org.eclipse.jetty.http.MultiPartConfig;
 import org.eclipse.jetty.http.MultiPartFormData;
 import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
@@ -61,6 +60,7 @@ import org.eclipse.jetty.rewrite.handler.RedirectRegexRule;
 import org.eclipse.jetty.rewrite.handler.RewriteHandler;
 import org.eclipse.jetty.rewrite.handler.RewriteRegexRule;
 import org.eclipse.jetty.server.ConnectionFactory;
+import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.FormFields;
@@ -351,6 +351,28 @@ public class HTTPServerDocs
 
         server.start();
         // end::sameRandomPort[]
+    }
+
+    public void connectionLimit()
+    {
+        // tag::connectionLimit[]
+        Server server = new Server();
+
+        // Limit connections to the server, across all connectors.
+        ConnectionLimit serverConnectionLimit = new ConnectionLimit(1024, server);
+        server.addBean(serverConnectionLimit);
+
+        ServerConnector connector1 = new ServerConnector(server);
+        connector1.setPort(8080);
+        server.addConnector(connector1);
+
+        ServerConnector connector2 = new ServerConnector(server);
+        connector2.setPort(9090);
+        server.addConnector(connector2);
+        // Limit connections for this connector only.
+        ConnectionLimit connectorConnectionLimit = new ConnectionLimit(64, connector2);
+        connector2.addBean(connectorConnectionLimit);
+        // end::connectionLimit[]
     }
 
     public void sslHandshakeListener() throws Exception
@@ -751,23 +773,29 @@ public class HTTPServerDocs
                 if (MimeTypes.Type.FORM_ENCODED.is(contentType))
                 {
                     // Convert the request content into Fields.
-                    CompletableFuture<Fields> completableFields = FormFields.from(request); // <1>
-
-                    // When all the request content has arrived, process the fields.
-                    completableFields.whenComplete((fields, failure) -> // <2>
+                    FormFields.onFields(request, new Promise.Invocable<>() // <1>
                     {
-                        if (failure == null)
+                        @Override
+                        public void succeeded(Fields fields) // <2>
                         {
                             processFields(fields);
                             // Send a simple 200 response, completing the callback.
                             response.setStatus(HttpStatus.OK_200);
                             callback.succeeded();
                         }
-                        else
+
+                        @Override
+                        public void failed(Throwable failure)
                         {
                             // Reading the request content failed.
                             // Send an error response, completing the callback.
                             Response.writeError(request, response, callback, failure);
+                        }
+
+                        @Override
+                        public InvocationType getInvocationType() // <3>
+                        {
+                            return InvocationType.NON_BLOCKING;
                         }
                     });
 
@@ -800,21 +828,17 @@ public class HTTPServerDocs
                 String contentType = request.getHeaders().get(HttpHeader.CONTENT_TYPE);
                 if (MimeTypes.Type.MULTIPART_FORM_DATA.is(contentType))
                 {
-                    // Extract the multipart boundary.
-                    String boundary = MultiPart.extractBoundary(contentType);
-
-                    // Create and configure the multipart parser.
-                    MultiPartFormData.Parser parser = new MultiPartFormData.Parser(boundary);
-                    // By default, uploaded files are stored in this directory, to
-                    // avoid to read the file content (which can be large) in memory.
-                    parser.setFilesDirectory(Path.of("/tmp"));
+                    // Configuration for the MultiPart parser.
+                    MultiPartConfig config = new MultiPartConfig.Builder()
+                        // By default, uploaded files are stored in this directory, to
+                        // avoid to read the file content (which can be large) in memory.
+                        .location(Path.of("/tmp"))
+                        .build();
                     // Convert the request content into parts.
-                    CompletableFuture<MultiPartFormData.Parts> completableParts = parser.parse(request); // <1>
-
-                    // When all the request content has arrived, process the parts.
-                    completableParts.whenComplete((parts, failure) -> // <2>
+                    MultiPartFormData.onParts(request, request, contentType, config, new Promise.Invocable<>() // <1>
                     {
-                        if (failure == null)
+                        @Override
+                        public void succeeded(MultiPartFormData.Parts parts) // <2>
                         {
                             // Use the Parts API to process the parts.
                             processParts(parts);
@@ -822,11 +846,19 @@ public class HTTPServerDocs
                             response.setStatus(HttpStatus.OK_200);
                             callback.succeeded();
                         }
-                        else
+
+                        @Override
+                        public void failed(Throwable failure)
                         {
                             // Reading the request content failed.
                             // Send an error response, completing the callback.
                             Response.writeError(request, response, callback, failure);
+                        }
+
+                        @Override
+                        public InvocationType getInvocationType() // <3>
+                        {
+                            return InvocationType.NON_BLOCKING;
                         }
                     });
 
@@ -1457,8 +1489,8 @@ public class HTTPServerDocs
         // Set the max number of concurrent requests,
         // for example in relation to the thread pool.
         qosHandler.setMaxRequestCount(maxThreads / 2);
-        // A suspended request may stay suspended for at most 15 seconds.
-        qosHandler.setMaxSuspend(Duration.ofSeconds(15));
+        // A suspended request may stay suspended for at most 5 seconds.
+        qosHandler.setMaxSuspend(Duration.ofSeconds(5));
         server.setHandler(qosHandler);
 
         // Provide quality of service to the shop

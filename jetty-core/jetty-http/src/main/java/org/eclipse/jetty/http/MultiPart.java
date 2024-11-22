@@ -45,6 +45,7 @@ import org.eclipse.jetty.util.StaticException;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.Utf8StringBuilder;
 import org.eclipse.jetty.util.thread.AutoLock;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.eclipse.jetty.util.thread.SerializedInvoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -564,7 +565,7 @@ public class MultiPart
     public abstract static class AbstractContentSource implements Content.Source, Closeable
     {
         private final AutoLock lock = new AutoLock();
-        private final SerializedInvoker invoker = new SerializedInvoker();
+        private final SerializedInvoker invoker = new SerializedInvoker(AbstractContentSource.class);
         private final Queue<Part> parts = new ArrayDeque<>();
         private final String boundary;
         private final ByteBuffer firstBoundary;
@@ -764,7 +765,7 @@ public class MultiPart
                     builder.append("\r\n");
 
                     // TODO: use a ByteBuffer pool and direct ByteBuffers?
-                    ByteBuffer byteBuffer = UTF_8.encode(builder.toCompleteString());
+                    ByteBuffer byteBuffer = ByteBuffer.wrap(builder.toCompleteString().getBytes(UTF_8));
                     state = State.CONTENT;
                     yield Content.Chunk.from(byteBuffer, false);
                 }
@@ -823,14 +824,8 @@ public class MultiPart
             }
             if (part != null)
             {
-                part.getContentSource().demand(() ->
-                {
-                    try (AutoLock ignoredAgain = lock.lock())
-                    {
-                        this.demand = null;
-                    }
-                    demandCallback.run();
-                });
+                // Inner class used instead of lambda for clarity in stack traces.
+                part.getContentSource().demand(new DemandTask(demandCallback));
             }
             else if (invoke)
             {
@@ -886,6 +881,27 @@ public class MultiPart
         private enum State
         {
             FIRST, MIDDLE, HEADERS, CONTENT, COMPLETE
+        }
+
+        private class DemandTask extends Invocable.Task.Abstract
+        {
+            private final Runnable demandCallback;
+
+            private DemandTask(Runnable demandCallback)
+            {
+                super(Invocable.getInvocationType(demandCallback));
+                this.demandCallback = demandCallback;
+            }
+
+            @Override
+            public void run()
+            {
+                try (AutoLock ignoredAgain = lock.lock())
+                {
+                    AbstractContentSource.this.demand = null;
+                }
+                demandCallback.run();
+            }
         }
     }
 

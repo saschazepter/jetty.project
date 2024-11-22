@@ -47,13 +47,16 @@ import org.eclipse.jetty.http.MultiPartCompliance;
 import org.eclipse.jetty.http.MultiPartConfig;
 import org.eclipse.jetty.http.Trailers;
 import org.eclipse.jetty.io.Content;
+import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.internal.CompletionStreamWrapper;
 import org.eclipse.jetty.server.internal.HttpChannelState;
 import org.eclipse.jetty.util.Attributes;
+import org.eclipse.jetty.util.Blocker;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Fields;
 import org.eclipse.jetty.util.HostPort;
 import org.eclipse.jetty.util.NanoTime;
+import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.UrlEncoded;
@@ -569,14 +572,53 @@ public interface Request extends Attributes, Content.Source
 
     static Fields getParameters(Request request) throws Exception
     {
-        return getParametersAsync(request).get();
+        try (Blocker.Promise<Fields> promise = Blocker.promise())
+        {
+            onParameters(request, promise);
+            return promise.block();
+        }
     }
 
+    /**
+     * @deprecated use {@link #onParameters(Request, Promise.Invocable)} instead.
+     */
+    @Deprecated(forRemoval = true, since = "12.0.16")
     static CompletableFuture<Fields> getParametersAsync(Request request)
     {
         Fields queryFields = Request.extractQueryParameters(request);
         CompletableFuture<Fields> contentFields = FormFields.from(request);
         return contentFields.thenApply(formFields -> Fields.combine(queryFields, formFields));
+    }
+
+    /**
+     * Asynchronous version of {@link #getParameters(Request)}.
+     *
+     * @param request the request
+     * @param promise the promise that will be completed with the parameters
+     */
+    static void onParameters(Request request, Promise.Invocable<Fields> promise)
+    {
+        Fields queryFields = Request.extractQueryParameters(request);
+        FormFields.onFields(request, new Promise.Invocable<>()
+        {
+            @Override
+            public void succeeded(Fields result)
+            {
+                promise.succeeded(Fields.combine(queryFields, result));
+            }
+
+            @Override
+            public void failed(Throwable x)
+            {
+                promise.failed(x);
+            }
+
+            @Override
+            public InvocationType getInvocationType()
+            {
+                return promise.getInvocationType();
+            }
+        });
     }
 
     @SuppressWarnings("unchecked")
@@ -716,6 +758,7 @@ public interface Request extends Attributes, Content.Source
          *         is returned, then this method must not generate a response, nor complete the callback.
          * @throws Exception if there is a failure during the handling. Catchers cannot assume that the callback will be
          *                   called and thus should attempt to complete the request as if a false had been returned.
+         * @see AbortException
          */
         boolean handle(Request request, Response response, Callback callback) throws Exception;
 
@@ -724,6 +767,34 @@ public interface Request extends Attributes, Content.Source
         default InvocationType getInvocationType()
         {
             return InvocationType.BLOCKING;
+        }
+
+        /**
+         * A marker {@link Exception} that can be passed the {@link Callback#failed(Throwable)} of the {@link Callback}
+         * passed in {@link #handle(Request, Response, Callback)}, to cause request handling to be aborted.  For HTTP/1
+         * an abort is handled with a {@link EndPoint#close()}, for later versions of HTTP, a reset message will be sent.
+         */
+        class AbortException extends Exception
+        {
+            public AbortException()
+            {
+                super();
+            }
+
+            public AbortException(String message)
+            {
+                super(message);
+            }
+
+            public AbortException(String message, Throwable cause)
+            {
+                super(message, cause);
+            }
+
+            public AbortException(Throwable cause)
+            {
+                super(cause);
+            }
         }
     }
 

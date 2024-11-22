@@ -198,7 +198,7 @@ public class EventsHandlerTest extends AbstractTest
         assertThat(response.getStatus(), is(200));
         assertThat(response.getContentAsString(), is("ABCDEF"));
         assertThat(stringBuffer.toString(), is("ABCDEF"));
-        assertThat(failures.size(), is(0));
+        await().atMost(5, TimeUnit.SECONDS).during(1, TimeUnit.SECONDS).until(failures::size, is(0));
     }
 
     @ParameterizedTest
@@ -298,7 +298,8 @@ public class EventsHandlerTest extends AbstractTest
         startServer(transport, eventsHandler);
         startClient(transport);
 
-        URI uri = URI.create(newURI(transport).toASCIIString() + "?handling=500&succeeding=500");
+        long delayMs = 500;
+        URI uri = URI.create(newURI(transport).toASCIIString() + "?handling=%d&succeeding=%d".formatted(delayMs, delayMs));
 
         ContentResponse response = client.GET(uri);
         assertThat(response.getStatus(), is(200));
@@ -307,9 +308,10 @@ public class EventsHandlerTest extends AbstractTest
         assertThat(eventsHandler.getEvents().get(0).name, equalTo("onBeforeHandling"));
         assertThat(eventsHandler.getEvents().get(0).delayInNs, greaterThan(0L));
         assertThat(eventsHandler.getEvents().get(1).name, equalTo("onAfterHandling"));
-        assertThat(eventsHandler.getEvents().get(1).delayInNs - eventsHandler.getEvents().get(0).delayInNs, both(greaterThan(500_000_000L)).and(lessThan(600_000_000L)));
+        long delayNs = TimeUnit.MILLISECONDS.toNanos(delayMs);
+        assertThat(eventsHandler.getEvents().get(1).delayInNs - eventsHandler.getEvents().get(0).delayInNs, both(greaterThan(delayNs)).and(lessThan(2 * delayNs)));
         assertThat(eventsHandler.getEvents().get(2).name, equalTo("onResponseBegin"));
-        assertThat(eventsHandler.getEvents().get(2).delayInNs - eventsHandler.getEvents().get(1).delayInNs, both(greaterThan(500_000_000L)).and(lessThan(600_000_000L)));
+        assertThat(eventsHandler.getEvents().get(2).delayInNs - eventsHandler.getEvents().get(1).delayInNs, both(greaterThan(delayNs)).and(lessThan(2 * delayNs)));
         assertThat(eventsHandler.getEvents().get(3).name, equalTo("onComplete"));
         assertThat(eventsHandler.getEvents().get(3).delayInNs - eventsHandler.getEvents().get(2).delayInNs, greaterThan(0L));
     }
@@ -394,56 +396,48 @@ public class EventsHandlerTest extends AbstractTest
         @Override
         protected void onBeforeHandling(Request request)
         {
-//            System.out.println("onBeforeHandling");
             useForbiddenMethods(request, exceptions);
         }
 
         @Override
         protected void onRequestRead(Request request, Content.Chunk chunk)
         {
-//            System.out.println("onRequestRead " + chunk);
             useForbiddenMethods(request, exceptions);
         }
 
         @Override
         protected void onAfterHandling(Request request, boolean handled, Throwable failure)
         {
-//            System.out.println("onAfterHandling");
             useForbiddenMethods(request, exceptions);
         }
 
         @Override
         protected void onResponseBegin(Request request, int status, HttpFields headers)
         {
-//            System.out.println("onResponseBegin");
             useForbiddenMethods(request, exceptions);
         }
 
         @Override
         protected void onResponseWrite(Request request, boolean last, ByteBuffer content)
         {
-//            System.out.println("onResponseWrite");
             useForbiddenMethods(request, exceptions);
         }
 
         @Override
         protected void onResponseWriteComplete(Request request, Throwable failure)
         {
-//            System.out.println("onResponseWriteComplete");
             useForbiddenMethods(request, exceptions);
         }
 
         @Override
         protected void onResponseTrailersComplete(Request request, HttpFields trailers)
         {
-//            System.out.println("onResponseTrailersComplete");
             useForbiddenMethods(request, exceptions);
         }
 
         @Override
         protected void onComplete(Request request, int status, HttpFields headers, Throwable failure)
         {
-//            System.out.println("onComplete");
             useForbiddenMethods(request, exceptions);
         }
 

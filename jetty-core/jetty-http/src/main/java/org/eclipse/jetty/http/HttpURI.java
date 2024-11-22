@@ -994,6 +994,9 @@ public interface HttpURI
                 throw new IllegalArgumentException("Relative path with authority");
             if (!URIUtil.isPathValid(path))
                 throw new IllegalArgumentException("Path not correctly encoded: " + path);
+            // since we are resetting the path, lets clear out the path specific violations.
+            if (_violations != null)
+                _violations.removeIf(UriCompliance::isPathViolation);
             _uri = null;
             _path = null;
             _canonicalPath = null;
@@ -1016,6 +1019,9 @@ public interface HttpURI
         {
             if (hasAuthority() && !isPathValidForAuthority(pathQuery))
                 throw new IllegalArgumentException("Relative path with authority");
+            // since we are resetting the path, lets clear out the path specific violations.
+            if (_violations != null)
+                _violations.removeIf(UriCompliance::isPathViolation);
             _uri = null;
             _path = null;
             _canonicalPath = null;
@@ -1089,6 +1095,9 @@ public interface HttpURI
             {
                 clear();
                 parse(State.HOST, uri);
+                _path = null;
+                _query = null;
+                _param = null;
             }
             else if (uri.startsWith("/"))
             {
@@ -1275,14 +1284,32 @@ public interface HttpURI
                         switch (c)
                         {
                             case '/':
+                            case '?':
+                            case '#':
                                 if (encodedCharacters > 0 || password)
                                     throw new IllegalArgumentException("Bad authority");
                                 _host = uri.substring(mark, i);
-                                pathMark = mark = i;
-                                segment = mark + 1;
-                                state = State.PATH;
                                 encoded = false;
+                                if (c == '/')
+                                {
+                                    pathMark = mark = i;
+                                    segment = mark + 1;
+                                    state = State.PATH;
+                                }
+                                else
+                                {
+                                    mark = i + 1;
+                                    _path = "";
+                                    state = switch (c)
+                                    {
+                                        case '?' -> State.QUERY;
+                                        case '#' -> State.FRAGMENT;
+                                        default -> throw new IllegalArgumentException("Bad authority");
+                                    };
+                                }
                                 break;
+                            case ';':
+                                throw new IllegalArgumentException("Bad authority");
                             case ':':
                                 if (encodedCharacters > 0 || password)
                                     throw new IllegalArgumentException("Bad authority");
@@ -1357,38 +1384,60 @@ public interface HttpURI
                     }
                     case PORT:
                     {
-                        if (c == '@')
+                        switch (c)
                         {
-                            if (_user != null)
-                                throw new IllegalArgumentException("Bad authority");
-                            // It wasn't a port, but a password!
-                            _user = _host + ":" + uri.substring(mark, i);
-                            addViolation(Violation.USER_INFO);
-                            mark = i + 1;
-                            state = State.HOST;
-                        }
-                        else if (c == '/')
-                        {
-                            _port = TypeUtil.parseInt(uri, mark, i - mark, 10);
-                            pathMark = mark = i;
-                            segment = i + 1;
-                            state = State.PATH;
-                        }
-                        else if (!isDigit(c))
-                        {
-                            if (isUnreservedPctEncodedOrSubDelim(c))
+                            case '@' ->
                             {
-                                // must be a password
-                                password = true;
+                                if (_user != null)
+                                    throw new IllegalArgumentException("Bad authority");
+                                // It wasn't a port, but a password!
+                                _user = _host + ":" + uri.substring(mark, i);
+                                addViolation(Violation.USER_INFO);
+                                mark = i + 1;
                                 state = State.HOST;
-                                if (_host != null)
-                                {
-                                    mark = mark - _host.length() - 1;
-                                    _host = null;
-                                }
-                                break;
                             }
-                            throw new IllegalArgumentException("Bad authority");
+                            case '/' ->
+                            {
+                                _port = TypeUtil.parseInt(uri, mark, i - mark, 10);
+                                pathMark = mark = i;
+                                segment = mark + 1;
+                                state = State.PATH;
+                            }
+                            case '?', '#' ->
+                            {
+                                _port = TypeUtil.parseInt(uri, mark, i - mark, 10);
+                                mark = i + 1;
+                                _path = "";
+                                state = switch (c)
+                                {
+                                    case '?' -> State.QUERY;
+                                    case '#' -> State.FRAGMENT;
+                                    default -> throw new IllegalStateException();
+                                };
+                            }
+                            case ';' ->
+                            {
+                                throw new IllegalArgumentException("Bad authority");
+                            }
+                            default ->
+                            {
+                                if (!isDigit(c))
+                                {
+                                    if (isUnreservedPctEncodedOrSubDelim(c))
+                                    {
+                                        // must be a password
+                                        password = true;
+                                        state = State.HOST;
+                                        if (_host != null)
+                                        {
+                                            mark = mark - _host.length() - 1;
+                                            _host = null;
+                                        }
+                                        break;
+                                    }
+                                    throw new IllegalArgumentException("Bad authority");
+                                }
+                            }
                         }
                         break;
                     }
@@ -1543,12 +1592,16 @@ public interface HttpURI
                     break;
                 case HOST:
                     if (end > mark)
+                    {
                         _host = uri.substring(mark, end);
+                        _path = "";
+                    }
                     break;
                 case IPV6:
                     throw new IllegalArgumentException("No closing ']' for ipv6 in " + uri);
                 case PORT:
                     _port = TypeUtil.parseInt(uri, mark, end - mark, 10);
+                    _path = "";
                     break;
                 case PARAM:
                     _path = uri.substring(pathMark, end);

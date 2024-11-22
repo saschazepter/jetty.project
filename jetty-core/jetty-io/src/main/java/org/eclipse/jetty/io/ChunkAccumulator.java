@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import org.eclipse.jetty.io.Content.Chunk;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.CompletableTask;
+import org.eclipse.jetty.util.thread.Invocable;
 
 /**
  * An accumulator of {@link Content.Chunk}s used to facilitate minimal copy
@@ -125,11 +126,13 @@ public class ChunkAccumulator
         _length = 0;
     }
 
+    @Deprecated (forRemoval = true, since = "12.0.15")
     public CompletableFuture<byte[]> readAll(Content.Source source)
     {
         return readAll(source, -1);
     }
 
+    @Deprecated (forRemoval = true, since = "12.0.15")
     public CompletableFuture<byte[]> readAll(Content.Source source, int maxSize)
     {
         CompletableTask<byte[]> task = new AccumulatorTask<>(source, maxSize)
@@ -151,6 +154,7 @@ public class ChunkAccumulator
      * @return A {@link CompletableFuture} that will be completed when the complete content is read or
      * failed if the max size is exceeded or there is a read error.
      */
+    @Deprecated (forRemoval = true, since = "12.0.15")
     public CompletableFuture<RetainableByteBuffer> readAll(Content.Source source, ByteBufferPool pool, boolean direct, int maxSize)
     {
         CompletableTask<RetainableByteBuffer> task = new AccumulatorTask<>(source, maxSize)
@@ -164,7 +168,8 @@ public class ChunkAccumulator
         return task.start();
     }
 
-    private abstract static class AccumulatorTask<T> extends CompletableTask<T>
+    @Deprecated (forRemoval = true, since = "12.0.15")
+    private abstract static class AccumulatorTask<T> extends CompletableTask<T> implements Invocable
     {
         private final Content.Source _source;
         private final ChunkAccumulator _accumulator = new ChunkAccumulator();
@@ -222,6 +227,16 @@ public class ChunkAccumulator
             }
         }
 
+        @Override
+        public InvocationType getInvocationType()
+        {
+            return InvocationType.NON_BLOCKING;
+        }
+
+        /**
+         * Implementations must be {@link InvocationType#NON_BLOCKING non-blocking},
+         * or {@link #getInvocationType()} must be overridden accordingly.
+         */
         protected abstract T take(ChunkAccumulator accumulator);
     }
 }
