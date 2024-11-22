@@ -139,8 +139,7 @@ public class ErrorPageErrorHandler extends ErrorHandler implements ErrorHandler.
             errorPage = _errorPages.get(GLOBAL_ERROR_PAGE);
         }
 
-
- if (LOG.isDebugEnabled())
+        if (LOG.isDebugEnabled())
         {
             StringBuilder dbg = new StringBuilder();
             dbg.append("getErrorPage(");

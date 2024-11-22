@@ -2682,6 +2682,12 @@ public class ContextHandler extends ScopedHandler implements Attributes, Supplie
         }
 
         @Override
+        protected boolean handleByContextHandler(String pathInContext, ContextRequest request, Response response, Callback callback)
+        {
+            return false;
+        }
+
+        @Override
         public void makeTempDirectory() throws Exception
         {
             super.makeTempDirectory();
