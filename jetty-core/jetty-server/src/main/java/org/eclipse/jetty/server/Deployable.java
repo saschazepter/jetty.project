@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.eclipse.jetty.util.Attributes;
+
 /**
  * Interface that can be implemented by ContextHandlers within Environments to allow configuration
  * to be passed from the DeploymentManager without dependencies on the Deployment module itself. 
@@ -67,5 +69,8 @@ public interface Deployable
     String WAR = "jetty.deploy.war";
     String WEBINF_SCAN_JARS = "jetty.deploy.webInfScanJarPattern";
 
+    // TODO: should we deprecate this one?
     void initializeDefaults(Map<String, String> properties);
+
+    void initializeDefaults(Attributes attributes);
 }

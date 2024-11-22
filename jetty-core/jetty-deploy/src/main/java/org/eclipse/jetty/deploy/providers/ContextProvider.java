@@ -138,11 +138,24 @@ public class ContextProvider extends ScanningAppProvider
         }
     }
 
+    private String _environmentName;
+
     public ContextProvider()
     {
         super();
         setFilenameFilter(new Filter());
         setScanInterval(0);
+    }
+
+    @SuppressWarnings("removal") // only to suppress deprecation in interface, still needed here
+    public String getEnvironmentName()
+    {
+        return _environmentName;
+    }
+
+    public void setEnvironmentName(String environmentName)
+    {
+        _environmentName = environmentName;
     }
 
     public Map<String, String> getProperties()

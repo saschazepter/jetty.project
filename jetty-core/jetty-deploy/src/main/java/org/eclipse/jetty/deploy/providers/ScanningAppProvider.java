@@ -29,15 +29,12 @@ import java.util.stream.Collectors;
 import org.eclipse.jetty.deploy.App;
 import org.eclipse.jetty.deploy.AppProvider;
 import org.eclipse.jetty.deploy.DeploymentManager;
-import org.eclipse.jetty.server.Deployable;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.Scanner;
-import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.annotation.ManagedOperation;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
-import org.eclipse.jetty.util.component.Environment;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
@@ -58,7 +55,6 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
     private int _scanInterval = 10;
     private Scanner _scanner;
     private boolean _useRealPaths;
-    private String _environmentName;
     private boolean _deferInitialScan = false;
 
     private final Scanner.DiscreteListener _scannerListener = new Scanner.DiscreteListener()
@@ -91,17 +87,6 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
     {
         _filenameFilter = filter;
         installBean(_appMap);
-    }
-
-    @Override
-    public String getEnvironmentName()
-    {
-        return _environmentName;
-    }
-
-    public void setEnvironmentName(String environmentName)
-    {
-        _environmentName = environmentName;
     }
 
     /**
@@ -149,40 +134,7 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
         App app = new App(_deploymentManager, this, path);
         if (LOG.isDebugEnabled())
             LOG.debug("{} creating {}", this, app);
-
-        String defaultEnvironmentName = _deploymentManager.getDefaultEnvironmentName();
-
-        String environmentName = app.getEnvironmentName();
-        if (StringUtil.isBlank(environmentName) && StringUtil.isNotBlank(defaultEnvironmentName))
-        {
-            environmentName = defaultEnvironmentName;
-            app.getProperties().put(Deployable.ENVIRONMENT, environmentName);
-            if (LOG.isDebugEnabled())
-                LOG.debug("{} default environment for {}", this, app);
-        }
-
-        if (StringUtil.isNotBlank(environmentName))
-        {
-            // If the app specifies the environment for this provider, then this deployer will deploy it.
-            if (environmentName.equalsIgnoreCase(getEnvironmentName()))
-            {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("{} created {}", this, app);
-                return app;
-            }
-
-            // If we are the default provider then we may warn
-            if (getEnvironmentName().equalsIgnoreCase(defaultEnvironmentName))
-            {
-                // if the app specified an environment name, then produce warning if there is no provider for it.
-                if (!_deploymentManager.hasAppProviderFor(environmentName))
-                    LOG.warn("No AppProvider with environment {} for {}", environmentName, app);
-                return null;
-            }
-        }
-
-        LOG.warn("{} no environment for {}, ignoring", this, app);
-        return null;
+        return app;
     }
 
     @Override
@@ -190,21 +142,10 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
     {
         if (LOG.isDebugEnabled())
             LOG.debug("{}.doStart()", this.getClass().getSimpleName());
-        if (_monitored.size() == 0)
-            throw new IllegalStateException("No configuration dir specified");
-        if (_environmentName == null)
-        {
-            List<Environment> nonCore = Environment.getAll().stream().filter(environment -> !environment.equals(Environment.CORE)).toList();
-            if (nonCore.size() != 1)
-                throw new IllegalStateException("No environment configured");
-            _environmentName = nonCore.get(0).getName();
-        }
+        if (_monitored.isEmpty())
+            throw new IllegalStateException("No monitored dir specified");
 
-        Environment environment = Environment.get(_environmentName);
-        if (environment == null)
-            throw new IllegalStateException("Unknown environment " + _environmentName);
-
-        LOG.info("Deployment monitor {} in {} at intervals {}s", getEnvironmentName(), _monitored, getScanInterval());
+        LOG.info("Deployment monitor in {} at intervals {}s", _monitored, getScanInterval());
         List<Path> files = new ArrayList<>();
         for (Resource resource : _monitored)
         {

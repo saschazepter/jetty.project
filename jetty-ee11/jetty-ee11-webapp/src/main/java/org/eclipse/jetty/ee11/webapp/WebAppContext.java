@@ -52,6 +52,7 @@ import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Deployable;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.ClassMatcher;
 import org.eclipse.jetty.util.ExceptionUtil;
 import org.eclipse.jetty.util.IO;
@@ -219,6 +220,41 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
                 {
                     if (LOG.isDebugEnabled() && StringUtil.isNotBlank(value))
                         LOG.debug("unknown property {}={}", property, value);
+                }
+            }
+        }
+        _defaultContextPath = true;
+    }
+
+    @Override
+    public void initializeDefaults(Attributes attributes)
+    {
+        for (String keyName : attributes.getAttributeNameSet())
+        {
+            Object value = attributes.getAttribute(keyName);
+            if (LOG.isDebugEnabled())
+                LOG.debug("init {}: {}", keyName, value);
+
+            switch (keyName)
+            {
+                case Deployable.WAR ->
+                {
+                    if (getWar() == null)
+                        setWar((String)value);
+                }
+                case Deployable.TEMP_DIR -> setTempDirectory(IO.asFile(value));
+                case Deployable.CONFIGURATION_CLASSES -> setConfigurationClasses((String[])value);
+                case Deployable.CONTAINER_SCAN_JARS -> setAttribute(MetaInfConfiguration.CONTAINER_JAR_PATTERN, value);
+                case Deployable.EXTRACT_WARS -> setExtractWAR((Boolean)value);
+                case Deployable.PARENT_LOADER_PRIORITY -> setParentLoaderPriority((Boolean)value);
+                case Deployable.WEBINF_SCAN_JARS -> setAttribute(MetaInfConfiguration.WEBINF_JAR_PATTERN, value);
+                case Deployable.DEFAULTS_DESCRIPTOR -> setDefaultsDescriptor((String)value);
+                case Deployable.SCI_EXCLUSION_PATTERN -> setAttribute("org.eclipse.jetty.containerInitializerExclusionPattern", value);
+                case Deployable.SCI_ORDER -> setAttribute("org.eclipse.jetty.containerInitializerOrder", value);
+                default ->
+                {
+                    if (LOG.isDebugEnabled() && value != null)
+                        LOG.debug("unknown property {}={}", keyName, value);
                 }
             }
         }

@@ -42,8 +42,12 @@ public interface AppProvider extends LifeCycle
     ContextHandler createContextHandler(App app) throws Exception;
 
     /**
-     *
      * @return The name of the {@link org.eclipse.jetty.util.component.Environment} this provider is for.
+     * @deprecated not used by all AppProviders, no generic replacement provided.
      */
-    String getEnvironmentName();
+    @Deprecated(forRemoval = true, since = "12.1.0")
+    default String getEnvironmentName()
+    {
+        return "";
+    }
 }
