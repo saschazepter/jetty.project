@@ -285,9 +285,17 @@ public class ComponentDocs
     public void dumpExample()
     {
         Server server = new Server();
-        // tag::dumpExample[]
+        // tag::dumpAfterStartExample[]
         server.setDumpAfterStart(true);
         server.setDumpBeforeStop(true);
+        // end::dumpAfterStartExample[]
+
+        // tag::dumpExample[]
+        // Get dump as a string.
+        String dumpString = server.dump();
+
+        // Or dump to standard error stream.
+        server.dumpStdErr();
         // end::dumpExample[]
     }
 }

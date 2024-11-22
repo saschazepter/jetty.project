@@ -28,27 +28,18 @@ A dump of the component tree for the Server includes:
 * The web applications deployed and their configurations, including the class loader information.
 
 [[dump-start-stop]]
-== Dump at Server Start/Stop
+== Component Dump at Server Start/Stop
 
-The `Server.dump()` operation may also be invoked just after the `Server` starts (to log the state of the freshly started server), and just before the `Server` stops (which may be useful to log the state of server that is not working properly).
-
-You can temporarily enable the Jetty Server Dump at start time by overriding the `jetty.server.dumpAfterStart` property on the command line:
-
-For embedded usage this can be used by calling the setters directly.
+You can get the server dump at any time using these methods.
 [,java,indent=0]
 ----
 include::code:example$src/main/java/org/eclipse/jetty/docs/programming/ComponentDocs.java[tags=dumpExample]
 ----
 
-Standalone Jetty uses two properties to control this behaviour which are referenced in `jetty.xml` to call these setters.
-These properties are `jetty.server.dumpAfterStart` and `jetty.server.dumpBeforeStop`.
-
-These can be temporarily enabled by supplying these properties as command line arguments,
-or to make this change persistent across server restarts they can be enabled via the `server.ini` file (see xref:operations-guide:modules/standard.adoc#server-config[Server Configuration]).
-
-[source,subs=+quotes]
+However, it is often useful to configure the server to dump the state of the freshly started server, and also dump the state just before the `Server` stops (which may be useful to log the state of server that is not working properly).
+[,java,indent=0]
 ----
-$ java -jar $JETTY_HOME/start.jar *jetty.server.dumpAfterStart=true*
+include::code:example$src/main/java/org/eclipse/jetty/docs/programming/ComponentDocs.java[tags=dumpAfterStartExample]
 ----
 
 [NOTE]
