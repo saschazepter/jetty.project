@@ -90,6 +90,7 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
             {
                 try
                 {
+                    //TODO should invoke via ServletHandler state machine if not already in the state machine
                     contextHandler.requestInitialized(servletContextRequest, httpServletRequest);
                     errorDispatcher.error(httpServletRequest, httpServletResponse);
                 }

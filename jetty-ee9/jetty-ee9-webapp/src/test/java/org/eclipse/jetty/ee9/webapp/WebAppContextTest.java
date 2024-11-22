@@ -562,6 +562,9 @@ public class WebAppContextTest
     @Test
     public void testErrorPage() throws Exception
     {
+        //TODO  -  the ErrorPageErrorHandler is looking for servlet api attributes, but the Response.writeError is using server api attributes
+        //TODO -nested.ContextHandler is using Server.DynamicErrorHandler which has no impl
+
         WebAppContext contextHandler = new WebAppContext();
         contextHandler.setContextPath("/foo");
         contextHandler.setBaseResourceAsPath(Path.of("/tmp"));
