@@ -182,6 +182,7 @@ public class ServletChannelState
     private final ServletChannel _servletChannel;
     private List<AsyncListener> _asyncListeners;
     private State _state = State.IDLE;
+    private Throwable _startAsyncStack;
     private RequestState _requestState = RequestState.BLOCKING;
     private OutputState _outputState = OutputState.IDLE;
     private InputState _inputState = InputState.IDLE;
@@ -572,7 +573,7 @@ public class ServletChannelState
             if (LOG.isDebugEnabled())
                 LOG.debug("startAsync {}", toStringLocked());
             if (_state != State.HANDLING || (_requestState != RequestState.BLOCKING && _requestState != RequestState.ERRORING))
-                throw new IllegalStateException(this.getStatusStringLocked());
+                throw new IllegalStateException(this.getStatusStringLocked(), _startAsyncStack);
 
             if (!_failureListener)
             {
@@ -580,6 +581,7 @@ public class ServletChannelState
                 _servletChannel.getRequest().addFailureListener(this::asyncError);
             }
             _requestState = RequestState.ASYNC;
+            _startAsyncStack = new Throwable("startAsync was first called here");
             _event = event;
             lastAsyncListeners = _asyncListeners;
             _asyncListeners = null;
