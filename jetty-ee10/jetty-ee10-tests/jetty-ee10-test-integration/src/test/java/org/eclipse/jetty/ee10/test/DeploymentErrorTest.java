@@ -107,7 +107,7 @@ public class DeploymentErrorTest
 
         System.setProperty("test.docroots", docroots.toAbsolutePath().toString());
         ContextProvider appProvider = new ContextProvider();
-        appProvider.setEnvironmentName("ee10");
+        appProvider.configureEnvironment("ee10");
 
         appProvider.setScanInterval(1);
         appProvider.setMonitoredDirResource(resourceFactory.newResource(docroots));

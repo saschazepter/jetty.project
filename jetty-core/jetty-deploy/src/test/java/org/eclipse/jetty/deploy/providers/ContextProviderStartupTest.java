@@ -37,7 +37,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -63,7 +62,9 @@ public class ContextProviderStartupTest
 
         jetty.addConfiguration("jetty.xml");
         jetty.addConfiguration("jetty-http.xml");
-        jetty.addConfiguration("jetty-deploymgr-contexts.xml");
+        jetty.addConfiguration(MavenPaths.projectBase().resolve("src/main/config/etc/jetty-deployment-manager.xml"));
+        jetty.addConfiguration(MavenPaths.projectBase().resolve("src/main/config/etc/jetty-deploy.xml"));
+        jetty.addConfiguration("jetty-core-deploy-custom.xml");
 
         // Setup initial context
         jetty.copyWebapp("bar-core-context.xml", "bar.xml");
@@ -167,7 +168,6 @@ public class ContextProviderStartupTest
 
     /**
      * Test that properties of the same name will be overridden, in the order of the name of the .properties file
-     * @throws Exception
      */
     @Test
     public void testPropertyOverriding() throws Exception

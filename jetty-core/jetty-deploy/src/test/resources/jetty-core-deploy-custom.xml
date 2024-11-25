@@ -1,13 +1,21 @@
 <?xml version="1.0"?><!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "https://jetty.org/configure_10_0.dtd">
 
-<!-- =============================================================== -->
-<!-- Configure the "core" environment deployment defaults            -->
-<!-- =============================================================== -->
 <Configure id="contextProvider" class="org.eclipse.jetty.deploy.providers.ContextProvider">
   <Call name="configureEnvironment">
     <Arg>core</Arg>
     <Set name="contextHandlerClass">
       <Property name="contextHandlerClass" default="org.eclipse.jetty.server.handler.ResourceHandler$ResourceContext" />
     </Set>
+  </Call>
+  <Call id="coreEnv" class="org.eclipse.jetty.util.component.Environment" name="ensure">
+    <Arg>core</Arg>
+  </Call>
+  <Call name="loadPropertiesFromString">
+    <Arg>
+      <Ref refid="coreEnv" />
+    </Arg>
+    <Arg>
+      <Property name="jetty.deploy.common.properties" />
+    </Arg>
   </Call>
 </Configure>

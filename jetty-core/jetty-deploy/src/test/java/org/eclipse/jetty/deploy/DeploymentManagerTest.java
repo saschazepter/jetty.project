@@ -165,7 +165,7 @@ public class DeploymentManagerTest
             jetty = new XmlConfiguredJetty(testdir);
             jetty.addConfiguration("jetty.xml");
             jetty.addConfiguration("jetty-http.xml");
-            jetty.addConfiguration("jetty-deploymgr-contexts.xml");
+            jetty.addConfiguration("jetty-core-deploy-custom.xml");
 
             // Should not throw an Exception
             jetty.load();

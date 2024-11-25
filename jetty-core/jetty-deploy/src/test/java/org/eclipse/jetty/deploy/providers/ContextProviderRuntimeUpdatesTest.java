@@ -25,6 +25,7 @@ import org.eclipse.jetty.deploy.DeploymentManager;
 import org.eclipse.jetty.deploy.test.XmlConfiguredJetty;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.toolchain.test.FS;
+import org.eclipse.jetty.toolchain.test.MavenPaths;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
 import org.eclipse.jetty.util.Scanner;
@@ -80,7 +81,9 @@ public class ContextProviderRuntimeUpdatesTest
     {
         jetty.addConfiguration("jetty.xml");
         jetty.addConfiguration("jetty-http.xml");
-        jetty.addConfiguration("jetty-deploymgr-contexts.xml");
+        jetty.addConfiguration(MavenPaths.projectBase().resolve("src/main/config/etc/jetty-deployment-manager.xml"));
+        jetty.addConfiguration(MavenPaths.projectBase().resolve("src/main/config/etc/jetty-deploy.xml"));
+        jetty.addConfiguration("jetty-core-deploy-custom.xml");
 
         // Should not throw an Exception
         jetty.load();

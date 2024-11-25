@@ -15,15 +15,6 @@ etc/jetty-ee10-deploy.xml
 
 [ini-template]
 # tag::ini-template[]
-## Monitored directory name (relative to $jetty.base)
-# jetty.deploy.monitoredDir=webapps
-
-## Defaults Descriptor for all deployed webapps
-# jetty.deploy.defaultsDescriptorPath=${jetty.base}/etc/webdefault-ee10.xml
-
-## Monitored directory scan period (seconds)
-# jetty.deploy.scanInterval=0
-
 ## Whether to extract *.war files
 # jetty.deploy.extractWars=true
 

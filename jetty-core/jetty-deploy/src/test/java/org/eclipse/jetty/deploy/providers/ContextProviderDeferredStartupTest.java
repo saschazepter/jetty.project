@@ -27,14 +27,13 @@ import org.eclipse.jetty.deploy.test.XmlConfiguredJetty;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.toolchain.test.FS;
+import org.eclipse.jetty.toolchain.test.MavenPaths;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
 import org.eclipse.jetty.util.Scanner;
 import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.component.LifeCycle;
-import org.eclipse.jetty.util.resource.Resource;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -68,7 +67,9 @@ public class ContextProviderDeferredStartupTest
         jetty = new XmlConfiguredJetty(realBase);
         jetty.addConfiguration("jetty.xml");
         jetty.addConfiguration("jetty-http.xml");
-        jetty.addConfiguration("jetty-deploymgr-contexts.xml");
+        jetty.addConfiguration(MavenPaths.projectBase().resolve("src/main/config/etc/jetty-deployment-manager.xml"));
+        jetty.addConfiguration(MavenPaths.projectBase().resolve("src/main/config/etc/jetty-deploy.xml"));
+        jetty.addConfiguration("jetty-core-deploy-custom.xml");
 
         // Put a context into the base
         jetty.copyWebapp("bar-core-context.xml", "bar.xml");

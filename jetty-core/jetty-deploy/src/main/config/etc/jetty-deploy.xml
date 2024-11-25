@@ -2,30 +2,31 @@
 <!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "https://jetty.org/configure_10_0.dtd">
 
 <!-- =============================================================== -->
-<!-- Create the deployment manager                                   -->
-<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
-<!-- The deplyment manager handles the lifecycle of deploying web    -->
-<!-- applications. Apps are provided by instances of the             -->
-<!-- AppProvider interface.                                          -->
+<!-- Create the monitored directory Context Provider                 -->
+<!--                                                                 -->
+<!-- The Context Provider is responsible for monitoring a provided   -->
+<!-- directory for web applications and hot deploying                -->
+<!-- through the DeploymentManager.                                  -->
 <!-- =============================================================== -->
-<Configure id="Server" class="org.eclipse.jetty.server.Server">
-  <Call name="addBean">
-    <Arg>
-      <New id="DeploymentManager" class="org.eclipse.jetty.deploy.DeploymentManager">
-        <Set name="contexts">
-          <Ref refid="Contexts" />
-        </Set>
+<Configure id="contextProvider" class="org.eclipse.jetty.deploy.providers.ContextProvider">
+  <Set name="monitoredDirName">
+    <Call name="resolvePath" class="org.eclipse.jetty.xml.XmlConfiguration">
+      <Arg>
+        <Property name="jetty.base" />
+      </Arg>
+      <Arg>
+        <Property name="jetty.deploy.monitoredDir" default="webapps" />
+      </Arg>
+    </Call>
+  </Set>
+  <Set name="deferInitialScan" property="jetty.deploy.deferInitialScan" />
+  <Set name="scanInterval" property="jetty.deploy.scanInterval" />
 
-        <!-- Add a customize step to the deployment lifecycle -->
-        <!-- uncomment and replace DebugBinding with your extended AppLifeCycle.Binding class
-        <Call name="insertLifeCycleNode">
-          <Arg>deployed</Arg>
-          <Arg>starting</Arg>
-          <Arg>customise</Arg>
-        </Call>
-         -->
-
-      </New>
-    </Arg>
-  </Call>
+  <Ref refid="DeploymentManager">
+    <Call name="addAppProvider">
+      <Arg>
+        <Ref refid="contextProvider" />
+      </Arg>
+    </Call>
+  </Ref>
 </Configure>

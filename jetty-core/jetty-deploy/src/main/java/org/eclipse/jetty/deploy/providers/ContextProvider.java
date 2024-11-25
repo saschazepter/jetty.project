@@ -21,6 +21,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -51,39 +52,39 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The webapps directory scanning provider.
- *  * <p>This provider scans one or more directories (typically "webapps") for contexts to
- *  * deploy, which may be:
- *  * </p>
- *  * <ul>
- *  * <li>A standard WAR file (must end in ".war")</li>
- *  * <li>A directory containing an expanded WAR file</li>
- *  * <li>A directory containing static content</li>
- *  * <li>An XML descriptor in {@link XmlConfiguration} format that configures a {@link ContextHandler} instance</li>
- *  * </ul>
- *  * <p>To avoid double deployments and allow flexibility of the content of the scanned directories, the provider
- *  * implements some heuristics to ignore some files found in the scans:
- *  * </p>
- *  * <ul>
- *  * <li>Hidden files (starting with {@code "."}) are ignored</li>
- *  * <li>Directories with names ending in {@code ".d"} are ignored</li>
- *  * <li>Property files with names ending in {@code ".properties"} are not deployed.</li>
- *  * <li>If a directory and a WAR file exist (eg: {@code foo/} and {@code foo.war}) then the directory is assumed to be
- *  * the unpacked WAR and only the WAR is deployed (which may reused the unpacked directory)</li>
- *  * <li>If a directory and a matching XML file exist (eg: {@code foo/} and {@code foo.xml}) then the directory is assumed to be
- *  * an unpacked WAR and only the XML is deployed (which may used the directory in its configuration)</li>
- *  * <li>If a WAR file and a matching XML exist (eg: {@code foo.war} and {@code foo.xml}) then the WAR is assumed to
- *  * be configured by the XML and only the XML is deployed.
- *  * </ul>
- *  * <p>For XML configured contexts, the ID map will contain a reference to the {@link Server} instance called "Server" and
- *  * properties for the webapp file such as "jetty.webapp" and directory as "jetty.webapps".
- *  * The properties will be initialized with:
- *  * </p>
- *  * <ul>
- *  * <li>The properties set on the application via {@link App#getProperties()}</li>
- *  * <li>The app specific properties file {@code webapps/<webapp-name>.properties}</li>
- *  * <li>The environment specific properties file {@code webapps/<environment-name>[-zzz].properties}</li>
- *  * <li>The {@link Attributes} from the {@link Environment}</li>
- *  * </ul>
+ * * <p>This provider scans one or more directories (typically "webapps") for contexts to
+ * * deploy, which may be:
+ * * </p>
+ * * <ul>
+ * * <li>A standard WAR file (must end in ".war")</li>
+ * * <li>A directory containing an expanded WAR file</li>
+ * * <li>A directory containing static content</li>
+ * * <li>An XML descriptor in {@link XmlConfiguration} format that configures a {@link ContextHandler} instance</li>
+ * * </ul>
+ * * <p>To avoid double deployments and allow flexibility of the content of the scanned directories, the provider
+ * * implements some heuristics to ignore some files found in the scans:
+ * * </p>
+ * * <ul>
+ * * <li>Hidden files (starting with {@code "."}) are ignored</li>
+ * * <li>Directories with names ending in {@code ".d"} are ignored</li>
+ * * <li>Property files with names ending in {@code ".properties"} are not deployed.</li>
+ * * <li>If a directory and a WAR file exist (eg: {@code foo/} and {@code foo.war}) then the directory is assumed to be
+ * * the unpacked WAR and only the WAR is deployed (which may reused the unpacked directory)</li>
+ * * <li>If a directory and a matching XML file exist (eg: {@code foo/} and {@code foo.xml}) then the directory is assumed to be
+ * * an unpacked WAR and only the XML is deployed (which may used the directory in its configuration)</li>
+ * * <li>If a WAR file and a matching XML exist (eg: {@code foo.war} and {@code foo.xml}) then the WAR is assumed to
+ * * be configured by the XML and only the XML is deployed.
+ * * </ul>
+ * * <p>For XML configured contexts, the ID map will contain a reference to the {@link Server} instance called "Server" and
+ * * properties for the webapp file such as "jetty.webapp" and directory as "jetty.webapps".
+ * * The properties will be initialized with:
+ * * </p>
+ * * <ul>
+ * * <li>The properties set on the application via {@link App#getProperties()}</li>
+ * * <li>The app specific properties file {@code webapps/<webapp-name>.properties}</li>
+ * * <li>The environment specific properties file {@code webapps/<environment-name>[-zzz].properties}</li>
+ * * <li>The {@link Attributes} from the {@link Environment}</li>
+ * * </ul>
  */
 @ManagedObject("Provider for start-up deployment of webapps based on presence in directory")
 public class ContextProvider extends ScanningAppProvider
@@ -117,7 +118,8 @@ public class ContextProvider extends ScanningAppProvider
     @Override
     public ContextHandler createContextHandler(final App app) throws Exception
     {
-        Environment environment = Environment.get(app.getEnvironmentName());
+        String envName = app.getEnvironmentName();
+        Environment environment = Environment.get(StringUtil.isNotBlank(envName) ? envName : getDefaultEnvironmentName());
 
         if (environment == null)
         {
@@ -161,7 +163,14 @@ public class ContextProvider extends ScanningAppProvider
             List<Path> sortedEnvXmlPaths = appAttributes.getAttributeNameSet()
                 .stream()
                 .filter(k -> k.startsWith(Deployable.ENVIRONMENT_XML))
-                .map(k -> Path.of((String)appAttributes.getAttribute(k)))
+                .map(k ->
+                {
+                    Path envXmlPath = Paths.get((String)appAttributes.getAttribute(k));
+                    if (!envXmlPath.isAbsolute())
+                        envXmlPath = getMonitoredDirResource().getPath().getParent().resolve(envXmlPath);
+                    return envXmlPath;
+                })
+                .filter(Files::isRegularFile)
                 .sorted()
                 .toList();
 
@@ -227,8 +236,8 @@ public class ContextProvider extends ScanningAppProvider
      * do not declare the {@link Environment} that they belong to.
      *
      * <p>
-     *     Falls back to {@link Environment#getAll()} list, and returns
-     *     the first name returned after sorting with {@link Deployable#ENVIRONMENT_COMPARATOR}
+     * Falls back to {@link Environment#getAll()} list, and returns
+     * the first name returned after sorting with {@link Deployable#ENVIRONMENT_COMPARATOR}
      * </p>
      *
      * @return the default environment name.
@@ -275,6 +284,46 @@ public class ContextProvider extends ScanningAppProvider
     public void loadPropertiesFromString(Environment environment, String path) throws IOException
     {
         loadProperties(environment, Path.of(path));
+    }
+
+    /**
+     * Configure the Environment specific Deploy settings.
+     *
+     * @param name the name of the environment.
+     * @return the deployment configuration for the {@link Environment}.
+     */
+    public EnvironmentConfig configureEnvironment(String name)
+    {
+        return new EnvironmentConfig(Environment.ensure(name));
+    }
+
+    /**
+     * To enable support for an {@link Environment}, just ensure it exists.
+     *
+     * <p>
+     * Eg: {@code Environment.ensure("ee11");}
+     * </p>
+     *
+     * <p>
+     * To configure Environment specific deployment {@link Attributes},
+     * either set the appropriate {@link Deployable} attribute via {@link Attributes#setAttribute(String, Object)},
+     * or use the convenience class {@link EnvironmentConfig}.
+     * </p>
+     *
+     * <pre>{@code
+     * ContextProvider provider = new ContextProvider();
+     * ContextProvider.EnvironmentConfig envbuilder = provider.configureEnvironment("ee10");
+     * envbuilder.setExtractWars(true);
+     * envbuilder.setParentLoaderPriority(false);
+     * }</pre>
+     *
+     * @see #configureEnvironment(String) instead
+     * @deprecated not used anymore.
+     */
+    @Deprecated(since = "12.1.0", forRemoval = true)
+    public void setEnvironmentName(String name)
+    {
+        Environment.ensure(name);
     }
 
     protected Object applyXml(Object context, Path xml, Environment environment, Attributes attributes) throws Exception
@@ -511,6 +560,7 @@ public class ContextProvider extends ScanningAppProvider
 
     /**
      * Get the ClassLoader appropriate for applying Jetty XML.
+     *
      * @param environment the environment to use
      * @param xml the path to the XML
      * @return the appropriate ClassLoader.
@@ -562,8 +612,8 @@ public class ContextProvider extends ScanningAppProvider
      * found in the directory provided.
      *
      * <p>
-     *     All found properties files are first sorted by filename, then loaded one by one into
-     *     a single {@link Properties} instance.
+     * All found properties files are first sorted by filename, then loaded one by one into
+     * a single {@link Properties} instance.
      * </p>
      *
      * @param directory the directory to load environment properties from.
@@ -625,12 +675,12 @@ public class ContextProvider extends ScanningAppProvider
      * Builder of a deployment configuration for a specific {@link Environment}.
      *
      * <p>
-     *     Results in {@link Attributes} for {@link Environment} containing the
-     *     deployment configuration (as {@link Deployable} keys) that is applied to all deployable
-     *     apps belonging to that {@link Environment}.
+     * Results in {@link Attributes} for {@link Environment} containing the
+     * deployment configuration (as {@link Deployable} keys) that is applied to all deployable
+     * apps belonging to that {@link Environment}.
      * </p>
      */
-    public static class EnvBuilder
+    public static class EnvironmentConfig
     {
         // Using setters in this class to allow jetty-xml <Set name="" property="">
         // syntax to skip setting of an environment attribute if property is unset,
@@ -638,9 +688,9 @@ public class ContextProvider extends ScanningAppProvider
 
         private final Environment environment;
 
-        public EnvBuilder(String name)
+        private EnvironmentConfig(Environment environment)
         {
-            environment = Environment.ensure(name);
+            this.environment = environment;
         }
 
         /**
