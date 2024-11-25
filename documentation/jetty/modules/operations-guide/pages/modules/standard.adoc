@@ -328,6 +328,21 @@ However, we the RMI server is configured to bind to `localhost`, i.e. `127.0.0.1
 
 If the system property `java.rmi.server.hostname` is not specified, the RMI client will try to connect to `127.0.1.1` (because that's what in the RMI stub) and fail because nothing is listening on that address.
 
+[[openid]]
+== Module `openid`
+
+The `openid` module enables support for OpenID Connect (OIDC) authentication in Jetty, as detailed in xref:security/openid-support.adoc#openid-support[this section].
+
+This module allows Jetty to authenticate users via an OpenID Connect identity provider, making possible to integrate features like "Sign in with Google" or "Sign in with Microsoft", among others.
+
+This simplifies user authentication while leveraging the security and convenience of external identity providers.
+
+The module properties are:
+
+----
+include::{jetty-home}/modules/openid.mod[tags=documentation]
+----
+
 [[qos]]
 == Module `qos`
 
@@ -857,15 +872,4 @@ The module properties are:
 
 ----
 include::{jetty-home}/modules/well-known.mod[tags=documentation]
-----
-
-[[openid]]
-== Module `openid`
-
-The openid module enables support for OpenID Connect (OIDC) authentication in Jetty.
-It allows Jetty to authenticate users via an OpenID Connect identity provider, making it possible to integrate features like "Sign in with Google" or "Sign in with Microsoft," among others.
-This simplifies user authentication while leveraging the security and convenience of external identity providers.
-
-----
-include::{jetty-home}/modules/openid.mod[tags=documentation]
 ----
