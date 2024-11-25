@@ -89,12 +89,30 @@ import org.slf4j.LoggerFactory;
 public class EnvironmentContextProvider extends ScanningAppProvider
 {
     private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(EnvironmentContextProvider.class);
+    private String defaultEnvironmentName;
 
     public EnvironmentContextProvider()
     {
         super();
         setFilenameFilter(new Filter());
         setScanInterval(0);
+    }
+
+    public String getDefaultEnvironmentName()
+    {
+        if (defaultEnvironmentName == null)
+        {
+            return Environment.getAll().stream()
+                .map(Environment::getName)
+                .max(Deployable.ENVIRONMENT_COMPARATOR)
+                .orElse(null);
+        }
+        return defaultEnvironmentName;
+    }
+
+    public void setDefaultEnvironmentName(String name)
+    {
+        this.defaultEnvironmentName = name;
     }
 
     private static Map<String, String> asProperties(Attributes attributes)

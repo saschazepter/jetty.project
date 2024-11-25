@@ -132,7 +132,9 @@ public class DeploymentManager extends ContainerLifeCycle
      * Get the default {@link Environment} name for deployed applications, which is
      * the maximal name when using the {@link Deployable#ENVIRONMENT_COMPARATOR}.
      * @return The default {@link Environment} name or null.
+     * @deprecated Moved to {@link org.eclipse.jetty.deploy.providers.EnvironmentContextProvider}
      */
+    @Deprecated(since = "12.1.0", forRemoval = true)
     public String getDefaultEnvironmentName()
     {
         return _providers.stream()
@@ -184,6 +186,10 @@ public class DeploymentManager extends ContainerLifeCycle
         }
     }
 
+    /**
+     * @deprecated No replacement. AppProvider interface no longer has getEnvironmentName.
+     */
+    @Deprecated(since = "12.1.0", forRemoval = true)
     public boolean hasAppProviderFor(String environmentName)
     {
         return environmentName != null && getAppProviders().stream()
