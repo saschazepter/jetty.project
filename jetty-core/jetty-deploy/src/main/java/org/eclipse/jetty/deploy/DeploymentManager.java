@@ -32,6 +32,7 @@ import org.eclipse.jetty.deploy.bindings.StandardUndeployer;
 import org.eclipse.jetty.deploy.graph.Edge;
 import org.eclipse.jetty.deploy.graph.Node;
 import org.eclipse.jetty.deploy.graph.Route;
+import org.eclipse.jetty.deploy.providers.ContextProvider;
 import org.eclipse.jetty.server.Deployable;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
@@ -132,7 +133,7 @@ public class DeploymentManager extends ContainerLifeCycle
      * Get the default {@link Environment} name for deployed applications, which is
      * the maximal name when using the {@link Deployable#ENVIRONMENT_COMPARATOR}.
      * @return The default {@link Environment} name or null.
-     * @deprecated Moved to {@link org.eclipse.jetty.deploy.providers.EnvironmentContextProvider}
+     * @deprecated not used, replacement at {@link ContextProvider#getDefaultEnvironmentName()}
      */
     @Deprecated(since = "12.1.0", forRemoval = true)
     public String getDefaultEnvironmentName()

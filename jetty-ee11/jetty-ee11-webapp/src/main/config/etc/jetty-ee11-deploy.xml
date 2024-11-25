@@ -3,18 +3,18 @@
 <!-- =============================================================== -->
 <!-- Configure the "ee11" environment deployment defaults            -->
 <!-- =============================================================== -->
-<Configure class="org.eclipse.jetty.deploy.providers.EnvironmentContextProvider.EnvBuilder">
+<Configure class="org.eclipse.jetty.deploy.providers.ContextProvider.EnvBuilder">
   <Arg>ee11</Arg>
   <Set name="contextHandlerClass">
     <Property name="contextHandlerClass" default="org.eclipse.jetty.ee11.webapp.WebAppContext"/>
   </Set>
   <Set name="defaultsDescriptor">
     <Property>
+      <Deprecated>jetty.deploy.defaultsDescriptor</Deprecated>
+      <Name>jetty.deploy.defaultsDescriptorPath</Name>
       <Default>
         <Property name="jetty.home" default="." />/etc/webdefault-ee11.xml
       </Default>
-      <Deprecated>jetty.deploy.defaultsDescriptor</Deprecated>
-      <Name>jetty.deploy.defaultsDescriptorPath</Name>
     </Property>
   </Set>
   <Set name="extractWars" property="jetty.deploy.extractWars" />
