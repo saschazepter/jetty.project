@@ -50,6 +50,11 @@ public interface Environment extends Attributes
         return Named.__environments.put(environment.getName(), environment);
     }
 
+    static Environment remove(String name)
+    {
+        return Named.__environments.remove(name);
+    }
+
     /**
      * @return The case-insensitive name of the environment.
      */
