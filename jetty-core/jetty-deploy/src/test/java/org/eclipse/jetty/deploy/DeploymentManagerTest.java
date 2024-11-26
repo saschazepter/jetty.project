@@ -15,6 +15,7 @@ package org.eclipse.jetty.deploy;
 
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jetty.deploy.test.XmlConfiguredJetty;
@@ -23,7 +24,9 @@ import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
 import org.eclipse.jetty.util.component.Environment;
+import org.eclipse.jetty.util.component.LifeCycle;
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -37,6 +40,21 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @ExtendWith(WorkDirExtension.class)
 public class DeploymentManagerTest
 {
+    /**
+     * Cleanup after any tests that modify the Environments singleton
+     */
+    @AfterEach
+    public void clearEnvironments()
+    {
+        List<String> envnames = Environment.getAll().stream()
+            .map(Environment::getName)
+            .toList();
+        for (String envname : envnames)
+        {
+            Environment.remove(envname);
+        }
+        assertEquals(0, Environment.getAll().size());
+    }
 
     @Test
     public void testReceiveApp() throws Exception
@@ -53,20 +71,27 @@ public class DeploymentManagerTest
         // Start DepMan
         depman.start();
 
-        // Trigger new App
-        mockProvider.createWebapp("foo-webapp-1.war");
+        try
+        {
+            // Trigger new App
+            mockProvider.createWebapp("foo-webapp-1.war");
 
-        // Test app tracking
-        Collection<App> apps = depman.getApps();
-        assertNotNull(apps, "Should never be null");
-        assertEquals(1, apps.size(), "Expected App Count");
+            // Test app tracking
+            Collection<App> apps = depman.getApps();
+            assertNotNull(apps, "Should never be null");
+            assertEquals(1, apps.size(), "Expected App Count");
 
-        // Test app get
-        App app = apps.stream().findFirst().orElse(null);
-        assertNotNull(app);
-        App actual = depman.getApp(app.getPath());
-        assertNotNull(actual, "Should have gotten app (by id)");
-        assertThat(actual.getPath().toString(), endsWith("mock-foo-webapp-1.war"));
+            // Test app get
+            App app = apps.stream().findFirst().orElse(null);
+            assertNotNull(app);
+            App actual = depman.getApp(app.getPath());
+            assertNotNull(actual, "Should have gotten app (by id)");
+            assertThat(actual.getPath().toString(), endsWith("mock-foo-webapp-1.war"));
+        }
+        finally
+        {
+            LifeCycle.stop(depman);
+        }
     }
 
     @Test
@@ -177,14 +202,7 @@ public class DeploymentManagerTest
         {
             if (jetty != null)
             {
-                try
-                {
-                    jetty.stop();
-                }
-                catch (Exception ignore)
-                {
-                    // ignore
-                }
+                jetty.stop();
             }
         }
     }

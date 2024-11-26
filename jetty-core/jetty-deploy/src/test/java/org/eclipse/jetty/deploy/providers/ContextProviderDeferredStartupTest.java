@@ -55,7 +55,7 @@ public class ContextProviderDeferredStartupTest
     @AfterEach
     public void teardownEnvironment() throws Exception
     {
-        LifeCycle.stop(jetty);
+        jetty.stop();
     }
 
     @Test

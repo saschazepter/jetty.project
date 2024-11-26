@@ -29,7 +29,6 @@ import org.eclipse.jetty.toolchain.test.MavenPaths;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
 import org.eclipse.jetty.util.Scanner;
-import org.eclipse.jetty.util.component.LifeCycle;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -115,7 +114,7 @@ public class ContextProviderRuntimeUpdatesTest
     @AfterEach
     public void teardownEnvironment() throws Exception
     {
-        LifeCycle.stop(jetty);
+        jetty.stop();
     }
 
     public void waitForDirectoryScan()
