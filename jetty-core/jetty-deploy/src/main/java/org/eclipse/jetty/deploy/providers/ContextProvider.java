@@ -45,6 +45,7 @@ import org.eclipse.jetty.util.Loader;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.component.Environment;
+import org.eclipse.jetty.util.resource.PathCollators;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.xml.XmlConfiguration;
@@ -167,11 +168,18 @@ public class ContextProvider extends ScanningAppProvider
                 {
                     Path envXmlPath = Paths.get((String)appAttributes.getAttribute(k));
                     if (!envXmlPath.isAbsolute())
-                        envXmlPath = getMonitoredDirResource().getPath().getParent().resolve(envXmlPath);
+                    {
+                        Path monitoredPath = getMonitoredDirResource().getPath();
+                        // not all Resource implementations support java.nio.file.Path.
+                        if (monitoredPath != null)
+                        {
+                            envXmlPath = monitoredPath.getParent().resolve(envXmlPath);
+                        }
+                    }
                     return envXmlPath;
                 })
                 .filter(Files::isRegularFile)
-                .sorted()
+                .sorted(PathCollators.byName(true))
                 .toList();
 
             // apply each environment context xml file
@@ -211,7 +219,7 @@ public class ContextProvider extends ScanningAppProvider
             // Build the web application if necessary
             if (context == null)
             {
-                contextHandlerClassName = (String)environment.getAttribute(Deployable.CONTEXT_HANDLER_CLASS);
+                contextHandlerClassName = (String)appAttributes.getAttribute(Deployable.CONTEXT_HANDLER_CLASS);
                 if (StringUtil.isBlank(contextHandlerClassName))
                     throw new IllegalStateException("No ContextHandler classname for " + app);
                 Class<?> contextHandlerClass = Loader.loadClass(contextHandlerClassName);

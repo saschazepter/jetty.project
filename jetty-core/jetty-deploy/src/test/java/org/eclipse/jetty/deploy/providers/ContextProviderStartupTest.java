@@ -123,17 +123,18 @@ public class ContextProviderStartupTest
     public void testStartupWithAbsoluteEnvironmentContext() throws Exception
     {
         Path jettyBase = jetty.getJettyBasePath();
-        Path propsFile = Files.writeString(jettyBase.resolve("webapps/core.properties"), Deployable.ENVIRONMENT_XML + " = " +
-            MavenPaths.findTestResourceFile("etc/core-context.xml"), StandardOpenOption.CREATE_NEW);
+        Path propsFile = Files.writeString(jettyBase.resolve("webapps/core.properties"),
+            String.format("%s = %s%n", Deployable.ENVIRONMENT_XML, MavenPaths.findTestResourceFile("etc/core-context.xml")),
+            StandardOpenOption.CREATE_NEW);
         assertTrue(Files.exists(propsFile));
-        Path props2File = Files.writeString(jettyBase.resolve("webapps/core-other.properties"), Deployable.ENVIRONMENT_XML + ".other =  " + MavenPaths.findTestResourceFile("etc/core-context-other.xml"), StandardOpenOption.CREATE_NEW);
+        Path props2File = Files.writeString(jettyBase.resolve("webapps/core-other.properties"),
+            String.format("%s = %s%n", (Deployable.ENVIRONMENT_XML + ".other"), MavenPaths.findTestResourceFile("etc/core-context-other.xml")),
+            StandardOpenOption.CREATE_NEW);
          assertTrue(Files.exists(props2File));
-        Files.copy(MavenPaths.findTestResourceFile("etc/core-context.xml"), jettyBase.resolve("etc/core-context.xml"), StandardCopyOption.REPLACE_EXISTING);
-        Files.copy(MavenPaths.findTestResourceFile("etc/core-context-other.xml"), jettyBase.resolve("etc/core-context-other.xml"), StandardCopyOption.REPLACE_EXISTING);
         jetty.copyWebapp("bar-core-context.properties", "bar.properties");
         startJetty();
 
-        //check core environment context xml was applied to the produced context
+        // check core environment context xml was applied to the produced context
         ContextHandler context = jetty.getContextHandler("/bar");
         assertNotNull(context);
         assertThat(context.getAttribute("core-context-0"), equalTo("core-context-0"));
