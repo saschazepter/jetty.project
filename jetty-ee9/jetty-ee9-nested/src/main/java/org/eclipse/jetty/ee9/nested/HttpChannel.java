@@ -1435,6 +1435,13 @@ public class HttpChannel implements Runnable, HttpOutput.Interceptor
                         _response.getHttpOutput().completed(null);
                         super.failed(x);
                     }
+
+                    @Override
+                    public void failed(Throwable th)
+                    {
+                        abort(x);
+                        super.failed(x);
+                    }
                 });
             }
             else
