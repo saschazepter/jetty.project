@@ -52,40 +52,40 @@ import org.eclipse.jetty.xml.XmlConfiguration;
 import org.slf4j.LoggerFactory;
 
 /**
- * The webapps directory scanning provider.
- * * <p>This provider scans one or more directories (typically "webapps") for contexts to
- * * deploy, which may be:
- * * </p>
- * * <ul>
- * * <li>A standard WAR file (must end in ".war")</li>
- * * <li>A directory containing an expanded WAR file</li>
- * * <li>A directory containing static content</li>
- * * <li>An XML descriptor in {@link XmlConfiguration} format that configures a {@link ContextHandler} instance</li>
- * * </ul>
- * * <p>To avoid double deployments and allow flexibility of the content of the scanned directories, the provider
- * * implements some heuristics to ignore some files found in the scans:
- * * </p>
- * * <ul>
- * * <li>Hidden files (starting with {@code "."}) are ignored</li>
- * * <li>Directories with names ending in {@code ".d"} are ignored</li>
- * * <li>Property files with names ending in {@code ".properties"} are not deployed.</li>
- * * <li>If a directory and a WAR file exist (eg: {@code foo/} and {@code foo.war}) then the directory is assumed to be
- * * the unpacked WAR and only the WAR is deployed (which may reused the unpacked directory)</li>
- * * <li>If a directory and a matching XML file exist (eg: {@code foo/} and {@code foo.xml}) then the directory is assumed to be
- * * an unpacked WAR and only the XML is deployed (which may used the directory in its configuration)</li>
- * * <li>If a WAR file and a matching XML exist (eg: {@code foo.war} and {@code foo.xml}) then the WAR is assumed to
- * * be configured by the XML and only the XML is deployed.
- * * </ul>
- * * <p>For XML configured contexts, the ID map will contain a reference to the {@link Server} instance called "Server" and
- * * properties for the webapp file such as "jetty.webapp" and directory as "jetty.webapps".
- * * The properties will be initialized with:
- * * </p>
- * * <ul>
- * * <li>The properties set on the application via {@link App#getProperties()}</li>
- * * <li>The app specific properties file {@code webapps/<webapp-name>.properties}</li>
- * * <li>The environment specific properties file {@code webapps/<environment-name>[-zzz].properties}</li>
- * * <li>The {@link Attributes} from the {@link Environment}</li>
- * * </ul>
+ * <p>Jetty Environment WebApp Hot Deployment Provider.</p>
+ *
+ * <p>This provider scans one or more directories (typically "webapps") for contexts to
+ * deploy, which may be:</p>
+ * <ul>
+ * <li>A standard WAR file (must end in ".war")</li>
+ * <li>A directory containing an expanded WAR file</li>
+ * <li>A directory containing static content</li>
+ * <li>An XML descriptor in {@link XmlConfiguration} format that configures a {@link ContextHandler} instance</li>
+ * </ul>
+ * <p>To avoid double deployments and allow flexibility of the content of the scanned directories, the provider
+ * implements some heuristics to ignore some files found in the scans:
+ * </p>
+ * <ul>
+ * <li>Hidden files (starting with {@code "."}) are ignored</li>
+ * <li>Directories with names ending in {@code ".d"} are ignored</li>
+ * <li>Property files with names ending in {@code ".properties"} are not deployed.</li>
+ * <li>If a directory and a WAR file exist (eg: {@code foo/} and {@code foo.war}) then the directory is assumed to be
+ * the unpacked WAR and only the WAR is deployed (which may reused the unpacked directory)</li>
+ * <li>If a directory and a matching XML file exist (eg: {@code foo/} and {@code foo.xml}) then the directory is assumed to be
+ * an unpacked WAR and only the XML is deployed (which may used the directory in its configuration)</li>
+ * <li>If a WAR file and a matching XML exist (eg: {@code foo.war} and {@code foo.xml}) then the WAR is assumed to
+ * be configured by the XML and only the XML is deployed.
+ * </ul>
+ * <p>For XML configured contexts, the ID map will contain a reference to the {@link Server} instance called "Server" and
+ * properties for the webapp file such as "jetty.webapp" and directory as "jetty.webapps".
+ * The properties will be initialized with:
+ * </p>
+ * <ul>
+ * <li>The properties set on the application via {@link App#getProperties()}</li>
+ * <li>The app specific properties file {@code webapps/<webapp-name>.properties}</li>
+ * <li>The environment specific properties file {@code webapps/<environment-name>[-zzz].properties}</li>
+ * <li>The {@link Attributes} from the {@link Environment}</li>
+ * </ul>
  */
 @ManagedObject("Provider for start-up deployment of webapps based on presence in directory")
 public class ContextProvider extends ScanningAppProvider
