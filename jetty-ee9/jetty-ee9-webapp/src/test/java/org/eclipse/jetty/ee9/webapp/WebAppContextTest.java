@@ -712,6 +712,7 @@ public class WebAppContextTest
             }
         }
     }
+
     @Test
     public void testBaseResourceAbsolutePath(WorkDir workDir) throws Exception
     {

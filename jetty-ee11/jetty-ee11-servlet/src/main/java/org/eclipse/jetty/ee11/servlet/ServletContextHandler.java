@@ -114,6 +114,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static jakarta.servlet.ServletContext.TEMPDIR;
+import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_EXCEPTION;
+import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS;
 
 /**
  * Servlet Context.
@@ -1198,12 +1200,23 @@ public class ServletContextHandler extends ContextHandler
 
         if (isProtectedTarget(pathInContext))
         {
-            // Do nothing here other than set the error status so that the ServletHandler will handle as if a sendError
-            request.setAttribute(org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS, 404);
-            response.setStatus(HttpStatus.NOT_FOUND_404);
+            if (getErrorHandler() instanceof ErrorHandler.ErrorPageMapper mapper)
+            {
+                Integer errorStatus = (Integer)request.getAttribute(ERROR_STATUS);
+                Throwable errorCause = (Throwable)request.getAttribute(ERROR_EXCEPTION);
+                ErrorHandler.ErrorPageMapper.ErrorPage errorPage = mapper.getErrorPage(errorStatus, errorCause);
+                if (errorPage != null)
+                {
+                    // Do nothing here other than set the error status so that the ServletHandler will handle as if a sendError
+                    request.setAttribute(ERROR_STATUS, 404);
+                    response.setStatus(HttpStatus.NOT_FOUND_404);
+                    return false;
+                }
+            }
         }
 
-        return false;
+        Response.writeError(request, response, callback, HttpStatus.NOT_FOUND_404, null);
+        return true;
     }
 
     @Override

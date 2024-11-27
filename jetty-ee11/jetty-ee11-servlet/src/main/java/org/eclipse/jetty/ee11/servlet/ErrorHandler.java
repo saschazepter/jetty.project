@@ -67,12 +67,13 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
         // Look for an error page dispatcher
         // This logic really should be in ErrorPageErrorHandler, but some implementations extend ErrorHandler
         // and implement ErrorPageMapper directly, so we do this here in the base class.
-        String errorPage = (this instanceof ErrorPageMapper) ? ((ErrorPageMapper)this).getErrorPage(httpServletRequest) : null;
         ServletContextHandler.ServletScopedContext context = servletContextRequest.getErrorContext();
-        Dispatcher errorDispatcher = (errorPage != null && context != null)
-            ? (Dispatcher)context.getServletContext().getRequestDispatcher(errorPage) : null;
-
-        if (errorDispatcher != null)
+        Integer errorStatus = (Integer)request.getAttribute(ERROR_STATUS);
+        Throwable errorCause = (Throwable)request.getAttribute(ERROR_EXCEPTION);
+        ErrorPageMapper.ErrorPage errorPage = (this instanceof ErrorPageMapper mapper) ? mapper.getErrorPage(errorStatus, errorCause) : null;
+        if (LOG.isDebugEnabled())
+            LOG.debug("{} {} {} -> {}", context, errorStatus, errorCause, errorPage);
+        if (errorPage != null && context.getServletContext().getRequestDispatcher(errorPage.errorPage) instanceof Dispatcher errorDispatcher)
         {
             try
             {
@@ -157,7 +158,19 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
 
     public interface ErrorPageMapper
     {
-        String getErrorPage(HttpServletRequest request);
+        enum PageLookupTechnique
+        {
+            THROWABLE, STATUS_CODE, GLOBAL
+        }
+
+        record ErrorPage(String errorPage, PageLookupTechnique match, Throwable cause, Class<?> matchedClass)
+        {
+        }
+
+        ErrorPage getErrorPage(Integer errorStatusCode, Throwable error);
+
+        default void prepare(ErrorPage errorPage, HttpServletRequest request, HttpServletResponse response)
+        {}
     }
 
     public static Request.Handler getErrorHandler(Server server, ContextHandler context)
