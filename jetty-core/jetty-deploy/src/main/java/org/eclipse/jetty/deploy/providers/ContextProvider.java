@@ -229,7 +229,8 @@ public class ContextProvider extends ScanningAppProvider
             // Build the web application if necessary
             if (context == null)
             {
-                contextHandlerClassName = (String)appAttributes.getAttribute(Deployable.CONTEXT_HANDLER_CLASS);
+                // Create the webapp from the default context class
+                contextHandlerClassName = (String)appAttributes.getAttribute(Deployable.CONTEXT_HANDLER_CLASS_DEFAULT);
                 if (StringUtil.isBlank(contextHandlerClassName))
                     throw new IllegalStateException("No ContextHandler classname for " + app);
                 Class<?> contextHandlerClass = Loader.loadClass(contextHandlerClassName);
@@ -752,12 +753,17 @@ public class ContextProvider extends ScanningAppProvider
          * instances (can be class that implements {@code java.util.function.Supplier<Handler>}
          * as well).
          *
+         * <p>
+         *     This is the fallback class used, if the context class itself isn't defined by
+         *     the web application being deployed.
+         * </p>
+         *
          * @param classname the classname for this environment's context deployable.
-         * @see Deployable#CONTEXT_HANDLER_CLASS
+         * @see Deployable#CONTEXT_HANDLER_CLASS_DEFAULT
          */
         public void setContextHandlerClass(String classname)
         {
-            environment.setAttribute(Deployable.CONTEXT_HANDLER_CLASS, classname);
+            environment.setAttribute(Deployable.CONTEXT_HANDLER_CLASS_DEFAULT, classname);
         }
 
         /**
