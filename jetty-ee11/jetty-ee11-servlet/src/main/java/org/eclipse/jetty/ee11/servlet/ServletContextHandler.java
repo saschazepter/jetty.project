@@ -1148,7 +1148,6 @@ public class ServletContextHandler extends ContextHandler
         decodedPathInContext = URIUtil.decodePath(getContext().getPathInContext(request.getHttpURI().getCanonicalPath()));
         matchedResource = _servletHandler.getMatchedServlet(decodedPathInContext);
 
-
         if (matchedResource == null)
             return wrapNoServlet(request, response);
         ServletHandler.MappedServlet mappedServlet = matchedResource.getResource();
@@ -1213,10 +1212,10 @@ public class ServletContextHandler extends ContextHandler
                     return false;
                 }
             }
+            Response.writeError(request, response, callback, HttpStatus.NOT_FOUND_404, null);
+            return true;
         }
-
-        Response.writeError(request, response, callback, HttpStatus.NOT_FOUND_404, null);
-        return true;
+        return false;
     }
 
     @Override
