@@ -31,6 +31,7 @@ public class RedirectRegexRuleTest extends AbstractRuleTest
     {
         _rewriteHandler.addRule(rule);
         _httpConfig.setUriCompliance(UriCompliance.UNSAFE);
+        _httpConfig.setRedirectUriCompliance(UriCompliance.UNSAFE);
         start(new Handler.Abstract()
         {
             @Override
