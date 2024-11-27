@@ -1148,7 +1148,6 @@ public class ServletContextHandler extends ContextHandler
         decodedPathInContext = URIUtil.decodePath(getContext().getPathInContext(request.getHttpURI().getCanonicalPath()));
         matchedResource = _servletHandler.getMatchedServlet(decodedPathInContext);
 
-
         if (matchedResource == null)
             return wrapNoServlet(request, response);
         ServletHandler.MappedServlet mappedServlet = matchedResource.getResource();
@@ -1200,9 +1199,9 @@ public class ServletContextHandler extends ContextHandler
 
         if (isProtectedTarget(pathInContext))
         {
+            // Do nothing here other than set the error status so that the ServletHandler will handle as if a sendError
             response.setStatus(HttpStatus.NOT_FOUND_404);
         }
-
         return false;
     }
 

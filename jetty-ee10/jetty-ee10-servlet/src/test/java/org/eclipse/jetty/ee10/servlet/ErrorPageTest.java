@@ -74,6 +74,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -1444,7 +1445,7 @@ public class ErrorPageTest
             }
         };
 
-        contextHandler.addServlet(asyncServlet, "/async/*");
+        contextHandler.addServlet(asyncServlet, "/async/*").setAsyncSupported(true);
         contextHandler.addServlet(ErrorDumpServlet.class, "/error/*");
 
         ErrorPageErrorHandler errorPageErrorHandler = new ErrorPageErrorHandler();
@@ -1858,7 +1859,7 @@ public class ErrorPageTest
                 resp.sendError(598);
             }
         };
-        context.addServlet(appServlet, "/async/*");
+        context.addServlet(appServlet, "/async/*").setAsyncSupported(true);
         HttpServlet error598Servlet = new HttpServlet()
         {
             @Override
@@ -1882,7 +1883,7 @@ public class ErrorPageTest
                 });
             }
         };
-        context.addServlet(error598Servlet, "/error/598");
+        context.addServlet(error598Servlet, "/error/598").setAsyncSupported(true);
 
         startServer(context);
 
@@ -1948,6 +1949,68 @@ public class ErrorPageTest
         HttpTester.Response response = HttpTester.parseResponse(_connector.getResponse(request));
 
         assertThat(response.getStatus(), is(598));
+    }
+
+    @Test
+    public void testProtectedTargetNoPage() throws Exception
+    {
+        ServletContextHandler contextHandler = new ServletContextHandler(ServletContextHandler.NO_SECURITY | ServletContextHandler.NO_SESSIONS);
+        contextHandler.setContextPath("/ctx");
+        contextHandler.setProtectedTargets(new String[] {"/WEB-INF", "/META-INF"});
+        contextHandler.addServlet(ErrorDumpServlet.class, "/error/*");
+        contextHandler.addServlet(new OkServlet(), "/*");
+
+        ErrorPageErrorHandler errorPageErrorHandler = new ErrorPageErrorHandler();
+        contextHandler.setErrorHandler(errorPageErrorHandler);
+
+        startServer(contextHandler);
+
+        String rawRequest = """
+            GET /ctx/WEB-INF/anything HTTP/1.1\r
+            Host: test\r
+            Connection: close\r
+            Accept: */*\r
+            Accept-Charset: *\r
+            \r
+            """;
+
+        String rawResponse = _connector.getResponse(rawRequest);
+        assertThat(rawResponse, startsWith("HTTP/1.1 404 Not Found"));
+        HttpTester.Response response = HttpTester.parseResponse(rawResponse);
+        assertThat(response.getStatus(), is(404));
+        assertThat(response.getContent(), containsString("<h2>HTTP ERROR 404 Not Found</h2>"));
+    }
+
+    @Test
+    public void testProtectedTarget() throws Exception
+    {
+        ServletContextHandler contextHandler = new ServletContextHandler(ServletContextHandler.NO_SECURITY | ServletContextHandler.NO_SESSIONS);
+        contextHandler.setContextPath("/ctx");
+        contextHandler.setProtectedTargets(new String[] {"/WEB-INF", "/META-INF"});
+        contextHandler.addServlet(ErrorDumpServlet.class, "/error/*");
+        contextHandler.addServlet(new OkServlet(), "/*");
+
+        ErrorPageErrorHandler errorPageErrorHandler = new ErrorPageErrorHandler();
+        contextHandler.setErrorHandler(errorPageErrorHandler);
+        errorPageErrorHandler.addErrorPage(404, "/error/404");
+
+        startServer(contextHandler);
+
+        String rawRequest = """
+            GET /ctx/WEB-INF/anything HTTP/1.1\r
+            Host: test\r
+            Connection: close\r
+            Accept: */*\r
+            Accept-Charset: *\r
+            \r
+            """;
+
+        String rawResponse = _connector.getResponse(rawRequest);
+        assertThat(rawResponse, startsWith("HTTP/1.1 404 Not Found"));
+        HttpTester.Response response = HttpTester.parseResponse(rawResponse);
+        assertThat(response.getStatus(), is(404));
+        assertThat(response.getContent(), containsString("ERROR_PAGE: /404"));
+        assertThat(response.getContent(), containsString("ERROR_MESSAGE: Not Found"));
     }
 
     public static class ErrorDumpServlet extends HttpServlet
@@ -2065,6 +2128,15 @@ public class ErrorPageTest
         public TestServletException(Throwable rootCause)
         {
             super(rootCause);
+        }
+    }
+
+    public static class OkServlet extends HttpServlet
+    {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+        {
+            resp.setStatus(200);
         }
     }
 }

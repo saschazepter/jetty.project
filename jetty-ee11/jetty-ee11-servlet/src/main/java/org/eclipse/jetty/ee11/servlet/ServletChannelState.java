@@ -419,6 +419,13 @@ public class ServletChannelState
                         throw new IllegalStateException(getStatusStringLocked());
                     _initial = true;
                     _state = State.HANDLING;
+                    if (_servletChannel.getResponse().getStatus() != 0)
+                    {
+                        _servletChannel.getServletRequestState().sendError(_servletChannel.getResponse().getStatus(), null);
+                        _requestState = RequestState.BLOCKING;
+                        _sendError = false;
+                        return Action.SEND_ERROR;
+                    }
                     return Action.DISPATCH;
 
                 case WOKEN:

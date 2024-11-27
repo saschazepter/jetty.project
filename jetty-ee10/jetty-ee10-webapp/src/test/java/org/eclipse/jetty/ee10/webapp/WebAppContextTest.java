@@ -166,9 +166,8 @@ public class WebAppContextTest
     }
 
     @Test
-    public void testErrorPage() throws Exception
+    public void testProtectedTargetErrorPage() throws Exception
     {
-
         //TODO  -  the ErrorPageErrorHandler is looking for servlet api attributes, but the Response.writeError is using server api attributes
         WebAppContext contextHandler = new WebAppContext();
         contextHandler.setContextPath("/foo");
@@ -177,6 +176,7 @@ public class WebAppContextTest
         defaultHolder.setDisplayName("default");
 
         contextHandler.addServlet(defaultHolder, "/");
+        contextHandler.addServlet(new OkServlet(), "/*");
         contextHandler.addServlet(ErrorDumpServlet.class, "/error/*");
         contextHandler.addServlet(GlobalErrorDumpServlet.class, "/global/*");
         ErrorPageErrorHandler errorPageErrorHandler = new ErrorPageErrorHandler();
@@ -1158,5 +1158,14 @@ public class WebAppContextTest
 
         assertThat("context API", protectedClasses, hasItem("org.context.specific."));
         assertThat("deprecated API", protectedClasses, hasItem("org.deprecated.api."));
+    }
+
+    public static class OkServlet extends HttpServlet
+    {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+        {
+            resp.setStatus(200);
+        }
     }
 }
