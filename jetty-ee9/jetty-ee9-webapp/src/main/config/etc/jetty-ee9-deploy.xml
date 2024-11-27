@@ -26,8 +26,8 @@
         <Default>.*/jakarta.servlet-api-[^/]*\.jar$|.*jakarta.servlet.jsp.jstl-.*\.jar$</Default>
       </Property>
     </Set>
-    <Set name="jetty.deploy.webInfScanJarPattern" property="jetty.deploy.webInfScanJarPattern" />
-    <Set name="jetty.deploy.servletContainerInitializerExclusionPattern" property="jetty.deploy.servletContainerInitializerExclusionPattern" />
-    <Set name="jetty.deploy.servletContainerInitializerOrder" property="jetty.deploy.servletContainerInitializerOrder" />
+    <Set name="webInfScanJarPattern" property="jetty.deploy.webInfScanJarPattern" />
+    <Set name="servletContainerInitializerExclusionPattern" property="jetty.deploy.servletContainerInitializerExclusionPattern" />
+    <Set name="servletContainerInitializerOrder" property="jetty.deploy.servletContainerInitializerOrder" />
   </Call>
 </Configure>
