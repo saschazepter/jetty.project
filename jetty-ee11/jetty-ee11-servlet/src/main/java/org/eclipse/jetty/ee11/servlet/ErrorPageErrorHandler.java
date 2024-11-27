@@ -56,9 +56,9 @@ public class ErrorPageErrorHandler extends ErrorHandler implements ErrorHandler.
     @Override
     public void prepare(ErrorPage errorPage, HttpServletRequest request, HttpServletResponse response)
     {
-        if (errorPage.cause() instanceof ServletException && _unwrapServletException)
+        if (errorPage.error() instanceof ServletException && _unwrapServletException)
         {
-            Throwable unwrapped = unwrapServletException(errorPage.cause(), errorPage.matchedClass());
+            Throwable unwrapped = unwrapServletException(errorPage.error(), errorPage.matchedClass());
             if (unwrapped != null)
             {
                 request.setAttribute(org.eclipse.jetty.server.handler.ErrorHandler.ERROR_EXCEPTION, unwrapped);
@@ -82,7 +82,7 @@ public class ErrorPageErrorHandler extends ErrorHandler implements ErrorHandler.
             {
                 errorPage = _errorPages.get(exClass.getName());
                 if (errorPage != null)
-                    return new ErrorPage(errorPage, PageLookupTechnique.THROWABLE, cause, exClass);
+                    return new ErrorPage(errorPage, PageLookupTechnique.THROWABLE, error, cause, exClass);
                 exClass = exClass.getSuperclass();
             }
 
@@ -94,20 +94,20 @@ public class ErrorPageErrorHandler extends ErrorHandler implements ErrorHandler.
         {
             errorPage = _errorPages.get(Integer.toString(errorStatusCode));
             if (errorPage != null)
-                return new ErrorPage(errorPage, PageLookupTechnique.STATUS_CODE, error, null);
+                return new ErrorPage(errorPage, PageLookupTechnique.STATUS_CODE, error, error, null);
 
             // look for an error code range match.
             for (ErrorCodeRange errCode : _errorPageList)
             {
                 if (errCode.isInRange(errorStatusCode))
-                    return new ErrorPage(errCode.getUri(), PageLookupTechnique.STATUS_CODE, error, null);
+                    return new ErrorPage(errCode.getUri(), PageLookupTechnique.STATUS_CODE, error, error, null);
             }
         }
 
         // Try servlet 3.x global error page.
         errorPage = _errorPages.get(GLOBAL_ERROR_PAGE);
         if (errorPage != null)
-            return new ErrorPage(errorPage, PageLookupTechnique.GLOBAL, error, null);
+            return new ErrorPage(errorPage, PageLookupTechnique.GLOBAL, error, error, null);
 
         return null;
     }

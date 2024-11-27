@@ -114,7 +114,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static jakarta.servlet.ServletContext.TEMPDIR;
-import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_EXCEPTION;
 import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS;
 
 /**
@@ -1201,9 +1200,7 @@ public class ServletContextHandler extends ContextHandler
         {
             if (getErrorHandler() instanceof ErrorHandler.ErrorPageMapper mapper)
             {
-                Integer errorStatus = (Integer)request.getAttribute(ERROR_STATUS);
-                Throwable errorCause = (Throwable)request.getAttribute(ERROR_EXCEPTION);
-                ErrorHandler.ErrorPageMapper.ErrorPage errorPage = mapper.getErrorPage(errorStatus, errorCause);
+                ErrorHandler.ErrorPageMapper.ErrorPage errorPage = mapper.getErrorPage(404, null);
                 if (errorPage != null)
                 {
                     // Do nothing here other than set the error status so that the ServletHandler will handle as if a sendError

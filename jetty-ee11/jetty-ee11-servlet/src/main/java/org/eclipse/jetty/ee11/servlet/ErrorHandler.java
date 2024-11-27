@@ -70,33 +70,37 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
         ServletContextHandler.ServletScopedContext context = servletContextRequest.getErrorContext();
         Integer errorStatus = (Integer)request.getAttribute(ERROR_STATUS);
         Throwable errorCause = (Throwable)request.getAttribute(ERROR_EXCEPTION);
-        ErrorPageMapper.ErrorPage errorPage = (this instanceof ErrorPageMapper mapper) ? mapper.getErrorPage(errorStatus, errorCause) : null;
-        if (LOG.isDebugEnabled())
-            LOG.debug("{} {} {} -> {}", context, errorStatus, errorCause, errorPage);
-        if (errorPage != null && context.getServletContext().getRequestDispatcher(errorPage.errorPage) instanceof Dispatcher errorDispatcher)
+        if (this instanceof ErrorPageMapper mapper)
         {
-            try
+            ErrorPageMapper.ErrorPage errorPage = mapper.getErrorPage(errorStatus, errorCause);
+            if (LOG.isDebugEnabled())
+                LOG.debug("{} {} {} -> {}", context, errorStatus, errorCause, errorPage);
+            if (errorPage != null && context.getServletContext().getRequestDispatcher(errorPage.errorPage) instanceof Dispatcher errorDispatcher)
             {
                 try
                 {
-                    contextHandler.requestInitialized(servletContextRequest, httpServletRequest);
-                    errorDispatcher.error(httpServletRequest, httpServletResponse);
-                }
-                finally
-                {
-                    contextHandler.requestDestroyed(servletContextRequest, httpServletRequest);
-                }
-                callback.succeeded();
-                return true;
-            }
-            catch (ServletException e)
-            {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Unable to call error dispatcher", e);
-                if (response.isCommitted())
-                {
-                    callback.failed(e);
+                    try
+                    {
+                        mapper.prepare(errorPage, httpServletRequest, httpServletResponse);
+                        contextHandler.requestInitialized(servletContextRequest, httpServletRequest);
+                        errorDispatcher.error(httpServletRequest, httpServletResponse);
+                    }
+                    finally
+                    {
+                        contextHandler.requestDestroyed(servletContextRequest, httpServletRequest);
+                    }
+                    callback.succeeded();
                     return true;
+                }
+                catch (ServletException e)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Unable to call error dispatcher", e);
+                    if (response.isCommitted())
+                    {
+                        callback.failed(e);
+                        return true;
+                    }
                 }
             }
         }
@@ -163,7 +167,7 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
             THROWABLE, STATUS_CODE, GLOBAL
         }
 
-        record ErrorPage(String errorPage, PageLookupTechnique match, Throwable cause, Class<?> matchedClass)
+        record ErrorPage(String errorPage, PageLookupTechnique match, Throwable error, Throwable cause, Class<?> matchedClass)
         {
         }
 
