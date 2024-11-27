@@ -40,6 +40,7 @@ import static jakarta.servlet.RequestDispatcher.ERROR_MESSAGE;
 import static jakarta.servlet.RequestDispatcher.ERROR_REQUEST_URI;
 import static jakarta.servlet.RequestDispatcher.ERROR_SERVLET_NAME;
 import static jakarta.servlet.RequestDispatcher.ERROR_STATUS_CODE;
+import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS;
 
 /**
  * holder of the state of request-response cycle.
@@ -425,10 +426,13 @@ public class ServletChannelState
                     _state = State.HANDLING;
                     if (_servletChannel.getResponse().getStatus() != 0)
                     {
-                        _servletChannel.getServletRequestState().sendError(_servletChannel.getResponse().getStatus(), null);
-                        _requestState = RequestState.BLOCKING;
-                        _sendError = false;
-                        return Action.SEND_ERROR;
+                        if (_servletChannel.getRequest().getAttribute(ERROR_STATUS) instanceof Integer errorCode)
+                        {
+                            _servletChannel.getServletRequestState().sendError(errorCode, null);
+                            _requestState = RequestState.BLOCKING;
+                            _sendError = false;
+                            return Action.SEND_ERROR;
+                        }
                     }
                     return Action.DISPATCH;
 
@@ -1073,7 +1077,7 @@ public class ServletChannelState
             // Set Jetty Specific Attributes.
             request.setAttribute(ErrorHandler.ERROR_CONTEXT, servletContextRequest.getServletContext());
             request.setAttribute(ErrorHandler.ERROR_MESSAGE, message);
-            request.setAttribute(ErrorHandler.ERROR_STATUS, code);
+            request.setAttribute(ERROR_STATUS, code);
             request.setAttribute(ErrorHandler.ERROR_ORIGIN, servletContextRequest.getServletName());
 
             _sendError = true;

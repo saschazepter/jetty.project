@@ -1199,6 +1199,7 @@ public class ServletContextHandler extends ContextHandler
         if (isProtectedTarget(pathInContext))
         {
             // Do nothing here other than set the error status so that the ServletHandler will handle as if a sendError
+            request.setAttribute(org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS, 404);
             response.setStatus(HttpStatus.NOT_FOUND_404);
         }
 

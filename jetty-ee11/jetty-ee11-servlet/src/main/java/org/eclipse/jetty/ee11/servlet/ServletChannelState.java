@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_EXCEPTION;
 import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_ORIGIN;
+import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS;
 
 /**
  * holder of the state of request-response cycle.
@@ -421,10 +422,13 @@ public class ServletChannelState
                     _state = State.HANDLING;
                     if (_servletChannel.getResponse().getStatus() != 0)
                     {
-                        _servletChannel.getServletRequestState().sendError(_servletChannel.getResponse().getStatus(), null);
-                        _requestState = RequestState.BLOCKING;
-                        _sendError = false;
-                        return Action.SEND_ERROR;
+                        if (_servletChannel.getRequest().getAttribute(ERROR_STATUS) instanceof Integer errorCode)
+                        {
+                            _servletChannel.getServletRequestState().sendError(errorCode, null);
+                            _requestState = RequestState.BLOCKING;
+                            _sendError = false;
+                            return Action.SEND_ERROR;
+                        }
                     }
                     return Action.DISPATCH;
 
@@ -1060,7 +1064,7 @@ public class ServletChannelState
             request.setAttribute(ERROR_ORIGIN, servletContextRequest.getServletName());
             request.setAttribute(ErrorHandler.ERROR_CONTEXT, servletContextRequest.getServletContext());
             request.setAttribute(ErrorHandler.ERROR_MESSAGE, message);
-            request.setAttribute(ErrorHandler.ERROR_STATUS, code);
+            request.setAttribute(ERROR_STATUS, code);
 
             _sendError = true;
             if (_event != null)
