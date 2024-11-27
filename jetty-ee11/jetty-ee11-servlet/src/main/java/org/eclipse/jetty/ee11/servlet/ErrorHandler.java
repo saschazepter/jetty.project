@@ -14,26 +14,16 @@
 package org.eclipse.jetty.ee11.servlet;
 
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
-import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.http.QuotedQualityCSV;
-import org.eclipse.jetty.io.ByteBufferOutputStream;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
@@ -68,7 +58,6 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
 
         ServletContextRequest servletContextRequest = Request.as(request, ServletContextRequest.class);
         HttpServletRequest httpServletRequest = servletContextRequest.getServletApiRequest();
-
         HttpServletResponse httpServletResponse = servletContextRequest.getHttpServletResponse();
         ServletContextHandler contextHandler = servletContextRequest.getServletContext().getServletContextHandler();
         String cacheControl = getCacheControl();
@@ -89,13 +78,11 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
             {
                 try
                 {
-                    //TODO should invoke via ServletHandler state machine if not already in the state machine
                     contextHandler.requestInitialized(servletContextRequest, httpServletRequest);
                     errorDispatcher.error(httpServletRequest, httpServletResponse);
                 }
                 finally
                 {
-                    httpServletResponse.flushBuffer();
                     contextHandler.requestDestroyed(servletContextRequest, httpServletRequest);
                 }
                 callback.succeeded();

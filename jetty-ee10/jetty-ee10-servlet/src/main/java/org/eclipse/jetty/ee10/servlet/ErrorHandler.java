@@ -110,7 +110,6 @@ public class ErrorHandler implements Request.Handler
                 }
                 finally
                 {
-                    httpServletResponse.flushBuffer();
                     contextHandler.requestDestroyed(servletContextRequest, httpServletRequest);
                 }
                 callback.succeeded();

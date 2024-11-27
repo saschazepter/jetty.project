@@ -1859,12 +1859,13 @@ public class ErrorPageTest
                 resp.sendError(598);
             }
         };
-        context.addServlet(appServlet, "/async/*").setAsyncSupported(true);
+        context.addServlet(appServlet, "/async/*");
         HttpServlet error598Servlet = new HttpServlet()
         {
             @Override
-            protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException
+            protected void service(HttpServletRequest req, HttpServletResponse resp)
             {
+                assertThat(req.getDispatcherType(), is(DispatcherType.ERROR));
                 AsyncContext asyncContext = req.startAsync();
                 asyncContext.start(() ->
                 {
@@ -1883,7 +1884,7 @@ public class ErrorPageTest
                 });
             }
         };
-        context.addServlet(error598Servlet, "/error/598").setAsyncSupported(true);
+        context.addServlet(error598Servlet, "/error/598");
 
         startServer(context);
 

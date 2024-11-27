@@ -20,11 +20,8 @@ import java.util.Map;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import org.eclipse.jetty.server.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS;
 
 /**
  * An ErrorHandler that maps exceptions and status codes to URIs for dispatch using

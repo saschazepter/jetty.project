@@ -38,11 +38,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
-import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.ee10.servlet.util.ServletOutputStreamWrapper;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.pathmap.MatchedResource;
 import org.eclipse.jetty.io.WriterOutputStream;
+import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.util.Fields;
 import org.eclipse.jetty.util.IO;
 import org.eclipse.jetty.util.StringUtil;
@@ -826,7 +826,8 @@ public class Dispatcher implements RequestDispatcher
         @Override
         public Enumeration<String> getAttributeNames()
         {
-            List<String> names = new ArrayList<>(List.of( ERROR_REQUEST_URI, ERROR_STATUS_CODE, ERROR_MESSAGE));
+            // TODO add all names?
+            List<String> names = new ArrayList<>(List.of(ERROR_REQUEST_URI, ERROR_STATUS_CODE, ERROR_MESSAGE));
             names.addAll(Collections.list(super.getAttributeNames()));
             return Collections.enumeration(names);
         }
