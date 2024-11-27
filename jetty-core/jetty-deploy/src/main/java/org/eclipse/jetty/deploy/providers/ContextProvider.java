@@ -135,7 +135,7 @@ public class ContextProvider extends ScanningAppProvider
         }
 
         if (LOG.isDebugEnabled())
-            LOG.debug("createContextHandler {} in {}", app, environment);
+            LOG.debug("createContextHandler {} in {}", app, environment.getName());
 
         ClassLoader old = Thread.currentThread().getContextClassLoader();
         try
@@ -157,7 +157,17 @@ public class ContextProvider extends ScanningAppProvider
             // applying the environment xml file.
             String contextHandlerClassName = (String)appAttributes.getAttribute(Deployable.CONTEXT_HANDLER_CLASS);
             if (contextHandlerClassName != null)
-                context = Class.forName(contextHandlerClassName).getDeclaredConstructor().newInstance();
+            {
+                Class<?> contextClass = Loader.loadClass(contextHandlerClassName);
+                if (contextClass == null)
+                {
+                    throw new IllegalStateException("Unknown ContextHandler class " + contextHandlerClassName + " for " + app + " in environment " + environment.getName());
+                }
+                else
+                {
+                    context = contextClass.getDeclaredConstructor().newInstance();
+                }
+            }
 
             // Collect the optional environment context xml files.
             // Order them according to the name of their property key names.
