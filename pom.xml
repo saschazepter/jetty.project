@@ -197,7 +197,7 @@
     <hazelcast.version>5.5.0</hazelcast.version>
     <hibernate.search.version>7.1.2.Final</hibernate.search.version>
     <infinispan.docker.image.name>infinispan/server</infinispan.docker.image.name>
-    <infinispan.docker.image.version>15.0.5.Final</infinispan.docker.image.version>
+    <infinispan.docker.image.version>15.0.11.Final</infinispan.docker.image.version>
     <infinispan.protostream.version>5.0.12.Final</infinispan.protostream.version>
     <infinispan.version>15.0.11.Final</infinispan.version>
     <injection.bundle.version>1.2</injection.bundle.version>
