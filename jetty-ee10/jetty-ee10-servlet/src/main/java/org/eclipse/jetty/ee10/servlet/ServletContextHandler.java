@@ -73,6 +73,7 @@ import org.eclipse.jetty.ee10.servlet.ServletContextResponse.OutputType;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintAware;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.pathmap.MatchedResource;
 import org.eclipse.jetty.io.IOResources;
@@ -1196,7 +1197,13 @@ public class ServletContextHandler extends ContextHandler
         boolean initialDispatch = request instanceof ServletContextRequest;
         if (!initialDispatch)
             return false;
-        return super.handleByContextHandler(pathInContext, request, response, callback);
+
+        if (isProtectedTarget(pathInContext))
+        {
+            response.setStatus(HttpStatus.NOT_FOUND_404);
+        }
+
+        return false;
     }
 
     @Override

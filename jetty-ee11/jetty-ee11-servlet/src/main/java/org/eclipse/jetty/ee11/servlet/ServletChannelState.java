@@ -1015,7 +1015,6 @@ public class ServletChannelState
 
     public void sendError(int code, String message)
     {
-        // This method is called by Response.sendError to organise for an error page to be generated when it is possible:
         //  + The response is reset and temporarily closed.
         //  + The details of the error are saved as request attributes
         //  + The _sendError boolean is set to true so that an ERROR_DISPATCH action will be generated:

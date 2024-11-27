@@ -1022,7 +1022,6 @@ public class ServletChannelState
 
     public void sendError(int code, String message)
     {
-        // This method is called by Response.sendError to organise for an error page to be generated when it is possible:
         //  + The response is reset and temporarily closed.
         //  + The details of the error are saved as request attributes
         //  + The _sendError boolean is set to true so that an ERROR_DISPATCH action will be generated:
@@ -1068,11 +1067,14 @@ public class ServletChannelState
             request.setAttribute(ErrorHandler.ERROR_CONTEXT, servletContextRequest.getServletContext());
             request.setAttribute(ErrorHandler.ERROR_MESSAGE, message);
             request.setAttribute(ErrorHandler.ERROR_STATUS, code);
+            request.setAttribute(ErrorHandler.ERROR_ORIGIN, servletContextRequest.getServletName());
 
             _sendError = true;
             if (_event != null)
             {
                 Throwable cause = (Throwable)request.getAttribute(ERROR_EXCEPTION);
+                if (cause == null)
+                    cause = (Throwable)request.getAttribute(ErrorHandler.ERROR_EXCEPTION);
                 if (cause != null)
                     _event.addThrowable(cause);
             }
