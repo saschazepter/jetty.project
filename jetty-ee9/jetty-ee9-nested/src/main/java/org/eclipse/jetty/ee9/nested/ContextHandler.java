@@ -2684,6 +2684,7 @@ public class ContextHandler extends ScopedHandler implements Attributes, Supplie
         @Override
         protected boolean handleByContextHandler(String pathInContext, ContextRequest request, Response response, Callback callback)
         {
+            // The CoreContextHandler should never handle the request. Defer to the nested ContextHandler to do so if necessary.
             return false;
         }
 

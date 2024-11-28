@@ -35,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_EXCEPTION;
-import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_ORIGIN;
 import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS;
 
 /**
@@ -1061,15 +1060,15 @@ public class ServletChannelState
             response.setStatus(code);
             servletContextRequest.errorClose();
 
-            request.setAttribute(ERROR_ORIGIN, servletContextRequest.getServletName());
+            request.setAttribute(ErrorHandler.ERROR_ORIGIN, servletContextRequest.getServletName());
             request.setAttribute(ErrorHandler.ERROR_CONTEXT, servletContextRequest.getServletContext());
             request.setAttribute(ErrorHandler.ERROR_MESSAGE, message);
-            request.setAttribute(ERROR_STATUS, code);
+            request.setAttribute(ErrorHandler.ERROR_STATUS, code);
 
             _sendError = true;
             if (_event != null)
             {
-                Throwable cause = (Throwable)request.getAttribute(ERROR_EXCEPTION);
+                Throwable cause = (Throwable)request.getAttribute(ErrorHandler.ERROR_EXCEPTION);
                 if (cause != null)
                     _event.addThrowable(cause);
             }
