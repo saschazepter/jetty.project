@@ -168,7 +168,6 @@ public class WebAppContextTest
     @Test
     public void testProtectedTargetErrorPage() throws Exception
     {
-        //TODO  -  the ErrorPageErrorHandler is looking for servlet api attributes, but the Response.writeError is using server api attributes
         WebAppContext contextHandler = new WebAppContext();
         contextHandler.setContextPath("/foo");
         contextHandler.setBaseResourceAsPath(Path.of("/tmp"));
@@ -192,13 +191,14 @@ public class WebAppContextTest
 
         try (StacklessLogging stackless = new StacklessLogging(ServletChannel.class))
         {
-            StringBuilder rawRequest = new StringBuilder();
-            rawRequest.append("GET /foo/WEB-INF/classes/this/does/not/exist").append(" HTTP/1.1\r\n");
-            rawRequest.append("Host: test\r\n");
-            rawRequest.append("Connection: close\r\n");
-            rawRequest.append("\r\n");
+            String rawRequest = """
+                GET /foo/WEB-INF/classes/this/does/not/exist HTTP/1.1\r
+                Host: test\r
+                Connection: close\r
+                \r
+                """;
 
-            String rawResponse = connector.getResponse(rawRequest.toString());
+            String rawResponse = connector.getResponse(rawRequest);
 
             HttpTester.Response response = HttpTester.parseResponse(rawResponse);
             assertThat(response.getStatus(), is(404));
