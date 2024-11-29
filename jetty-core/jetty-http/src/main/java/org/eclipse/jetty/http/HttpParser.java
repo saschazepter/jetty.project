@@ -2007,22 +2007,30 @@ public class HttpParser
 
                 case CHUNK:
                 {
-                    int chunk = _chunkLength - _chunkPosition;
-                    if (chunk == 0)
+                    int chunkSize = _chunkLength - _chunkPosition;
+                    if (chunkSize == 0)
                     {
                         setState(State.CHUNK_END);
                     }
                     else
                     {
                         _contentChunk = buffer.asReadOnlyBuffer();
+                        if (remaining >= chunkSize)
+                        {
+                            // Full chunk
+                            setState(State.CHUNK_END);
+                            _contentChunk.limit(_contentChunk.position() + chunkSize);
+                            buffer.position(buffer.position() + chunkSize);
+                            if (_handler.content(_contentChunk))
+                                return true;
+                            continue;
+                        }
 
-                        if (remaining > chunk)
-                            _contentChunk.limit(_contentChunk.position() + chunk);
-                        chunk = _contentChunk.remaining();
-
-                        _contentPosition += chunk;
-                        _chunkPosition += chunk;
-                        buffer.position(buffer.position() + chunk);
+                        // part chunk
+                        chunkSize = _contentChunk.remaining();
+                        _contentPosition += chunkSize;
+                        _chunkPosition += chunkSize;
+                        buffer.position(buffer.position() + chunkSize);
                         if (_handler.content(_contentChunk))
                             return true;
                     }
