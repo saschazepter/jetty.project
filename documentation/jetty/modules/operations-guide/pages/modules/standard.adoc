@@ -320,7 +320,7 @@ include::{jetty-home}/modules/http3.mod[tags=documentation]
 The `http-config` module provides HTTP configuration parameters that describe the HTTP semantic, and therefore do not depend on a specific HTTP protocol version.
 
 This module creates an instance of `HttpConfiguration` for clear-text HTTP.
-For secure HTTP, the `ssl` module creates a copy of this `HttpConfiguration`.
+For secure HTTP, the <<ssl,`ssl`>> module creates a copy of the `HttpConfiguration` created by this module.
 
 The module properties are:
 

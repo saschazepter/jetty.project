@@ -1,8 +1,8 @@
 <?xml version="1.0"?><!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "https://jetty.org/configure_10_0.dtd">
 <!--
   This is the HTTP configuration for clear-text HTTP.
-  For secure HTTP, a copy of this configuration is made
-  in jetty-ssl.xml.
+  For secure HTTP, a copy of this HttpConfiguration
+  object is made in jetty-ssl.xml.
  -->
 <Configure id="httpConfig" class="org.eclipse.jetty.server.HttpConfiguration">
   <Set name="secureScheme" property="jetty.httpConfig.secureScheme" />
