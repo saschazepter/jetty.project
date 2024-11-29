@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.eclipse.jetty.client.Connection;
 import org.eclipse.jetty.client.HttpClient;
@@ -35,11 +36,13 @@ import org.eclipse.jetty.io.ssl.SslClientConnectionFactory;
 import org.eclipse.jetty.io.ssl.SslConnection;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
+import org.eclipse.jetty.util.thread.Invocable;
 
-public class ClientConnectionFactoryOverHTTP2 extends ContainerLifeCycle implements ClientConnectionFactory, HttpClient.Aware
+public class ClientConnectionFactoryOverHTTP2 extends ContainerLifeCycle implements ClientConnectionFactory, HttpClient.Aware, Invocable
 {
     private final ClientConnectionFactory factory = new HTTP2ClientConnectionFactory();
     private final HTTP2Client http2Client;
+    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public ClientConnectionFactoryOverHTTP2(HTTP2Client http2Client)
     {
@@ -56,11 +59,22 @@ public class ClientConnectionFactoryOverHTTP2 extends ContainerLifeCycle impleme
     @Override
     public org.eclipse.jetty.io.Connection newConnection(EndPoint endPoint, Map<String, Object> context) throws IOException
     {
-        HTTPSessionListenerPromise listenerPromise = new HTTPSessionListenerPromise(context);
+        HTTPSessionListenerPromise listenerPromise = new HTTPSessionListenerPromise(context, getInvocationType());
         context.put(HTTP2ClientConnectionFactory.CLIENT_CONTEXT_KEY, http2Client);
         context.put(HTTP2ClientConnectionFactory.SESSION_LISTENER_CONTEXT_KEY, listenerPromise);
         context.put(HTTP2ClientConnectionFactory.SESSION_PROMISE_CONTEXT_KEY, listenerPromise);
         return factory.newConnection(endPoint, context);
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        this.invocationType = Objects.requireNonNull(invocationType);
     }
 
     /**
@@ -75,7 +89,12 @@ public class ClientConnectionFactoryOverHTTP2 extends ContainerLifeCycle impleme
 
         public HTTP2(HTTP2Client http2Client)
         {
-            super(new ClientConnectionFactoryOverHTTP2(http2Client));
+            this(new ClientConnectionFactoryOverHTTP2(http2Client));
+        }
+
+        public HTTP2(ClientConnectionFactoryOverHTTP2 connectionFactory)
+        {
+            super(connectionFactory);
         }
 
         @Override

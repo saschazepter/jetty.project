@@ -32,16 +32,18 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http3.client.HTTP3SessionClient;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.quic.common.QuicSession;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HttpConnectionOverHTTP3 extends HttpConnection implements ConnectionPool.MaxMultiplexable, ConnectionPool.MaxUsable
+public class HttpConnectionOverHTTP3 extends HttpConnection implements ConnectionPool.MaxMultiplexable, ConnectionPool.MaxUsable, Invocable
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpConnectionOverHTTP3.class);
 
     private final Set<HttpChannel> activeChannels = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final HTTP3SessionClient session;
+    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpConnectionOverHTTP3(Destination destination, HTTP3SessionClient session)
     {
@@ -85,6 +87,17 @@ public class HttpConnectionOverHTTP3 extends HttpConnection implements Connectio
     public int getMaxUsage()
     {
         return session.getMaxLocalStreams();
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        this.invocationType = invocationType;
     }
 
     @Override
@@ -162,5 +175,11 @@ public class HttpConnectionOverHTTP3 extends HttpConnection implements Connectio
         if (super.onIdleTimeout(idleTimeout, failure))
             close(failure);
         return false;
+    }
+
+    void offerTask(Runnable task)
+    {
+        if (task != null)
+            session.getProtocolSession().offer(task, false);
     }
 }

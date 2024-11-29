@@ -30,15 +30,24 @@ import org.eclipse.jetty.http2.frames.GoAwayFrame;
 import org.eclipse.jetty.http2.frames.SettingsFrame;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Promise;
+import org.eclipse.jetty.util.thread.Invocable;
 
-public class HTTPSessionListenerPromise implements Session.Listener, Promise<Session>
+public class HTTPSessionListenerPromise implements Session.Listener, Promise<Session>, Invocable
 {
     private final AtomicMarkableReference<HttpConnectionOverHTTP2> connection = new AtomicMarkableReference<>(null, false);
     private final Map<String, Object> context;
+    private final InvocationType invocationType;
 
-    public HTTPSessionListenerPromise(Map<String, Object> context)
+    public HTTPSessionListenerPromise(Map<String, Object> context, InvocationType invocationType)
     {
         this.context = context;
+        this.invocationType = invocationType;
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
     }
 
     @Override
@@ -93,7 +102,9 @@ public class HTTPSessionListenerPromise implements Session.Listener, Promise<Ses
 
     protected Connection newConnection(Destination destination, Session session, HTTP2Connection connection)
     {
-        return new HttpConnectionOverHTTP2(destination, session, connection);
+        HttpConnectionOverHTTP2 result = new HttpConnectionOverHTTP2(destination, session, connection);
+        result.setInvocationType(getInvocationType());
+        return result;
     }
 
     @Override

@@ -46,15 +46,18 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.io.AbstractConnection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.util.Attachable;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Promise;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.eclipse.jetty.util.thread.Sweeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HttpConnectionOverHTTP extends AbstractConnection implements IConnection, org.eclipse.jetty.io.Connection.UpgradeFrom, Sweeper.Sweepable, Attachable
+public class HttpConnectionOverHTTP extends AbstractConnection implements IConnection, org.eclipse.jetty.io.Connection.UpgradeFrom, Sweeper.Sweepable, Attachable, Invocable
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpConnectionOverHTTP.class);
 
+    private final Callback fillableCallback = new FillableCallback();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger sweeps = new AtomicInteger();
     private final Promise<Connection> promise;
@@ -64,6 +67,7 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements IConne
     private final LongAdder bytesOut = new LongAdder();
     private long idleTimeout;
     private boolean initialize;
+    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpConnectionOverHTTP(EndPoint endPoint, Map<String, Object> context)
     {
@@ -182,6 +186,23 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements IConne
     public void setInitialize(boolean initialize)
     {
         this.initialize = initialize;
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        this.invocationType = invocationType;
+    }
+
+    @Override
+    public void fillInterested()
+    {
+        fillInterested(fillableCallback);
     }
 
     @Override
@@ -430,6 +451,27 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements IConne
         public String toString()
         {
             return HttpConnectionOverHTTP.this.toString();
+        }
+    }
+
+    private class FillableCallback implements Callback
+    {
+        @Override
+        public void succeeded()
+        {
+            onFillable();
+        }
+
+        @Override
+        public void failed(Throwable x)
+        {
+            onFillInterestedFailed(x);
+        }
+
+        @Override
+        public InvocationType getInvocationType()
+        {
+            return HttpConnectionOverHTTP.this.getInvocationType();
         }
     }
 }

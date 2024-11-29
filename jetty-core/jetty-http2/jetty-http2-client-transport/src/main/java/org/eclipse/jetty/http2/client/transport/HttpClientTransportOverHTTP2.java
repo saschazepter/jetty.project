@@ -18,6 +18,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.eclipse.jetty.alpn.client.ALPNClientConnectionFactory;
 import org.eclipse.jetty.client.AbstractHttpClientTransport;
@@ -42,13 +43,15 @@ import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
+import org.eclipse.jetty.util.thread.Invocable;
 
 @ManagedObject("The HTTP/2 client transport")
-public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport
+public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport implements Invocable
 {
     private final ClientConnectionFactory connectionFactory = new HTTP2ClientConnectionFactory();
     private final HTTP2Client http2Client;
     private boolean useALPN = true;
+    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpClientTransportOverHTTP2(HTTP2Client http2Client)
     {
@@ -155,7 +158,20 @@ public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport
 
     protected Connection newConnection(Destination destination, Session session, HTTP2Connection connection)
     {
-        return new HttpConnectionOverHTTP2(destination, session, connection);
+        HttpConnectionOverHTTP2 result = new HttpConnectionOverHTTP2(destination, session, connection);
+        result.setInvocationType(getInvocationType());
+        return result;
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        this.invocationType = Objects.requireNonNull(invocationType);
     }
 
     protected void onClose(Connection connection, GoAwayFrame frame)
@@ -167,7 +183,7 @@ public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport
     {
         private SessionListenerPromise(Map<String, Object> context)
         {
-            super(context);
+            super(context, HttpClientTransportOverHTTP2.this.getInvocationType());
         }
 
         @Override

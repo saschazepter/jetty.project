@@ -15,13 +15,15 @@ package org.eclipse.jetty.client.transport;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.eclipse.jetty.client.transport.internal.HttpConnectionOverHTTP;
 import org.eclipse.jetty.io.ClientConnectionFactory;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.Transport;
+import org.eclipse.jetty.util.thread.Invocable;
 
-public class HttpClientConnectionFactory implements ClientConnectionFactory
+public class HttpClientConnectionFactory implements ClientConnectionFactory, Invocable
 {
     /**
      * <p>Representation of the {@code HTTP/1.1} application protocol used by {@link HttpClientTransportDynamic}.</p>
@@ -29,6 +31,7 @@ public class HttpClientConnectionFactory implements ClientConnectionFactory
     public static final Info HTTP11 = new HTTP11();
 
     private boolean initializeConnections;
+    private InvocationType invocationType = InvocationType.BLOCKING;
 
     /**
      * @return whether newly created connections should be initialized with an {@code OPTIONS * HTTP/1.1} request
@@ -47,10 +50,22 @@ public class HttpClientConnectionFactory implements ClientConnectionFactory
     }
 
     @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        this.invocationType = Objects.requireNonNull(invocationType);
+    }
+
+    @Override
     public org.eclipse.jetty.io.Connection newConnection(EndPoint endPoint, Map<String, Object> context)
     {
         HttpConnectionOverHTTP connection = new HttpConnectionOverHTTP(endPoint, context);
         connection.setInitialize(isInitializeConnections());
+        connection.setInvocationType(getInvocationType());
         return customize(connection, context);
     }
 

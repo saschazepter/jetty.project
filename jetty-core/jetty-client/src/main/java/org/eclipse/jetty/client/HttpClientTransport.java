@@ -21,14 +21,14 @@ import org.eclipse.jetty.io.ClientConnectionFactory;
 
 /**
  * {@link HttpClientTransport} represents what transport implementations should provide
- * in order to plug-in a different transport for {@link HttpClient}.
+ * in order to plug in a different transport for {@link HttpClient}.
  * <p>
  * While the {@link HttpClient} APIs define the HTTP semantic (request, response, headers, etc.)
  * <em>how</em> an HTTP exchange is carried over the network depends on implementations of this class.
  * <p>
  * The default implementation uses the HTTP protocol to carry over the network the HTTP exchange,
  * but the HTTP exchange may also be carried using the FCGI protocol, the HTTP/2 protocol or,
- * in future, other protocols.
+ * in the future, other protocols.
  */
 public interface HttpClientTransport extends ClientConnectionFactory, HttpClient.Aware
 {

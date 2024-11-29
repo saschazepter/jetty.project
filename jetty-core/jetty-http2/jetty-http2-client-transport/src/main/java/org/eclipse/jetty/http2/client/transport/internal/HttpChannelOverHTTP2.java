@@ -31,6 +31,7 @@ import org.eclipse.jetty.http2.frames.PushPromiseFrame;
 import org.eclipse.jetty.http2.frames.ResetFrame;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Promise;
+import org.eclipse.jetty.util.thread.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,7 +185,8 @@ public class HttpChannelOverHTTP2 extends HttpChannel
         @Override
         public void onHeaders(Stream stream, HeadersFrame frame)
         {
-            receiver.onHeaders(stream, frame);
+            HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
+            connection.offerTask(channel.onHeaders(stream, frame), false);
         }
 
         @Override
@@ -204,21 +206,24 @@ public class HttpChannelOverHTTP2 extends HttpChannel
         public void onReset(Stream stream, ResetFrame frame, Callback callback)
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
-            connection.offerTask(channel.onReset(frame, callback), false);
+            Runnable task = channel.onReset(frame, callback);
+            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), task);
         }
 
         @Override
         public void onIdleTimeout(Stream stream, TimeoutException x, Promise<Boolean> promise)
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
-            connection.offerTask(channel.onTimeout(x, promise), false);
+            Runnable task = channel.onTimeout(x, promise);
+            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), task);
         }
 
         @Override
         public void onFailure(Stream stream, int error, String reason, Throwable failure, Callback callback)
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
-            connection.offerTask(channel.onFailure(failure, callback), false);
+            Runnable task = channel.onFailure(failure, callback);
+            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), task);
         }
     }
 }

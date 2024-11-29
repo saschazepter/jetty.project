@@ -46,11 +46,12 @@ import org.eclipse.jetty.http2.api.Stream;
 import org.eclipse.jetty.http2.frames.HeadersFrame;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.eclipse.jetty.util.thread.Sweeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HttpConnectionOverHTTP2 extends HttpConnection implements Sweeper.Sweepable, ConnectionPool.MaxMultiplexable, ConnectionPool.MaxUsable
+public class HttpConnectionOverHTTP2 extends HttpConnection implements Sweeper.Sweepable, ConnectionPool.MaxMultiplexable, ConnectionPool.MaxUsable, Invocable
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpConnectionOverHTTP2.class);
 
@@ -61,6 +62,7 @@ public class HttpConnectionOverHTTP2 extends HttpConnection implements Sweeper.S
     private final Session session;
     private final HTTP2Connection connection;
     private boolean recycleHttpChannels = true;
+    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpConnectionOverHTTP2(Destination destination, Session session, HTTP2Connection connection)
     {
@@ -117,6 +119,17 @@ public class HttpConnectionOverHTTP2 extends HttpConnection implements Sweeper.S
     void setMaxUsage(int maxUsage)
     {
         ((HTTP2Session)session).setMaxTotalLocalStreams(maxUsage);
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        this.invocationType = invocationType;
     }
 
     @Override

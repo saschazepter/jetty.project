@@ -36,6 +36,7 @@ import org.eclipse.jetty.util.ExceptionUtil;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.component.Destroyable;
 import org.eclipse.jetty.util.thread.AutoLock;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.eclipse.jetty.util.thread.SerializedInvoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see HttpSender
  */
-public abstract class HttpReceiver
+public abstract class HttpReceiver implements Invocable
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpReceiver.class);
 
@@ -442,6 +443,12 @@ public abstract class HttpReceiver
         }
     }
 
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return contentSource.getInvocationType();
+    }
+
     /**
      * Resets the state of this HttpReceiver.
      * <p>
@@ -499,7 +506,7 @@ public abstract class HttpReceiver
             responseState = ResponseState.FAILURE;
             this.failure = failure;
             if (contentSource != null)
-                contentSource.error(failure);
+                contentSource.onError(failure);
             dispose();
 
             HttpResponse response = exchange.getResponse();
@@ -556,11 +563,11 @@ public abstract class HttpReceiver
         FAILURE
     }
 
-    private interface NotifiableContentSource extends Content.Source, Destroyable
+    private interface NotifiableContentSource extends Content.Source, Invocable, Destroyable
     {
-        boolean error(Throwable failure);
-
         void onDataAvailable();
+
+        boolean onError(Throwable failure);
 
         @Override
         default void destroy()
@@ -593,6 +600,12 @@ public abstract class HttpReceiver
         public void onDataAvailable()
         {
             getContentSource().onDataAvailable();
+        }
+
+        @Override
+        public InvocationType getInvocationType()
+        {
+            return getContentSource().getInvocationType();
         }
 
         @Override
@@ -666,12 +679,12 @@ public abstract class HttpReceiver
         }
 
         @Override
-        public boolean error(Throwable failure)
+        public boolean onError(Throwable failure)
         {
             if (_chunk != null)
                 _chunk.release();
             _chunk = null;
-            return getContentSource().error(failure);
+            return getContentSource().onError(failure);
         }
 
         @Override
@@ -738,6 +751,12 @@ public abstract class HttpReceiver
             // The onDataAvailable() method is only ever called
             // by the invoker so avoid using the invoker again.
             invokeDemandCallback(false);
+        }
+
+        @Override
+        public InvocationType getInvocationType()
+        {
+            return Invocable.getInvocationType(demandCallbackRef.get());
         }
 
         @Override
@@ -820,14 +839,14 @@ public abstract class HttpReceiver
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("Failing {}", this);
-            boolean failed = error(failure);
+            boolean failed = onError(failure);
             if (failed)
                 HttpReceiver.this.failAndClose(failure);
             invokeDemandCallback(true);
         }
 
         @Override
-        public boolean error(Throwable failure)
+        public boolean onError(Throwable failure)
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("Erroring {}", this);

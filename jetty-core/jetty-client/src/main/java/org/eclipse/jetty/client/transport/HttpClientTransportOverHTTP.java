@@ -26,11 +26,12 @@ import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ManagedObject("The HTTP/1.1 client transport")
-public class HttpClientTransportOverHTTP extends AbstractConnectorHttpClientTransport
+public class HttpClientTransportOverHTTP extends AbstractConnectorHttpClientTransport implements Invocable
 {
     public static final Origin.Protocol HTTP11 = new Origin.Protocol(List.of("http/1.1"), false);
     private static final Logger LOG = LoggerFactory.getLogger(HttpClientTransportOverHTTP.class);
@@ -126,5 +127,16 @@ public class HttpClientTransportOverHTTP extends AbstractConnectorHttpClientTran
     public void setInitializeConnections(boolean initialize)
     {
         factory.setInitializeConnections(initialize);
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return factory.getInvocationType();
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        factory.setInvocationType(invocationType);
     }
 }

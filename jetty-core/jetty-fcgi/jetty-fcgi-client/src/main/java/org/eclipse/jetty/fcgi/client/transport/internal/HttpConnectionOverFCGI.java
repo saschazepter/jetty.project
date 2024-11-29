@@ -49,10 +49,11 @@ import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.util.Attachable;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Promise;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HttpConnectionOverFCGI extends AbstractConnection implements IConnection, Attachable
+public class HttpConnectionOverFCGI extends AbstractConnection implements IConnection, Attachable, Invocable
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpConnectionOverFCGI.class);
 
@@ -70,6 +71,7 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
     private State state = State.STATUS;
     private long idleTimeout;
     private boolean shutdown;
+    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpConnectionOverFCGI(EndPoint endPoint, Destination destination, Promise<Connection> promise)
     {
@@ -87,6 +89,17 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
     public HttpDestination getHttpDestination()
     {
         return destination;
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        this.invocationType = invocationType;
     }
 
     @Override

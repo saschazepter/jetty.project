@@ -39,11 +39,13 @@ import org.eclipse.jetty.io.Transport;
 import org.eclipse.jetty.quic.client.QuicTransport;
 import org.eclipse.jetty.quic.common.ProtocolSession;
 import org.eclipse.jetty.quic.common.QuicSession;
+import org.eclipse.jetty.util.thread.Invocable;
 
-public class HttpClientTransportOverHTTP3 extends AbstractHttpClientTransport implements ProtocolSession.Factory
+public class HttpClientTransportOverHTTP3 extends AbstractHttpClientTransport implements ProtocolSession.Factory, Invocable
 {
     private final HTTP3ClientConnectionFactory factory = new HTTP3ClientConnectionFactory();
     private final HTTP3Client http3Client;
+    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpClientTransportOverHTTP3(HTTP3Client http3Client)
     {
@@ -127,7 +129,20 @@ public class HttpClientTransportOverHTTP3 extends AbstractHttpClientTransport im
 
     protected Connection newConnection(Destination destination, HTTP3SessionClient session)
     {
-        return new HttpConnectionOverHTTP3(destination, session);
+        HttpConnectionOverHTTP3 connection = new HttpConnectionOverHTTP3(destination, session);
+        connection.setInvocationType(getInvocationType());
+        return connection;
+    }
+
+    @Override
+    public InvocationType getInvocationType()
+    {
+        return invocationType;
+    }
+
+    public void setInvocationType(InvocationType invocationType)
+    {
+        this.invocationType = Objects.requireNonNull(invocationType);
     }
 
     private class TransportSessionClientListener extends SessionClientListener
