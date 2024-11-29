@@ -128,15 +128,4 @@ public class HttpClientTransportOverHTTP extends AbstractConnectorHttpClientTran
     {
         factory.setInitializeConnections(initialize);
     }
-
-    @Override
-    public InvocationType getInvocationType()
-    {
-        return factory.getInvocationType();
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        factory.setInvocationType(invocationType);
-    }
 }

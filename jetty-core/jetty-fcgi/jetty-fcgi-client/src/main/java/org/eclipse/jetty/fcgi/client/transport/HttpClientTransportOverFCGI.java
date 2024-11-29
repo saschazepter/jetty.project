@@ -33,17 +33,15 @@ import org.eclipse.jetty.util.ProcessorUtils;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
-import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ManagedObject("The FastCGI/1.0 client transport")
-public class HttpClientTransportOverFCGI extends AbstractConnectorHttpClientTransport implements Invocable
+public class HttpClientTransportOverFCGI extends AbstractConnectorHttpClientTransport
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpClientTransportOverFCGI.class);
 
     private final String scriptRoot;
-    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpClientTransportOverFCGI(String scriptRoot)
     {
@@ -108,16 +106,5 @@ public class HttpClientTransportOverFCGI extends AbstractConnectorHttpClientTran
     public void customize(Request request, HttpFields.Mutable fastCGIHeaders)
     {
         fastCGIHeaders.put(FCGI.Headers.DOCUMENT_ROOT, getScriptRoot());
-    }
-
-    @Override
-    public InvocationType getInvocationType()
-    {
-        return invocationType;
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        this.invocationType = invocationType;
     }
 }

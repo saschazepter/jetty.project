@@ -15,7 +15,6 @@ package org.eclipse.jetty.http3.client.transport;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.transport.HttpClientConnectionFactory;
@@ -30,13 +29,11 @@ import org.eclipse.jetty.quic.client.QuicTransport;
 import org.eclipse.jetty.quic.common.ProtocolSession;
 import org.eclipse.jetty.quic.common.QuicSession;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
-import org.eclipse.jetty.util.thread.Invocable;
 
-public class ClientConnectionFactoryOverHTTP3 extends ContainerLifeCycle implements ClientConnectionFactory, HttpClient.Aware, Invocable
+public class ClientConnectionFactoryOverHTTP3 extends ContainerLifeCycle implements ClientConnectionFactory, HttpClient.Aware
 {
     private final HTTP3ClientConnectionFactory factory = new HTTP3ClientConnectionFactory();
     private final HTTP3Client http3Client;
-    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public ClientConnectionFactoryOverHTTP3(HTTP3Client http3Client)
     {
@@ -54,17 +51,6 @@ public class ClientConnectionFactoryOverHTTP3 extends ContainerLifeCycle impleme
     public org.eclipse.jetty.io.Connection newConnection(EndPoint endPoint, Map<String, Object> context)
     {
         return factory.newConnection(endPoint, context);
-    }
-
-    @Override
-    public InvocationType getInvocationType()
-    {
-        return invocationType;
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        this.invocationType = Objects.requireNonNull(invocationType);
     }
 
     /**

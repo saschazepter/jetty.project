@@ -131,4 +131,9 @@ public class VirtualThreadsTest extends AbstractTest
             queue.forEach(event -> assertTrue(event.startsWith("virtual"), event));
         }
     }
+
+    // TODO: write a test case calling setInvocationType() on all transports
+    //  Write a test case for the dynamic transport
+    //  Verify that if non-blocking is specified, we get called from the selector thread.
+    //  Fix ISE in FCGI
 }

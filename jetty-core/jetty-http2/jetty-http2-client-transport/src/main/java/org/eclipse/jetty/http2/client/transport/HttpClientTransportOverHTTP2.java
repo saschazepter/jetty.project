@@ -18,7 +18,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.eclipse.jetty.alpn.client.ALPNClientConnectionFactory;
 import org.eclipse.jetty.client.AbstractHttpClientTransport;
@@ -51,7 +50,6 @@ public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport im
     private final ClientConnectionFactory connectionFactory = new HTTP2ClientConnectionFactory();
     private final HTTP2Client http2Client;
     private boolean useALPN = true;
-    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpClientTransportOverHTTP2(HTTP2Client http2Client)
     {
@@ -163,17 +161,6 @@ public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport im
         return result;
     }
 
-    @Override
-    public InvocationType getInvocationType()
-    {
-        return invocationType;
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        this.invocationType = Objects.requireNonNull(invocationType);
-    }
-
     protected void onClose(Connection connection, GoAwayFrame frame)
     {
         connection.close();
@@ -183,7 +170,7 @@ public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport im
     {
         private SessionListenerPromise(Map<String, Object> context)
         {
-            super(context, HttpClientTransportOverHTTP2.this.getInvocationType());
+            super(context);
         }
 
         @Override

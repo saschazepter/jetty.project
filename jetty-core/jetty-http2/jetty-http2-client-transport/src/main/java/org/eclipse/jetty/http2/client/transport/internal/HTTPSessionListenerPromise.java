@@ -22,32 +22,25 @@ import org.eclipse.jetty.client.AbstractConnectionPool;
 import org.eclipse.jetty.client.Connection;
 import org.eclipse.jetty.client.ConnectionPool;
 import org.eclipse.jetty.client.Destination;
+import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpClientTransport;
 import org.eclipse.jetty.http2.HTTP2Connection;
 import org.eclipse.jetty.http2.HTTP2Session;
 import org.eclipse.jetty.http2.api.Session;
 import org.eclipse.jetty.http2.frames.GoAwayFrame;
 import org.eclipse.jetty.http2.frames.SettingsFrame;
+import org.eclipse.jetty.io.ClientConnectionFactory;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Promise;
-import org.eclipse.jetty.util.thread.Invocable;
 
-public class HTTPSessionListenerPromise implements Session.Listener, Promise<Session>, Invocable
+public class HTTPSessionListenerPromise implements Session.Listener, Promise<Session>
 {
     private final AtomicMarkableReference<HttpConnectionOverHTTP2> connection = new AtomicMarkableReference<>(null, false);
     private final Map<String, Object> context;
-    private final InvocationType invocationType;
 
-    public HTTPSessionListenerPromise(Map<String, Object> context, InvocationType invocationType)
+    public HTTPSessionListenerPromise(Map<String, Object> context)
     {
         this.context = context;
-        this.invocationType = invocationType;
-    }
-
-    @Override
-    public InvocationType getInvocationType()
-    {
-        return invocationType;
     }
 
     @Override
@@ -102,8 +95,9 @@ public class HTTPSessionListenerPromise implements Session.Listener, Promise<Ses
 
     protected Connection newConnection(Destination destination, Session session, HTTP2Connection connection)
     {
+        HttpClient httpClient = (HttpClient)context.get(ClientConnectionFactory.CLIENT_CONTEXT_KEY);
         HttpConnectionOverHTTP2 result = new HttpConnectionOverHTTP2(destination, session, connection);
-        result.setInvocationType(getInvocationType());
+        result.setInvocationType(httpClient.getHttpClientTransport().getInvocationType());
         return result;
     }
 

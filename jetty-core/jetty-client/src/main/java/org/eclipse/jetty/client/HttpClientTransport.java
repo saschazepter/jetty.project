@@ -18,6 +18,7 @@ import java.util.Map;
 
 import org.eclipse.jetty.client.transport.HttpDestination;
 import org.eclipse.jetty.io.ClientConnectionFactory;
+import org.eclipse.jetty.util.thread.Invocable;
 
 /**
  * {@link HttpClientTransport} represents what transport implementations should provide
@@ -30,10 +31,10 @@ import org.eclipse.jetty.io.ClientConnectionFactory;
  * but the HTTP exchange may also be carried using the FCGI protocol, the HTTP/2 protocol or,
  * in the future, other protocols.
  */
-public interface HttpClientTransport extends ClientConnectionFactory, HttpClient.Aware
+public interface HttpClientTransport extends ClientConnectionFactory, HttpClient.Aware, Invocable
 {
-    public static final String HTTP_DESTINATION_CONTEXT_KEY = "org.eclipse.jetty.client.destination";
-    public static final String HTTP_CONNECTION_PROMISE_CONTEXT_KEY = "org.eclipse.jetty.client.connection.promise";
+    String HTTP_DESTINATION_CONTEXT_KEY = "org.eclipse.jetty.client.destination";
+    String HTTP_CONNECTION_PROMISE_CONTEXT_KEY = "org.eclipse.jetty.client.connection.promise";
 
     /**
      * Sets the {@link HttpClient} instance on this transport.
@@ -45,7 +46,7 @@ public interface HttpClientTransport extends ClientConnectionFactory, HttpClient
      * @param client the {@link HttpClient} that uses this transport.
      */
     @Override
-    public void setHttpClient(HttpClient client);
+    void setHttpClient(HttpClient client);
 
     /**
      * Creates a new Origin with the given request.
@@ -53,7 +54,7 @@ public interface HttpClientTransport extends ClientConnectionFactory, HttpClient
      * @param request the request that triggers the creation of the Origin
      * @return an Origin that identifies a destination
      */
-    public Origin newOrigin(Request request);
+    Origin newOrigin(Request request);
 
     /**
      * Creates a new, transport-specific, {@link HttpDestination} object.
@@ -64,7 +65,7 @@ public interface HttpClientTransport extends ClientConnectionFactory, HttpClient
      * @param origin the destination origin
      * @return a new, transport-specific, {@link HttpDestination} object
      */
-    public Destination newDestination(Origin origin);
+    Destination newDestination(Origin origin);
 
     /**
      * Establishes a physical connection to the given {@code address}.
@@ -72,16 +73,30 @@ public interface HttpClientTransport extends ClientConnectionFactory, HttpClient
      * @param address the address to connect to
      * @param context the context information to establish the connection
      */
-    public void connect(SocketAddress address, Map<String, Object> context);
+    void connect(SocketAddress address, Map<String, Object> context);
 
     /**
      * @return the factory for ConnectionPool instances
      */
-    public ConnectionPool.Factory getConnectionPoolFactory();
+    ConnectionPool.Factory getConnectionPoolFactory();
 
     /**
      * Set the factory for ConnectionPool instances.
      * @param factory the factory for ConnectionPool instances
      */
-    public void setConnectionPoolFactory(ConnectionPool.Factory factory);
+    void setConnectionPoolFactory(ConnectionPool.Factory factory);
+
+    /**
+     * @return the {@link InvocationType} associated with this {@code HttpClientTransport}.
+     */
+    @Override
+    default InvocationType getInvocationType()
+    {
+        return Invocable.super.getInvocationType();
+    }
+
+    /**
+     * @param invocationType the {@link InvocationType} associated with this {@code HttpClientTransport}.
+     */
+    void setInvocationType(InvocationType invocationType);
 }

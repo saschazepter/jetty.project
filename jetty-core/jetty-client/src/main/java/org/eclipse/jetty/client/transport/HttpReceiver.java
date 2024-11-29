@@ -756,7 +756,10 @@ public abstract class HttpReceiver implements Invocable
         @Override
         public InvocationType getInvocationType()
         {
-            return Invocable.getInvocationType(demandCallbackRef.get());
+            Runnable demandCallback = demandCallbackRef.get();
+            if (demandCallback == null)
+                return Invocable.getInvocationType(getHttpChannel().getConnection());
+            return Invocable.getInvocationType(demandCallback);
         }
 
         @Override

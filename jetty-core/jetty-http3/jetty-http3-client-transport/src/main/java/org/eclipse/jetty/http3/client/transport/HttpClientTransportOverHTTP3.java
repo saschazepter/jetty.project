@@ -45,7 +45,6 @@ public class HttpClientTransportOverHTTP3 extends AbstractHttpClientTransport im
 {
     private final HTTP3ClientConnectionFactory factory = new HTTP3ClientConnectionFactory();
     private final HTTP3Client http3Client;
-    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpClientTransportOverHTTP3(HTTP3Client http3Client)
     {
@@ -132,17 +131,6 @@ public class HttpClientTransportOverHTTP3 extends AbstractHttpClientTransport im
         HttpConnectionOverHTTP3 connection = new HttpConnectionOverHTTP3(destination, session);
         connection.setInvocationType(getInvocationType());
         return connection;
-    }
-
-    @Override
-    public InvocationType getInvocationType()
-    {
-        return invocationType;
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        this.invocationType = Objects.requireNonNull(invocationType);
     }
 
     private class TransportSessionClientListener extends SessionClientListener

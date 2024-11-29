@@ -1070,7 +1070,7 @@ public class HTTPClientDocs
         // the transport supports multiplexing requests on the same connection.
         int maxRequestsPerConnection = 1;
 
-        HttpClientTransport transport = httpClient.getTransport();
+        HttpClientTransport transport = httpClient.getHttpClientTransport();
 
         // Set the ConnectionPool.Factory using a lambda.
         transport.setConnectionPoolFactory(destination ->
@@ -1087,7 +1087,7 @@ public class HTTPClientDocs
         httpClient.start();
 
         // For HTTP/1.1, you need to explicitly configure to initialize connections.
-        if (httpClient.getTransport() instanceof HttpClientTransportOverHTTP http1)
+        if (httpClient.getHttpClientTransport() instanceof HttpClientTransportOverHTTP http1)
             http1.setInitializeConnections(true);
 
         // Create a dummy request to the server you want to pre-create connections to.

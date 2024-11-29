@@ -87,7 +87,7 @@ public class TLSHandshakeFailureTest extends AbstractTest
     {
         start(transport, new EmptyServerHandler());
         client.stop();
-        client = new HttpClient(client.getTransport())
+        client = new HttpClient(client.getHttpClientTransport())
         {
             @Override
             public ClientConnectionFactory newSslClientConnectionFactory(SslContextFactory.Client sslContextFactory, ClientConnectionFactory connectionFactory)
@@ -163,7 +163,7 @@ public class TLSHandshakeFailureTest extends AbstractTest
     {
         start(transport, new EmptyServerHandler());
         client.stop();
-        client = new HttpClient(client.getTransport())
+        client = new HttpClient(client.getHttpClientTransport())
         {
             @Override
             public ClientConnectionFactory newSslClientConnectionFactory(SslContextFactory.Client sslContextFactory, ClientConnectionFactory connectionFactory)
