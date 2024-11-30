@@ -28,9 +28,9 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.VirtualThreads;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.eclipse.jetty.util.thread.ThreadPool;
 import org.eclipse.jetty.util.thread.VirtualThreadPool;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.condition.DisabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,12 +45,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class VirtualThreadsTest extends AbstractTest
 {
     @ParameterizedTest
-    @MethodSource("transports")
+    @MethodSource("transportsNoFCGI")
     public void testHandlerInvokedOnVirtualThread(Transport transport) throws Exception
     {
-        // No virtual thread support in FCGI server-side.
-        Assumptions.assumeTrue(transport != Transport.FCGI);
-
         String virtualThreadsName = "green-";
         prepareServer(transport, new Handler.Abstract()
         {
@@ -83,7 +80,19 @@ public class VirtualThreadsTest extends AbstractTest
 
     @ParameterizedTest
     @MethodSource("transports")
-    public void testClientListenersInvokedOnVirtualThread(Transport transport) throws Exception
+    public void testBlockingClientListenersInvokedOnVirtualThread(Transport transport) throws Exception
+    {
+        testClientListeners(transport, true);
+    }
+
+    @ParameterizedTest
+    @MethodSource("transports")
+    public void testNonBlockingClientListenersInvokedOnPlatformThread(Transport transport) throws Exception
+    {
+        testClientListeners(transport, false);
+    }
+
+    private void testClientListeners(Transport transport, boolean blocking) throws Exception
     {
         startServer(transport, new Handler.Abstract()
         {
@@ -106,6 +115,8 @@ public class VirtualThreadsTest extends AbstractTest
         VirtualThreadPool vtp = new VirtualThreadPool();
         vtp.setName("green-");
         executor.setVirtualThreadsExecutor(vtp);
+        Invocable.InvocationType invocationType = blocking ? Invocable.InvocationType.BLOCKING : Invocable.InvocationType.NON_BLOCKING;
+        client.getHttpClientTransport().setInvocationType(invocationType);
         client.start();
 
         for (int i = 0; i < 2; ++i)
@@ -119,6 +130,7 @@ public class VirtualThreadsTest extends AbstractTest
                 .onResponseContent((r, b) -> verify.accept("content"))
                 .onResponseSuccess(r -> verify.accept("success"))
                 .onComplete(r -> verify.accept("complete"))
+                .timeout(5, TimeUnit.SECONDS)
                 .send(r ->
                 {
                     verify.accept("send");
@@ -128,12 +140,8 @@ public class VirtualThreadsTest extends AbstractTest
             Result result = await().atMost(5, TimeUnit.SECONDS).until(resultRef::get, notNullValue());
             assertTrue(result.isSucceeded());
             assertEquals(HttpStatus.OK_200, result.getResponse().getStatus());
-            queue.forEach(event -> assertTrue(event.startsWith("virtual"), event));
+            String expected = blocking ? "virtual" : "platform";
+            queue.forEach(event -> assertTrue(event.startsWith(expected), event));
         }
     }
-
-    // TODO: write a test case calling setInvocationType() on all transports
-    //  Write a test case for the dynamic transport
-    //  Verify that if non-blocking is specified, we get called from the selector thread.
-    //  Fix ISE in FCGI
 }

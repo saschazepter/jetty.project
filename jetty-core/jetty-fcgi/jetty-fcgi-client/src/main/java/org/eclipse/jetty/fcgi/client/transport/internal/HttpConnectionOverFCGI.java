@@ -48,6 +48,7 @@ import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.util.Attachable;
 import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
@@ -57,6 +58,7 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpConnectionOverFCGI.class);
 
+    private final Callback fillableCallback = new FillableCallback();
     private final ByteBufferPool networkByteBufferPool;
     private final AtomicInteger requests = new AtomicInteger();
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -146,6 +148,12 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
     }
 
     @Override
+    public void fillInterested()
+    {
+        fillInterested(fillableCallback);
+    }
+
+    @Override
     public void onFillable()
     {
         channel.receive();
@@ -231,6 +239,12 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
     {
         boolean handle = parser.parse(buffer);
 
+        if (LOG.isDebugEnabled())
+            LOG.debug("Parse state={} result={} {} {} on {}", state, handle, BufferUtil.toDetailString(buffer), parser, this);
+
+        if (!handle)
+            return false;
+
         switch (state)
         {
             case STATUS ->
@@ -243,19 +257,11 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
                 if (notifyContentAvailable)
                     channel.responseContentAvailable();
             }
-            case COMPLETE ->
-            {
-                // For the complete event, handle==false, and cannot
-                // differentiate between a complete event and a parse()
-                // with zero or not enough bytes, so the state is reset
-                // here to avoid calling responseSuccess() again.
-                state = State.STATUS;
-                channel.responseSuccess();
-            }
+            case COMPLETE -> channel.responseSuccess();
             default -> throw new IllegalStateException("Invalid state " + state);
         }
 
-        return handle;
+        return true;
     }
 
     private void shutdown()
@@ -484,12 +490,13 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
         }
 
         @Override
-        public void onEnd(int request)
+        public boolean onEnd(int request)
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("onEnd r={}", request);
             channel.end();
             state = State.COMPLETE;
+            return true;
         }
 
         @Override
@@ -504,5 +511,26 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
     private enum State
     {
         STATUS, HEADERS, CONTENT, COMPLETE
+    }
+
+    private class FillableCallback implements Callback
+    {
+        @Override
+        public void succeeded()
+        {
+            onFillable();
+        }
+
+        @Override
+        public void failed(Throwable failure)
+        {
+            onFillInterestedFailed(failure);
+        }
+
+        @Override
+        public InvocationType getInvocationType()
+        {
+            return HttpConnectionOverFCGI.this.getInvocationType();
+        }
     }
 }
