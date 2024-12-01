@@ -66,7 +66,7 @@ public class RoundRobinConnectionPoolTest extends AbstractTest
 
         int maxConnections = 3;
         CompletableFuture<Void> setup = new CompletableFuture<>();
-        client.getTransport().setConnectionPoolFactory(destination ->
+        client.getHttpClientTransport().setConnectionPoolFactory(destination ->
         {
             RoundRobinConnectionPool pool = new RoundRobinConnectionPool(destination, maxConnections);
             LifeCycle.start(pool);
@@ -146,7 +146,7 @@ public class RoundRobinConnectionPoolTest extends AbstractTest
         });
 
         CompletableFuture<Void> setup = new CompletableFuture<>();
-        client.getTransport().setConnectionPoolFactory(destination ->
+        client.getHttpClientTransport().setConnectionPoolFactory(destination ->
         {
             RoundRobinConnectionPool pool = new RoundRobinConnectionPool(destination, maxConnections);
             LifeCycle.start(pool);
@@ -226,7 +226,7 @@ public class RoundRobinConnectionPoolTest extends AbstractTest
         });
         if (transport == Transport.H3)
             ((QuicServerConnector)connector).getQuicConfiguration().setMaxBidirectionalRemoteStreams(maxUsage);
-        client.getTransport().setConnectionPoolFactory(destination ->
+        client.getHttpClientTransport().setConnectionPoolFactory(destination ->
         {
             RoundRobinConnectionPool pool = new RoundRobinConnectionPool(destination, maxConnections, maxMultiplex);
             pool.setMaxUsage(maxUsage);
