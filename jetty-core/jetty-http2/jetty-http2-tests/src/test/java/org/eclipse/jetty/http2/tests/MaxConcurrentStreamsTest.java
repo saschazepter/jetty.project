@@ -380,7 +380,7 @@ public class MaxConcurrentStreamsTest extends AbstractTest
 
         httpClient.setMaxConnectionsPerDestination(32768);
         httpClient.setMaxRequestsQueuedPerDestination(1024 * 1024);
-        httpClient.getHttpClientTransport().setConnectionPoolFactory(destination ->
+        httpClient.getTransport().setConnectionPoolFactory(destination ->
         {
             try
             {

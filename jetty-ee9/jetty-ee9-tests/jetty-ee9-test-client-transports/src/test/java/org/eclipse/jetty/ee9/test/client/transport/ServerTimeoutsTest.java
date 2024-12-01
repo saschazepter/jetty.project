@@ -592,7 +592,7 @@ public class ServerTimeoutsTest extends AbstractTest
                 }
             }
         });
-        ((HttpClientTransportOverHTTP2)client.getHttpClientTransport()).getHTTP2Client().setInitialStreamRecvWindow(FlowControlStrategy.DEFAULT_WINDOW_SIZE);
+        ((HttpClientTransportOverHTTP2)client.getTransport()).getHTTP2Client().setInitialStreamRecvWindow(FlowControlStrategy.DEFAULT_WINDOW_SIZE);
 
         // Setup the client to read slower than the min data rate.
         BlockingQueue<Object> objects = new LinkedBlockingQueue<>();

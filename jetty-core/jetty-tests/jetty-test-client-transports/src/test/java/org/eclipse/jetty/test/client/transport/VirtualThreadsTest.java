@@ -116,7 +116,7 @@ public class VirtualThreadsTest extends AbstractTest
         vtp.setName("green-");
         executor.setVirtualThreadsExecutor(vtp);
         Invocable.InvocationType invocationType = blocking ? Invocable.InvocationType.BLOCKING : Invocable.InvocationType.NON_BLOCKING;
-        client.getHttpClientTransport().setInvocationType(invocationType);
+        client.getTransport().setInvocationType(invocationType);
         client.start();
 
         for (int i = 0; i < 2; ++i)

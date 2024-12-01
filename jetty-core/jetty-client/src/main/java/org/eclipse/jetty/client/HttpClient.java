@@ -157,19 +157,7 @@ public class HttpClient extends ContainerLifeCycle implements AutoCloseable
         installBean(decoderFactories);
     }
 
-    /**
-     * @deprecated use {@link #getHttpClientTransport()} instead
-     */
-    @Deprecated(forRemoval = true, since = "12.1.0")
     public HttpClientTransport getTransport()
-    {
-        return getHttpClientTransport();
-    }
-
-    /**
-     * @return the {@link HttpClientTransport} associated with this {@code HttpClient}.
-     */
-    public HttpClientTransport getHttpClientTransport()
     {
         return transport;
     }
@@ -463,7 +451,7 @@ public class HttpClient extends ContainerLifeCycle implements AutoCloseable
 
     public Destination resolveDestination(Request request)
     {
-        HttpClientTransport transport = getHttpClientTransport();
+        HttpClientTransport transport = getTransport();
         Origin origin = transport.newOrigin(request);
         Destination destination = resolveDestination(origin);
         if (LOG.isDebugEnabled())
@@ -500,7 +488,7 @@ public class HttpClient extends ContainerLifeCycle implements AutoCloseable
         {
             if (v == null || v.stale())
             {
-                HttpDestination newDestination = (HttpDestination)getHttpClientTransport().newDestination(k);
+                HttpDestination newDestination = (HttpDestination)getTransport().newDestination(k);
                 // Start the destination before it's published to other threads.
                 addManaged(newDestination);
                 if (destinationSweeper != null)
