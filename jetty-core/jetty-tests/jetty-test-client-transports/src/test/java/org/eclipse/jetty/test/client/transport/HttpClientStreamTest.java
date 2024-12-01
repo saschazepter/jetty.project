@@ -1253,7 +1253,7 @@ public class HttpClientStreamTest extends AbstractTest
         // - the connection can be used by two concurrent requests;
         // - the connection is pre-created.
         client.setMaxConnectionsPerDestination(1);
-        client.getTransport().setConnectionPoolFactory(destination ->
+        client.getHttpClientTransport().setConnectionPoolFactory(destination ->
         {
             MultiplexConnectionPool pool = new MultiplexConnectionPool(destination, 1, 2);
             LifeCycle.start(pool);
