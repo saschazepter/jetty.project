@@ -269,7 +269,7 @@ public class HttpParser
     private long _contentLength = -1;
     private long _contentPosition;
     private int _chunkLength;
-    private int _chunkPosition;
+    private int _chunkOffset;
     private boolean _headResponse;
     private boolean _cr;
     private ByteBuffer _contentChunk;
@@ -1921,7 +1921,6 @@ public class HttpParser
                     {
                         case DIGIT:
                             _chunkLength = t.getHexDigit();
-                            _chunkPosition = 0;
                             setState(State.CHUNK_SIZE);
                             break;
 
@@ -1929,7 +1928,6 @@ public class HttpParser
                             if (t.isHexDigit())
                             {
                                 _chunkLength = t.getHexDigit();
-                                _chunkPosition = 0;
                                 setState(State.CHUNK_SIZE);
                                 break;
                             }
@@ -1960,7 +1958,10 @@ public class HttpParser
                                     return true;
                             }
                             else
+                            {
+                                _chunkOffset = 0;
                                 setState(State.CHUNK);
+                            }
                             break;
 
                         default:
@@ -2000,37 +2001,31 @@ public class HttpParser
                                 return true;
                         }
                         else
+                        {
+                            _chunkOffset = 0;
                             setState(State.CHUNK);
+                        }
                     }
                     break;
                 }
 
                 case CHUNK:
                 {
-                    int chunkSize = _chunkLength - _chunkPosition;
-                    if (chunkSize == 0)
+                    int chunkLength = _chunkLength - _chunkOffset;
+                    if (chunkLength == 0)
                     {
                         setState(State.CHUNK_END);
                     }
                     else
                     {
                         _contentChunk = buffer.asReadOnlyBuffer();
-                        if (remaining >= chunkSize)
-                        {
-                            // Full chunk
-                            setState(State.CHUNK_END);
-                            _contentChunk.limit(_contentChunk.position() + chunkSize);
-                            buffer.position(buffer.position() + chunkSize);
-                            if (_handler.content(_contentChunk))
-                                return true;
-                            continue;
-                        }
 
-                        // part chunk
-                        chunkSize = _contentChunk.remaining();
-                        _contentPosition += chunkSize;
-                        _chunkPosition += chunkSize;
-                        buffer.position(buffer.position() + chunkSize);
+                        if (remaining > chunkLength)
+                            _contentChunk.limit(_contentChunk.position() + chunkLength);
+                        chunkLength = _contentChunk.remaining();
+                        _contentPosition += chunkLength;
+                        _chunkOffset += chunkLength;
+                        buffer.position(buffer.position() + chunkLength);
                         if (_handler.content(_contentChunk))
                             return true;
                     }
