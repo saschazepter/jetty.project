@@ -96,7 +96,7 @@ public class HttpSenderOverFCGI extends HttpSender
 
         // Give a chance to the transport implementation to customize the FastCGI headers
         HttpClient httpClient = getHttpChannel().getHttpDestination().getHttpClient();
-        HttpClientTransportOverFCGI transport = (HttpClientTransportOverFCGI)httpClient.getTransport();
+        HttpClientTransportOverFCGI transport = (HttpClientTransportOverFCGI)httpClient.getHttpClientTransport();
         transport.customize(request, fcgiHeaders);
 
         ByteBufferPool.Accumulator accumulator = new ByteBufferPool.Accumulator();
