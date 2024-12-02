@@ -103,16 +103,14 @@ public class ContextProvider extends ScanningAppProvider
     private static Map<String, String> asProperties(Attributes attributes)
     {
         Map<String, String> props = new HashMap<>();
-        attributes.getAttributeNameSet().stream()
-            .map((name) ->
+        attributes.getAttributeNameSet().forEach((name) ->
             {
-                // undo old prefixed entries
-                if (name.startsWith(Deployable.ATTRIBUTE_PREFIX))
-                    return name.substring(Deployable.ATTRIBUTE_PREFIX.length());
-                else
-                    return name;
-            })
-            .forEach((name) -> props.put(name, Objects.toString(attributes.getAttribute(name))));
+                Object value = attributes.getAttribute(name);
+                String key = name.startsWith(Deployable.ATTRIBUTE_PREFIX)
+                    ? name.substring(Deployable.ATTRIBUTE_PREFIX.length())
+                    : name;
+                props.put(key, Objects.toString(value));
+            });
         return props;
     }
 
@@ -495,8 +493,14 @@ public class ContextProvider extends ScanningAppProvider
         // pass through properties as attributes directly
         attributes.getAttributeNameSet().stream()
             .filter((name) -> name.startsWith(Deployable.ATTRIBUTE_PREFIX))
-            .map((name) -> name.substring(Deployable.ATTRIBUTE_PREFIX.length()))
-            .forEach((name) -> contextHandler.setAttribute(name, attributes.getAttribute(name)));
+            .forEach((name) ->
+            {
+                Object value = attributes.getAttribute(name);
+                String key = name.substring(Deployable.ATTRIBUTE_PREFIX.length());
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Setting attribute [{}] to [{}] in context {}", key, value, contextHandler);
+                contextHandler.setAttribute(key, value);
+            });
 
         String contextPath = (String)attributes.getAttribute(Deployable.CONTEXT_PATH);
         if (StringUtil.isNotBlank(contextPath))
