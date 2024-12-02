@@ -183,10 +183,10 @@ public class HttpChannelOverHTTP2 extends HttpChannel
         }
 
         @Override
-        public void onHeaders(Stream stream, HeadersFrame frame)
+        public void onHeaders(Stream stream, HeadersFrame frame, Callback callback)
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
-            connection.offerTask(channel.onHeaders(stream, frame), false);
+            connection.offerTask(channel.onHeaders(stream, frame, callback), false);
         }
 
         @Override

@@ -35,7 +35,7 @@ public interface HTTP2Channel
      */
     public interface Client
     {
-        public Runnable onHeaders(Stream stream, HeadersFrame frame);
+        public Runnable onHeaders(Stream stream, HeadersFrame frame, Callback callback);
 
         public Runnable onDataAvailable();
 

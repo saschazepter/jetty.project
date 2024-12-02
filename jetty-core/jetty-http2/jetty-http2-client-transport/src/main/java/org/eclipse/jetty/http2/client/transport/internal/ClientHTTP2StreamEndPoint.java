@@ -40,8 +40,9 @@ public class ClientHTTP2StreamEndPoint extends HTTP2StreamEndPoint implements HT
     }
 
     @Override
-    public Runnable onHeaders(Stream stream, HeadersFrame frame)
+    public Runnable onHeaders(Stream stream, HeadersFrame frame, Callback callback)
     {
+        callback.succeeded();
         return null;
     }
 

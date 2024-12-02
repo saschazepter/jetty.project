@@ -26,7 +26,6 @@ import org.eclipse.jetty.client.Result;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.QuotedCSV;
 import org.eclipse.jetty.io.Content;
@@ -52,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * <li>{@link #responseBegin(HttpExchange)}, when the HTTP response data containing the HTTP status code
  * is available</li>
  * <li>{@link #responseHeader(HttpExchange, HttpField)}, when an HTTP field is available</li>
- * <li>{@link #responseHeaders(HttpExchange)}, when all HTTP headers are available</li>
+ * <li>{@link #responseHeaders(HttpExchange, boolean)}, when all HTTP headers are available</li>
  * <li>{@link #responseSuccess(HttpExchange, Runnable)}, when the response is successful</li>
  * </ol>
  * At any time, subclasses may invoke {@link #responseFailure(Throwable, Promise)} to indicate that the response has failed
@@ -238,8 +237,9 @@ public abstract class HttpReceiver implements Invocable
      * This method takes care of notifying {@link Response.HeadersListener}s.
      *
      * @param exchange the HTTP exchange
+     * @param hasContent whether the response has content
      */
-    protected void responseHeaders(HttpExchange exchange)
+    protected void responseHeaders(HttpExchange exchange, boolean hasContent)
     {
         if (LOG.isDebugEnabled())
             LOG.debug("Invoking responseHeaders on {}", this);
@@ -258,35 +258,6 @@ public abstract class HttpReceiver implements Invocable
             if (LOG.isDebugEnabled())
                 LOG.debug("Response headers {}{}{}", response, System.lineSeparator(), responseHeaders.toString().trim());
 
-            // HEAD responses may have Content-Encoding
-            // and Content-Length, but have no content.
-            ContentDecoder decoder = null;
-            if (!HttpMethod.HEAD.is(exchange.getRequest().getMethod()))
-            {
-                // Content-Encoding may have multiple values in the order they
-                // are applied, but we only support one decoding pass, the last one.
-                String contentEncoding = responseHeaders.getLast(HttpHeader.CONTENT_ENCODING);
-                if (contentEncoding != null)
-                {
-                    int comma = contentEncoding.indexOf(",");
-                    if (comma > 0)
-                    {
-                        List<String> values = new QuotedCSV(false, contentEncoding).getValues();
-                        contentEncoding = values.get(values.size() - 1);
-                    }
-                }
-                // If there is a matching content decoder factory, build a decoder.
-                for (ContentDecoder.Factory factory : getHttpDestination().getHttpClient().getContentDecoderFactories())
-                {
-                    if (factory.getEncoding().equalsIgnoreCase(contentEncoding))
-                    {
-                        decoder = factory.newContentDecoder();
-                        decoder.beforeDecoding(response);
-                        break;
-                    }
-                }
-            }
-
             ResponseListeners responseListeners = exchange.getConversation().getResponseListeners();
             responseListeners.notifyHeaders(response);
 
@@ -299,6 +270,36 @@ public abstract class HttpReceiver implements Invocable
                     LOG.debug("Interim response status {}, succeeding", response.getStatus());
                 responseSuccess(exchange, this::onInterim);
                 return;
+            }
+
+            if (!hasContent)
+            {
+                responseSuccess(exchange, null);
+                return;
+            }
+
+            // Content-Encoding may have multiple values in the order they
+            // are applied, but we only support one decoding pass, the last one.
+            String contentEncoding = responseHeaders.getLast(HttpHeader.CONTENT_ENCODING);
+            if (contentEncoding != null)
+            {
+                int comma = contentEncoding.indexOf(",");
+                if (comma > 0)
+                {
+                    List<String> values = new QuotedCSV(false, contentEncoding).getValues();
+                    contentEncoding = values.get(values.size() - 1);
+                }
+            }
+            // If there is a matching content decoder factory, build a decoder.
+            ContentDecoder decoder = null;
+            for (ContentDecoder.Factory factory : getHttpDestination().getHttpClient().getContentDecoderFactories())
+            {
+                if (factory.getEncoding().equalsIgnoreCase(contentEncoding))
+                {
+                    decoder = factory.newContentDecoder();
+                    decoder.beforeDecoding(response);
+                    break;
+                }
             }
 
             responseState = ResponseState.CONTENT;

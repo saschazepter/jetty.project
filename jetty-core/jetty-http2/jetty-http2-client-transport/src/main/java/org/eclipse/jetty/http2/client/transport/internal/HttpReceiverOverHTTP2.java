@@ -122,16 +122,16 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
     }
 
     @Override
-    public Runnable onHeaders(Stream stream, HeadersFrame frame)
+    public Runnable onHeaders(Stream stream, HeadersFrame frame, Callback callback)
     {
         MetaData metaData = frame.getMetaData();
         if (metaData.isResponse())
-            return onResponse(stream, frame);
+            return onResponse(stream, frame, callback);
         else
-            return onTrailer(frame);
+            return onTrailer(frame, callback);
     }
 
-    private Runnable onResponse(Stream stream, HeadersFrame frame)
+    private Runnable onResponse(Stream stream, HeadersFrame frame, Callback callback)
     {
         HttpExchange exchange = getHttpExchange();
         if (exchange == null)
@@ -168,11 +168,13 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
                     upgrade(upgrader, httpResponse, endPoint);
             }
 
-            responseHeaders(exchange);
+            responseHeaders(exchange, !frame.isEndStream());
+
+            callback.succeeded();
         });
     }
 
-    private Runnable onTrailer(HeadersFrame frame)
+    private Runnable onTrailer(HeadersFrame frame, Callback callback)
     {
         HttpExchange exchange = getHttpExchange();
         if (exchange == null)
@@ -180,6 +182,7 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
 
         HttpFields trailers = frame.getMetaData().getHttpFields();
         trailers.forEach(exchange.getResponse()::trailer);
+        callback.succeeded();
         return null;
     }
 

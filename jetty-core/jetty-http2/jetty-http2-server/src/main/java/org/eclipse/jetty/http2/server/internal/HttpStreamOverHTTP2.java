@@ -184,6 +184,7 @@ public class HttpStreamOverHTTP2 implements HttpStream, HTTP2Channel.Server
                 trailer = _trailer;
                 if (trailer != null)
                 {
+                    data.release();
                     _chunk = Content.Chunk.next(trailer);
                     return trailer;
                 }

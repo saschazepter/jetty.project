@@ -26,6 +26,7 @@ import org.eclipse.jetty.client.transport.HttpReceiver;
 import org.eclipse.jetty.client.transport.HttpResponse;
 import org.eclipse.jetty.http.HttpException;
 import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpParser;
 import org.eclipse.jetty.http.HttpStatus;
@@ -330,7 +331,12 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
 
             switch (state)
             {
-                case HEADERS -> responseHeaders(exchange);
+                case HEADERS ->
+                {
+                    boolean zeroLength = exchange.getResponse().getHeaders().contains(HttpHeader.CONTENT_LENGTH, "0");
+                    boolean hasContent = !zeroLength && !HttpMethod.HEAD.is(method) && status != HttpStatus.NO_CONTENT_204;
+                    responseHeaders(exchange, hasContent);
+                }
                 case CONTENT ->
                 {
                     if (notifyContentAvailable)
