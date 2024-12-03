@@ -1748,7 +1748,7 @@ public class ProxyServletTest
                     request = """
                         POST http://$A/ HTTP/1.1\r
                         Host: $A\r
-                        Expect: 100-Continue\rr
+                        Expect: 100-Continue\r
                         Transfer-Encoding: chunked\r
                         \r
                         0\r
