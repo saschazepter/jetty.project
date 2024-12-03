@@ -115,7 +115,7 @@ public class HttpReceiverOverHTTP3 extends HttpReceiver
 
             // TODO: add support for HttpMethod.CONNECT.
 
-            responseHeaders(exchange, !frame.isLast());
+            responseHeaders(exchange);
         });
     }
 

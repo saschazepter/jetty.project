@@ -172,9 +172,9 @@ public class HttpReceiverOverFCGI extends HttpReceiver
     }
 
     @Override
-    protected void responseHeaders(HttpExchange exchange, boolean hasContent)
+    protected void responseHeaders(HttpExchange exchange)
     {
-        super.responseHeaders(exchange, hasContent);
+        super.responseHeaders(exchange);
     }
 
     @Override

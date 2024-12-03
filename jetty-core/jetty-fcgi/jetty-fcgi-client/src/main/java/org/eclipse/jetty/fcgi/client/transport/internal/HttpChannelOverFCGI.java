@@ -21,8 +21,6 @@ import org.eclipse.jetty.client.transport.HttpReceiver;
 import org.eclipse.jetty.client.transport.HttpSender;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
-import org.eclipse.jetty.http.HttpMethod;
-import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.Content;
@@ -111,11 +109,7 @@ public class HttpChannelOverFCGI extends HttpChannel
     {
         HttpExchange exchange = getHttpExchange();
         if (exchange != null)
-        {
-            boolean headRequest = HttpMethod.HEAD.is(exchange.getRequest().getMethod());
-            boolean hasContent = !headRequest && exchange.getResponse().getStatus() != HttpStatus.NO_CONTENT_204;
-            receiver.responseHeaders(exchange, hasContent);
-        }
+            receiver.responseHeaders(exchange);
     }
 
     protected void content(Content.Chunk chunk)

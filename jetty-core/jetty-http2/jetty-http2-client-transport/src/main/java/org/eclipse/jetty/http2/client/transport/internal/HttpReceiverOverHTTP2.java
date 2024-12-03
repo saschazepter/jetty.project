@@ -135,7 +135,10 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
     {
         HttpExchange exchange = getHttpExchange();
         if (exchange == null)
+        {
+            callback.succeeded();
             return null;
+        }
 
         return new Invocable.ReadyTask(getHttpConnection().getInvocationType(), () ->
         {
@@ -168,7 +171,7 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
                     upgrade(upgrader, httpResponse, endPoint);
             }
 
-            responseHeaders(exchange, !frame.isEndStream());
+            responseHeaders(exchange);
 
             callback.succeeded();
         });
@@ -177,11 +180,11 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
     private Runnable onTrailer(HeadersFrame frame, Callback callback)
     {
         HttpExchange exchange = getHttpExchange();
-        if (exchange == null)
-            return null;
-
-        HttpFields trailers = frame.getMetaData().getHttpFields();
-        trailers.forEach(exchange.getResponse()::trailer);
+        if (exchange != null)
+        {
+            HttpFields trailers = frame.getMetaData().getHttpFields();
+            trailers.forEach(exchange.getResponse()::trailer);
+        }
         callback.succeeded();
         return null;
     }
