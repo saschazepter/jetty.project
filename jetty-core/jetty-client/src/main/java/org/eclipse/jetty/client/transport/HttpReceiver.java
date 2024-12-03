@@ -258,25 +258,15 @@ public abstract class HttpReceiver implements Invocable
             if (LOG.isDebugEnabled())
                 LOG.debug("Response headers {}{}{}", response, System.lineSeparator(), responseHeaders.toString().trim());
 
-            ResponseListeners responseListeners = exchange.getConversation().getResponseListeners();
-            responseListeners.notifyHeaders(response);
-
-            if (exchange.isResponseCompleteOrTerminated())
-                return;
-
-            if (HttpStatus.isInterim(response.getStatus()))
-            {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Interim response status {}, succeeding", response.getStatus());
-                responseSuccess(exchange, this::onInterim);
-                return;
-            }
-
-            // Content-Encoding may have multiple values in the order they
-            // are applied, but we only support one decoding pass, the last one.
+            // HEAD responses may have Content-Encoding
+            // and Content-Length, but have no content.
+            // This step may modify the response headers,
+            // so must be done before notifying the headers.
             ContentDecoder decoder = null;
             if (!HttpMethod.HEAD.is(exchange.getRequest().getMethod()))
             {
+                // Content-Encoding may have multiple values in the order they
+                // are applied, but we only support one decoding pass, the last one.
                 String contentEncoding = responseHeaders.getLast(HttpHeader.CONTENT_ENCODING);
                 if (contentEncoding != null)
                 {
@@ -297,6 +287,20 @@ public abstract class HttpReceiver implements Invocable
                         break;
                     }
                 }
+            }
+
+            ResponseListeners responseListeners = exchange.getConversation().getResponseListeners();
+            responseListeners.notifyHeaders(response);
+
+            if (exchange.isResponseCompleteOrTerminated())
+                return;
+
+            if (HttpStatus.isInterim(response.getStatus()))
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Interim response status {}, succeeding", response.getStatus());
+                responseSuccess(exchange, this::onInterim);
+                return;
             }
 
             responseState = ResponseState.CONTENT;
