@@ -328,10 +328,16 @@ public class CompressionHandlerTest extends AbstractCompressionTest
         assertThat(content, is(resourceBody));
     }
 
+    /**
+     * Test Default configuration, where all Compression implementations are discovered
+     * via the ServiceLoader.
+     */
     @Test
     public void testDefaultConfiguration() throws Exception
     {
         CompressionHandler compressionHandler = new CompressionHandler();
+        // Do not configure the compressions here, we want default behavior.
+
         compressionHandler.setHandler(new Handler.Abstract()
         {
             @Override

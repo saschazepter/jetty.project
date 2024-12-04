@@ -17,4 +17,6 @@ module org.eclipse.jetty.compression
     requires org.slf4j;
 
     exports org.eclipse.jetty.compression;
+
+    uses org.eclipse.jetty.compression.Compression;
 }

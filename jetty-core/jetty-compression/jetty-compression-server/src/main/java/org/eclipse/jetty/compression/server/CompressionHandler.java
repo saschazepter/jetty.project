@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.eclipse.jetty.compression.Compression;
+import org.eclipse.jetty.compression.Compressions;
 import org.eclipse.jetty.compression.server.internal.CompressionResponse;
 import org.eclipse.jetty.compression.server.internal.DecompressionRequest;
 import org.eclipse.jetty.http.EtagUtils;
@@ -76,9 +77,6 @@ public class CompressionHandler extends Handler.Wrapper
 
     public void addCompression(Compression compression)
     {
-        if (isRunning())
-            throw new IllegalStateException("Unable to add Compression on running DynamicCompressionHandler");
-
         supportedEncodings.put(compression.getEncodingName(), compression);
         compression.setContainer(this);
         addBean(compression);
@@ -304,6 +302,13 @@ public class CompressionHandler extends Handler.Wrapper
     @Override
     protected void doStart() throws Exception
     {
+        // If the supported encodings is empty, that means this handler wasn't manually configured with encodings.
+        // Fallback to discovered encodings via the service loader instead.
+        if (supportedEncodings.isEmpty())
+        {
+            Compressions.getKnown().forEach(this::addCompression);
+        }
+
         if (pathConfigs.isEmpty())
         {
             // add default configuration if no paths have been configured.
