@@ -65,7 +65,7 @@ public class ProtocolHttpUpgrader implements HttpUpgrader
         if (response.getHeaders().contains(HttpHeader.UPGRADE, protocol))
         {
             HttpClient httpClient = destination.getHttpClient();
-            HttpClientTransport transport = httpClient.getTransport();
+            HttpClientTransport transport = httpClient.getHttpClientTransport();
             if (transport instanceof HttpClientTransportDynamic)
             {
                 HttpClientTransportDynamic dynamicTransport = (HttpClientTransportDynamic)transport;

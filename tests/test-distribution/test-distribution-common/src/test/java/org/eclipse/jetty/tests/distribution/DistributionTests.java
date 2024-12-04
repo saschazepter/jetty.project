@@ -1696,12 +1696,14 @@ public class DistributionTests extends AbstractJettyHomeTest
             };
 
             // Put war into ${jetty.base}/wars/ directory
-            Path srcWar = ("ee8".equals(env) 
-                    ?  distribution.resolveArtifact("org.eclipse.jetty.demos:jetty-servlet4-demo-simple-webapp:war:" + jettyVersion) : distribution.resolveArtifact("org.eclipse.jetty.demos:jetty-servlet5-demo-simple-webapp:war:" + jettyVersion));
+            String coordinates = "org.eclipse.jetty.demos:jetty-%s-demo-simple-webapp:war:%s".formatted(
+                "ee8".equals(env) ? "servlet4" : "servlet5",
+                jettyVersion
+            );
             Path warsDir = jettyBase.resolve("wars");
             FS.ensureDirExists(warsDir);
             Path destWar = warsDir.resolve("demo.war");
-            Files.copy(srcWar, destWar);
+            Files.copy(distribution.resolveArtifact(coordinates), destWar);
 
             // Create XML for deployable
             String xml = """
@@ -2169,7 +2171,7 @@ public class DistributionTests extends AbstractJettyHomeTest
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ee8", "ee9", "ee10"})
+    @ValueSource(strings = {"ee8", "ee9", "ee10", "ee11"})
     public void testLimitHandlers(String env) throws Exception
     {
         String jettyVersion = System.getProperty("jettyVersion");
@@ -2196,8 +2198,11 @@ public class DistributionTests extends AbstractJettyHomeTest
                 """;
             Files.writeString(jettyLogging, loggingConfig, StandardOpenOption.TRUNCATE_EXISTING);
 
-            Path war = distribution.resolveArtifact("org.eclipse.jetty." + env + ".demos:jetty-" + env + "-demo-simple-webapp:war:" + jettyVersion);
-            distribution.installWar(war, "test");
+            String coordinates = "org.eclipse.jetty.demos:jetty-%s-demo-simple-webapp:war:%s".formatted(
+                "ee8".equals(env) ? "servlet4" : "servlet5",
+                jettyVersion
+            );
+            distribution.installWar(distribution.resolveArtifact(coordinates), "test");
 
             int port = Tester.freePort();
             try (JettyHomeTester.Run run2 = distribution.start("jetty.http.selectors=1", "jetty.http.port=" + port))

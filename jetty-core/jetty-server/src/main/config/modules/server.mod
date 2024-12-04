@@ -80,8 +80,8 @@ etc/jetty.xml
 # end::documentation-http-config[]
 
 # tag::documentation-server-compliance[]
-## HTTP Compliance: RFC7230, RFC7230_LEGACY, RFC2616, RFC2616_LEGACY, LEGACY
-# jetty.httpConfig.compliance=RFC7230
+## HTTP Compliance: STRICT, RFC9110, RFC7230, RFC7230_LEGACY, RFC2616, RFC2616_LEGACY, LEGACY
+# jetty.httpConfig.compliance=RFC9110
 
 ## URI Compliance: DEFAULT, LEGACY, RFC3986, RFC3986_UNAMBIGUOUS, UNSAFE
 # jetty.httpConfig.uriCompliance=DEFAULT
@@ -97,9 +97,6 @@ etc/jetty.xml
 ### Server configuration
 ## Whether ctrl+c on the console gracefully stops the Jetty server
 # jetty.server.stopAtShutdown=true
-
-## Timeout in ms to apply when stopping the server gracefully
-# jetty.server.stopTimeout=5000
 
 ## Dump the state of the Jetty server, components, and webapps after startup
 # jetty.server.dumpAfterStart=false
