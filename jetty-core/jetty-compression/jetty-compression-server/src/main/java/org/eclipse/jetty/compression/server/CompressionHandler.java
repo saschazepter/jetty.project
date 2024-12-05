@@ -17,10 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.TreeMap;
 
 import org.eclipse.jetty.compression.Compression;
-import org.eclipse.jetty.compression.Compressions;
 import org.eclipse.jetty.compression.server.internal.CompressionResponse;
 import org.eclipse.jetty.compression.server.internal.DecompressionRequest;
 import org.eclipse.jetty.http.EtagUtils;
@@ -37,6 +37,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.StringUtil;
+import org.eclipse.jetty.util.TypeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -306,7 +307,20 @@ public class CompressionHandler extends Handler.Wrapper
         // Fallback to discovered encodings via the service loader instead.
         if (supportedEncodings.isEmpty())
         {
-            Compressions.getKnown().forEach(this::addCompression);
+            TypeUtil.serviceProviderStream(ServiceLoader.load(Compression.class)).forEach(
+                compressionProvider ->
+                {
+                    try
+                    {
+                        Compression compression = compressionProvider.get();
+                        addCompression(compression);
+                    }
+                    catch (Throwable e)
+                    {
+                        LOG.warn("Unable to get Compression", e);
+                    }
+                }
+            );
         }
 
         if (pathConfigs.isEmpty())
