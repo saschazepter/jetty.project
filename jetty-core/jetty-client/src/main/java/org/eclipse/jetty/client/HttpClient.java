@@ -37,6 +37,8 @@ import org.eclipse.jetty.client.transport.HttpClientTransportOverHTTP;
 import org.eclipse.jetty.client.transport.HttpConversation;
 import org.eclipse.jetty.client.transport.HttpDestination;
 import org.eclipse.jetty.client.transport.HttpRequest;
+import org.eclipse.jetty.compression.Compression;
+import org.eclipse.jetty.compression.gzip.GzipCompression;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.HttpCookieStore;
@@ -50,6 +52,7 @@ import org.eclipse.jetty.io.ArrayByteBufferPool;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.ClientConnectionFactory;
 import org.eclipse.jetty.io.ClientConnector;
+import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.io.Transport;
 import org.eclipse.jetty.io.ssl.SslClientConnectionFactory;
 import org.eclipse.jetty.util.Fields;
@@ -226,7 +229,9 @@ public class HttpClient extends ContainerLifeCycle implements AutoCloseable
         handlers.put(new ProxyAuthenticationProtocolHandler(this));
         handlers.put(new UpgradeProtocolHandler());
 
-        decoderFactories.put(new GZIPContentDecoder.Factory(byteBufferPool));
+//        TypeUtil.serviceStream(ServiceLoader.load(Compression.class))
+//                .forEach(c -> decoderFactories.put(c));
+        decoderFactories.put(new CompressionContentDecoderFactory(new GzipCompression()));
 
         if (cookieStore == null)
             cookieStore = new HttpCookieStore.Default();
@@ -1180,5 +1185,23 @@ public class HttpClient extends ContainerLifeCycle implements AutoCloseable
     public interface Aware
     {
         void setHttpClient(HttpClient httpClient);
+    }
+
+    private static class CompressionContentDecoderFactory extends ContentDecoder.Factory
+    {
+        private final Compression compression;
+
+        protected CompressionContentDecoderFactory(Compression compression)
+        {
+            super(compression.getEncodingName());
+            this.compression = Objects.requireNonNull(compression);
+            installBean(compression);
+        }
+
+        @Override
+        public Content.Source newDecoderContentSource(Content.Source contentSource)
+        {
+            return compression.newDecoderSource(contentSource);
+        }
     }
 }

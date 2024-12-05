@@ -164,7 +164,7 @@ public class ZstandardCompression extends Compression
     public DecoderSource newDecoderSource(Content.Source source, DecoderConfig config)
     {
         ZstandardDecoderConfig zstandardDecoderConfig = (ZstandardDecoderConfig)config;
-        return new ZstandardDecoderSource(this, source, zstandardDecoderConfig);
+        return new ZstandardDecoderSource(source, this, zstandardDecoderConfig);
     }
 
     @Override

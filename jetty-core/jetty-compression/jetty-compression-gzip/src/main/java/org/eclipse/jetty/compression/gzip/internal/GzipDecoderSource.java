@@ -47,7 +47,7 @@ public class GzipDecoderSource extends DecoderSource
     private long value;
     private byte flags;
 
-    public GzipDecoderSource(GzipCompression compression, Content.Source source, GzipDecoderConfig config)
+    public GzipDecoderSource(Content.Source source, GzipCompression compression, GzipDecoderConfig config)
     {
         super(source);
         this.compression = compression;
@@ -59,24 +59,21 @@ public class GzipDecoderSource extends DecoderSource
     }
 
     @Override
-    protected Content.Chunk nextChunk(Content.Chunk readChunk)
+    protected Content.Chunk transform(Content.Chunk inputChunk)
     {
-        ByteBuffer compressed = readChunk.getByteBuffer();
-        // parse
+        ByteBuffer compressed = inputChunk.getByteBuffer();
         try
         {
-            while (compressed.hasRemaining())
+            while (true)
             {
                 switch (state)
                 {
-                    case INITIAL:
+                    case INITIAL ->
                     {
                         inflater.reset();
                         state = State.ID;
-                        break;
                     }
-
-                    case FLAGS:
+                    case FLAGS ->
                     {
                         if ((flags & 0x04) == 0x04)
                         {
@@ -85,9 +82,13 @@ public class GzipDecoderSource extends DecoderSource
                             value = 0;
                         }
                         else if ((flags & 0x08) == 0x08)
+                        {
                             state = State.NAME;
+                        }
                         else if ((flags & 0x10) == 0x10)
+                        {
                             state = State.COMMENT;
+                        }
                         else if ((flags & 0x2) == 0x2)
                         {
                             state = State.HCRC;
@@ -99,53 +100,50 @@ public class GzipDecoderSource extends DecoderSource
                             state = State.DATA;
                             continue;
                         }
-                        break;
                     }
-
-                    case DATA:
+                    case DATA ->
                     {
-                        try
+                        while (true)
                         {
                             RetainableByteBuffer buffer = compression.acquireByteBuffer(bufferSize);
-                            ByteBuffer decoded = buffer.getByteBuffer();
-                            int pos = BufferUtil.flipToFill(decoded);
-                            inflater.inflate(decoded);
-                            BufferUtil.flipToFlush(decoded, pos);
-                            if (buffer.hasRemaining())
+                            try
                             {
-                                return Content.Chunk.asChunk(decoded, false, buffer);
-                            }
-                            else
-                            {
+                                ByteBuffer decoded = buffer.getByteBuffer();
+                                int pos = BufferUtil.flipToFill(decoded);
+                                inflater.inflate(decoded);
+                                BufferUtil.flipToFlush(decoded, pos);
+                                if (buffer.hasRemaining())
+                                    return Content.Chunk.asChunk(decoded, false, buffer);
                                 buffer.release();
                             }
-                        }
-                        catch (DataFormatException x)
-                        {
-                            throw new ZipException(x.getMessage());
-                        }
-
-                        if (inflater.needsInput())
-                        {
-                            if (!compressed.hasRemaining())
+                            catch (DataFormatException x)
                             {
-                                return Content.Chunk.EMPTY;
+                                buffer.release();
+                                ZipException failure = new ZipException();
+                                failure.initCause(x);
+                                throw failure;
                             }
-                            inflater.setInput(compressed);
-                        }
-                        else if (inflater.finished())
-                        {
-                            state = State.CRC;
-                            size = 0;
-                            value = 0;
-                            break;
+
+                            if (inflater.needsInput())
+                            {
+                                if (!compressed.hasRemaining())
+                                    return Content.Chunk.EMPTY;
+                                inflater.setInput(compressed);
+                                // Loop around and try again to inflate.
+                            }
+                            else if (inflater.finished())
+                            {
+                                state = State.CRC;
+                                size = 0;
+                                value = 0;
+                                break;
+                            }
                         }
                     }
-                    continue;
-
-                    default:
-                        break;
                 }
+
+                if (inputChunk.isEmpty())
+                    return inputChunk.isLast() ? Content.Chunk.EOF : Content.Chunk.EMPTY;
 
                 byte currByte = compressed.get();
                 switch (state)
@@ -163,14 +161,7 @@ public class GzipDecoderSource extends DecoderSource
                         if (size == 2)
                         {
                             if (value != 0x8B1F)
-                            {
-                                if (LOG.isDebugEnabled())
-                                    LOG.debug("Skipping rest of input, no gzip magic number detected");
-                                state = State.INITIAL;
-                                compressed.position(compressed.limit());
-                                // TODO: need to consumeAll super source?
-                                return Content.Chunk.EOF;
-                            }
+                                throw new ZipException("Invalid gzip bytes");
                             state = State.CM;
                         }
                     }
@@ -281,7 +272,6 @@ public class GzipDecoderSource extends DecoderSource
             state = State.ERROR;
             return Content.Chunk.from(x, true);
         }
-        return readChunk.isLast() ? Content.Chunk.EOF : Content.Chunk.EMPTY;
     }
 
     @Override

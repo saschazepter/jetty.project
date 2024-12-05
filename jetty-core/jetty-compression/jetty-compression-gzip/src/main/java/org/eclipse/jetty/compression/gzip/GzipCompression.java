@@ -163,7 +163,7 @@ public class GzipCompression extends Compression
     public DecoderSource newDecoderSource(Content.Source source, DecoderConfig config)
     {
         GzipDecoderConfig gzipDecoderConfig = (GzipDecoderConfig)config;
-        return new GzipDecoderSource(this, source, gzipDecoderConfig);
+        return new GzipDecoderSource(source, this, gzipDecoderConfig);
     }
 
     @Override
