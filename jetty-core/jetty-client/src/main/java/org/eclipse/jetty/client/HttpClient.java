@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -38,7 +39,6 @@ import org.eclipse.jetty.client.transport.HttpConversation;
 import org.eclipse.jetty.client.transport.HttpDestination;
 import org.eclipse.jetty.client.transport.HttpRequest;
 import org.eclipse.jetty.compression.Compression;
-import org.eclipse.jetty.compression.gzip.GzipCompression;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.HttpCookieStore;
@@ -60,6 +60,7 @@ import org.eclipse.jetty.util.Jetty;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.SocketAddressResolver;
+import org.eclipse.jetty.util.TypeUtil;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
@@ -229,9 +230,11 @@ public class HttpClient extends ContainerLifeCycle implements AutoCloseable
         handlers.put(new ProxyAuthenticationProtocolHandler(this));
         handlers.put(new UpgradeProtocolHandler());
 
-//        TypeUtil.serviceStream(ServiceLoader.load(Compression.class))
-//                .forEach(c -> decoderFactories.put(c));
-        decoderFactories.put(new CompressionContentDecoderFactory(new GzipCompression()));
+        if (decoderFactories.isEmpty())
+        {
+            TypeUtil.serviceStream(ServiceLoader.load(Compression.class))
+                .forEach(c -> decoderFactories.put(new CompressionContentDecoderFactory(c)));
+        }
 
         if (cookieStore == null)
             cookieStore = new HttpCookieStore.Default();
@@ -587,7 +590,7 @@ public class HttpClient extends ContainerLifeCycle implements AutoCloseable
                                 connect(socketAddresses, nextIndex, context);
                         }
                     });
-                    HttpClient.this.transport.connect((SocketAddress)socketAddresses.get(index), context);
+                    HttpClient.this.transport.connect(socketAddresses.get(index), context);
                 }
             });
         }
@@ -1191,7 +1194,7 @@ public class HttpClient extends ContainerLifeCycle implements AutoCloseable
     {
         private final Compression compression;
 
-        protected CompressionContentDecoderFactory(Compression compression)
+        private CompressionContentDecoderFactory(Compression compression)
         {
             super(compression.getEncodingName());
             this.compression = Objects.requireNonNull(compression);

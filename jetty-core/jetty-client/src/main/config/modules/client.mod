@@ -10,3 +10,5 @@ client
 lib/jetty-alpn-client-${jetty.version}.jar
 lib/jetty-alpn-java-client-${jetty.version}.jar
 lib/jetty-client-${jetty.version}.jar
+lib/jetty-compression-common-${jetty.version}.jar
+lib/jetty-compression-gzip-${jetty.version}.jar

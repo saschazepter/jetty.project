@@ -117,6 +117,11 @@ public interface ContentDecoder
             return factories.values().iterator();
         }
 
+        public boolean isEmpty()
+        {
+            return factories.isEmpty();
+        }
+
         public void clear()
         {
             factories.clear();
