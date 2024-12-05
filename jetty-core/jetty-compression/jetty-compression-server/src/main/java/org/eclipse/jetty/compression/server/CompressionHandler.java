@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  *     Supports any arbitrary content-encoding via {@link org.eclipse.jetty.compression.Compression} implementations
  *     such as {@code gzip}, {@code zstd}, and {@code brotli}.
  *     By default, there are no {@link Compression} implementations that will be automatically added.
- *     It is up to the user to call {@link #registerCompression(Compression)} to add which implementations that they want to use.
+ *     It is up to the user to call {@link #putCompression(Compression)} to add which implementations that they want to use.
  * </p>
  *
  * <p>
@@ -82,7 +82,7 @@ public class CompressionHandler extends Handler.Wrapper
      * @param compression the compression implementation.
      * @return the previously registered compression with the same encoding name, can be null.
      */
-    public Compression registerCompression(Compression compression)
+    public Compression putCompression(Compression compression)
     {
         Compression previous = supportedEncodings.put(compression.getEncodingName(), compression);
         compression.setContainer(this);
@@ -96,7 +96,7 @@ public class CompressionHandler extends Handler.Wrapper
      * @param encodingName the encoding name of the compression to remove.
      * @return the Compression that was removed, can be null if no Compression exists on that encoding name.
      */
-    public Compression unregisterCompression(String encodingName)
+    public Compression removeCompression(String encodingName)
     {
         Compression compression = supportedEncodings.remove(encodingName);
         removeBean(compression);
@@ -184,6 +184,48 @@ public class CompressionHandler extends Handler.Wrapper
     {
         PathSpec pathSpec = PathSpec.from(pathSpecString);
         return putConfiguration(pathSpec, config);
+    }
+
+    @Override
+    protected void doStart() throws Exception
+    {
+        // If the supported encodings is empty, that means this handler wasn't manually configured with encodings.
+        // Fallback to discovered encodings via the service loader instead.
+        if (supportedEncodings.isEmpty())
+        {
+            TypeUtil.serviceStream(ServiceLoader.load(Compression.class)).forEach(this::putCompression);
+        }
+
+        if (pathConfigs.isEmpty())
+        {
+            // add default configuration if no paths have been configured.
+            pathConfigs.put("/",
+                CompressionConfig.builder()
+                    .from(MimeTypes.DEFAULTS)
+                    .build());
+        }
+
+        // ensure that the preferred encoder order is sane for the configuration.
+        for (MappedResource<CompressionConfig> pathConfig : pathConfigs)
+        {
+            List<String> preferredEncoders = pathConfig.getResource().getCompressPreferredEncoderOrder();
+            if (preferredEncoders.isEmpty())
+                continue;
+            ListIterator<String> preferredIter = preferredEncoders.listIterator();
+            while (preferredIter.hasNext())
+            {
+                String listedEncoder = preferredIter.next();
+                if (!supportedEncodings.containsKey(listedEncoder))
+                {
+                    LOG.warn("Unable to find compression encoder {} from configuration for pathspec {} in registered compression encoders [{}]",
+                        listedEncoder, pathConfig.getPathSpec(),
+                        String.join(", ", supportedEncodings.keySet()));
+                    preferredIter.remove(); // remove bad encoding
+                }
+            }
+        }
+
+        super.doStart();
     }
 
     @Override
@@ -314,54 +356,6 @@ public class CompressionHandler extends Handler.Wrapper
         return false;
     }
 
-    @Override
-    public String toString()
-    {
-        return String.format("%s@%x{%s,supported=%s}", getClass().getSimpleName(), hashCode(), getState(), String.join(",", supportedEncodings.keySet()));
-    }
-
-    @Override
-    protected void doStart() throws Exception
-    {
-        // If the supported encodings is empty, that means this handler wasn't manually configured with encodings.
-        // Fallback to discovered encodings via the service loader instead.
-        if (supportedEncodings.isEmpty())
-        {
-            TypeUtil.serviceStream(ServiceLoader.load(Compression.class)).forEach(this::registerCompression);
-        }
-
-        if (pathConfigs.isEmpty())
-        {
-            // add default configuration if no paths have been configured.
-            pathConfigs.put("/",
-                CompressionConfig.builder()
-                    .from(MimeTypes.DEFAULTS)
-                    .build());
-        }
-
-        // ensure that the preferred encoder order is sane for the configuration.
-        for (MappedResource<CompressionConfig> pathConfig : pathConfigs)
-        {
-            List<String> preferredEncoders = pathConfig.getResource().getCompressPreferredEncoderOrder();
-            if (preferredEncoders.isEmpty())
-                continue;
-            ListIterator<String> preferredIter = preferredEncoders.listIterator();
-            while (preferredIter.hasNext())
-            {
-                String listedEncoder = preferredIter.next();
-                if (!supportedEncodings.containsKey(listedEncoder))
-                {
-                    LOG.warn("Unable to find compression encoder {} from configuration for pathspec {} in registered compression encoders [{}]",
-                        listedEncoder, pathConfig.getPathSpec(),
-                        String.join(", ", supportedEncodings.keySet()));
-                    preferredIter.remove(); // remove bad encoding
-                }
-            }
-        }
-
-        super.doStart();
-    }
-
     private Compression getCompression(String encoding)
     {
         Compression compression = supportedEncodings.get(encoding);
@@ -391,5 +385,11 @@ public class CompressionHandler extends Handler.Wrapper
             return request;
 
         return new DecompressionRequest(compression, request);
+    }
+
+    @Override
+    public String toString()
+    {
+        return String.format("%s@%x{%s,supported=%s}", getClass().getSimpleName(), hashCode(), getState(), String.join(",", supportedEncodings.keySet()));
     }
 }
