@@ -137,10 +137,10 @@ public class ServletCoreResponse implements org.eclipse.jetty.server.Response
             last = false;
         try
         {
-            if (last && !_wrapped && !_baseResponse.isWritingOrStreaming())
+            if (!_wrapped && !_baseResponse.isWritingOrStreaming())
             {
                 // We can bypass the HttpOutput stream, but we need to update its bytes written
-                _baseResponse.getHttpOutput().setBytesWritten(byteBuffer.remaining());
+                _baseResponse.getHttpOutput().addBytesWritten(byteBuffer.remaining());
                 _coreResponse.write(last, byteBuffer, callback);
             }
             else
