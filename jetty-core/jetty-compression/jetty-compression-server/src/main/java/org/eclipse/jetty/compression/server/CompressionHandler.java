@@ -307,20 +307,7 @@ public class CompressionHandler extends Handler.Wrapper
         // Fallback to discovered encodings via the service loader instead.
         if (supportedEncodings.isEmpty())
         {
-            TypeUtil.serviceProviderStream(ServiceLoader.load(Compression.class)).forEach(
-                compressionProvider ->
-                {
-                    try
-                    {
-                        Compression compression = compressionProvider.get();
-                        addCompression(compression);
-                    }
-                    catch (Throwable e)
-                    {
-                        LOG.warn("Unable to get Compression", e);
-                    }
-                }
-            );
+            TypeUtil.serviceStream(ServiceLoader.load(Compression.class)).forEach(this::addCompression);
         }
 
         if (pathConfigs.isEmpty())
