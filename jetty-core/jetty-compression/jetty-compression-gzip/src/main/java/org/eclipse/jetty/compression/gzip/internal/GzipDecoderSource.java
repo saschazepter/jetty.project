@@ -25,8 +25,6 @@ import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.compression.InflaterPool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class GzipDecoderSource extends DecoderSource
 {
@@ -35,7 +33,6 @@ public class GzipDecoderSource extends DecoderSource
         INITIAL, ID, CM, FLG, MTIME, XFL, OS, FLAGS, EXTRA_LENGTH, EXTRA, NAME, COMMENT, HCRC, DATA, CRC, ISIZE, FINISHED, ERROR
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(GzipDecoderSource.class);
     // Unsigned Integer Max == 2^32
     private static final long UINT_MAX = 0xFFFFFFFFL;
     private final GzipCompression compression;

@@ -232,7 +232,7 @@ public class CompressionHandler extends Handler.Wrapper
     public boolean handle(final Request request, final Response response, final Callback callback) throws Exception
     {
         if (LOG.isDebugEnabled())
-            LOG.debug("{} handle {}", this, request);
+            LOG.debug("handling {} {} {}", request, response, this);
 
         Handler next = getHandler();
         if (next == null)
@@ -249,7 +249,7 @@ public class CompressionHandler extends Handler.Wrapper
         if (matchedConfig == null)
         {
             if (LOG.isDebugEnabled())
-                LOG.debug("Skipping Compression: Path {} has no matching compression config", pathInContext);
+                LOG.debug("skipping compression: path {} has no matching compression config", pathInContext);
             // No configuration, skip
             return next.handle(request, response, callback);
         }
@@ -306,7 +306,7 @@ public class CompressionHandler extends Handler.Wrapper
 
         if (LOG.isDebugEnabled())
         {
-            LOG.debug("Request[{}] Content-Encoding={}, Accept-Encoding={}, decompressEncoding={}, compressEncoding={}",
+            LOG.debug("request[{}] Content-Encoding={}, Accept-Encoding={}, decompressEncoding={}, compressEncoding={}",
                 request, requestContentEncoding, requestAcceptEncoding, decompressEncoding, compressEncoding);
         }
 
@@ -314,14 +314,13 @@ public class CompressionHandler extends Handler.Wrapper
         if (decompressEncoding == null && compressEncoding == null)
         {
             if (LOG.isDebugEnabled())
-                LOG.debug("Skipping Compression and Decompression: no request encoding matches");
+                LOG.debug("skipping compression and decompression: no request encoding matches");
             // No need for a Vary header, as we will never deflate
             return next.handle(request, response, callback);
         }
 
         Request decompressionRequest = request;
         Response compressionResponse = response;
-        Callback compressionCallback = callback;
 
         // We need to wrap the request IFF we are inflating or have seen etags with compression separators
         if (decompressEncoding != null || etagMatches)
@@ -338,21 +337,20 @@ public class CompressionHandler extends Handler.Wrapper
                 response.getHeaders().ensureField(config.getVary());
             }
 
-            Response compression = newCompressionResponse(request, response, callback, compressEncoding, config);
-            compressionResponse = compression;
-            if (compression instanceof Callback dynamicCallback)
-                compressionCallback = dynamicCallback;
+            compressionResponse = newCompressionResponse(request, response, compressEncoding, config);
         }
 
+        if (LOG.isDebugEnabled())
+            LOG.debug("handle {} {} {}", decompressionRequest, compressionResponse, this);
+
         // Call handle() with the possibly wrapped request, response and callback
-        if (next.handle(decompressionRequest, compressionResponse, compressionCallback))
+        if (next.handle(decompressionRequest, compressionResponse, callback))
             return true;
 
         // If the request was not accepted, destroy any compressRequest wrapper
         if (request instanceof DecompressionRequest decompressRequest)
-        {
             decompressRequest.destroy();
-        }
+
         return false;
     }
 
@@ -362,20 +360,20 @@ public class CompressionHandler extends Handler.Wrapper
         if (compression == null)
         {
             if (LOG.isDebugEnabled())
-                LOG.debug("No Compression found for encoding type {}", encoding);
+                LOG.debug("no compression found for encoding type {}", encoding);
             return null;
         }
 
         return compression;
     }
 
-    private Response newCompressionResponse(Request request, Response response, Callback callback, String compressEncoding, CompressionConfig config)
+    private Response newCompressionResponse(Request request, Response response, String compressEncoding, CompressionConfig config)
     {
         Compression compression = getCompression(compressEncoding);
         if (compression == null)
             return response;
 
-        return new CompressionResponse(compression, request, response, callback, config);
+        return new CompressionResponse(request, response, compression, config);
     }
 
     private Request newDecompressionRequest(Request request, String decompressEncoding)
