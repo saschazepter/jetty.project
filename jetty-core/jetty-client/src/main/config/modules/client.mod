@@ -6,9 +6,10 @@ Adds the Jetty HTTP client dependencies to the server classpath.
 [tags]
 client
 
+[depends]
+gzip-compression
+
 [lib]
 lib/jetty-alpn-client-${jetty.version}.jar
 lib/jetty-alpn-java-client-${jetty.version}.jar
 lib/jetty-client-${jetty.version}.jar
-lib/jetty-compression-common-${jetty.version}.jar
-lib/jetty-compression-gzip-${jetty.version}.jar
