@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.TreeMap;
 
 import org.eclipse.jetty.compression.Compression;
@@ -36,6 +37,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.StringUtil;
+import org.eclipse.jetty.util.TypeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +48,7 @@ import org.slf4j.LoggerFactory;
  *     Supports any arbitrary content-encoding via {@link org.eclipse.jetty.compression.Compression} implementations
  *     such as {@code gzip}, {@code zstd}, and {@code brotli}.
  *     By default, there are no {@link Compression} implementations that will be automatically added.
- *     It is up to the user to call {@link #addCompression(Compression)} to add which implementations that they want to use.
+ *     It is up to the user to call {@link #registerCompression(Compression)} to add which implementations that they want to use.
  * </p>
  *
  * <p>
@@ -74,14 +76,31 @@ public class CompressionHandler extends Handler.Wrapper
         addBean(pathConfigs);
     }
 
-    public void addCompression(Compression compression)
+    /**
+     * Registers support for a Compression implementation to this Handler.
+     *
+     * @param compression the compression implementation.
+     * @return the previously registered compression with the same encoding name, can be null.
+     */
+    public Compression registerCompression(Compression compression)
     {
-        if (isRunning())
-            throw new IllegalStateException("Unable to add Compression on running DynamicCompressionHandler");
-
-        supportedEncodings.put(compression.getEncodingName(), compression);
+        Compression previous = supportedEncodings.put(compression.getEncodingName(), compression);
         compression.setContainer(this);
-        addBean(compression);
+        updateBean(previous, compression, true);
+        return previous;
+    }
+
+    /**
+     * Unregisters a specific Compression implementation.
+     *
+     * @param encodingName the encoding name of the compression to remove.
+     * @return the Compression that was removed, can be null if no Compression exists on that encoding name.
+     */
+    public Compression unregisterCompression(String encodingName)
+    {
+        Compression compression = supportedEncodings.remove(encodingName);
+        removeBean(compression);
+        return compression;
     }
 
     /**
@@ -304,6 +323,13 @@ public class CompressionHandler extends Handler.Wrapper
     @Override
     protected void doStart() throws Exception
     {
+        // If the supported encodings is empty, that means this handler wasn't manually configured with encodings.
+        // Fallback to discovered encodings via the service loader instead.
+        if (supportedEncodings.isEmpty())
+        {
+            TypeUtil.serviceStream(ServiceLoader.load(Compression.class)).forEach(this::registerCompression);
+        }
+
         if (pathConfigs.isEmpty())
         {
             // add default configuration if no paths have been configured.
@@ -334,13 +360,6 @@ public class CompressionHandler extends Handler.Wrapper
         }
 
         super.doStart();
-    }
-
-    @Override
-    protected void doStop() throws Exception
-    {
-        super.doStop();
-        supportedEncodings.values().forEach(this::removeBean);
     }
 
     private Compression getCompression(String encoding)
