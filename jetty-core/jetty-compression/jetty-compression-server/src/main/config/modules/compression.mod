@@ -4,7 +4,7 @@
 Installs CompressionHandler at the root of the Handler tree,
 to support decompression of requests and compression of responses.
 Compression specific modules must be enabled to support specific
-compressoin algorithms, see module "compression-gzip",
+compression algorithms, see module "compression-gzip",
 "compression-brotli" and "compression-zstandard".
 
 [tags]

@@ -73,7 +73,13 @@ public class CompressionHandler extends Handler.Wrapper
 
     public CompressionHandler()
     {
-        addBean(pathConfigs);
+        installBean(pathConfigs);
+    }
+
+    public CompressionHandler(Handler handler)
+    {
+        super(handler);
+        installBean(pathConfigs);
     }
 
     /**
@@ -189,10 +195,9 @@ public class CompressionHandler extends Handler.Wrapper
     @Override
     protected void doStart() throws Exception
     {
-        // If the supported encodings is empty, that means this handler wasn't manually configured with encodings.
-        // Fallback to discovered encodings via the service loader instead.
         if (supportedEncodings.isEmpty())
         {
+            // No explicit compression configured, discover them via ServiceLoader.
             TypeUtil.serviceStream(ServiceLoader.load(Compression.class)).forEach(this::putCompression);
         }
 
