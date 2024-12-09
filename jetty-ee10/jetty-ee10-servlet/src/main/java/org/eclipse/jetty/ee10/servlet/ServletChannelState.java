@@ -1068,16 +1068,10 @@ public class ServletChannelState
             response.setStatus(code);
             servletContextRequest.errorClose();
 
-            request.setAttribute(org.eclipse.jetty.ee10.servlet.ErrorHandler.ERROR_CONTEXT, servletContextRequest.getErrorContext());
-            request.setAttribute(ERROR_REQUEST_URI, httpServletRequest.getRequestURI());
-            request.setAttribute(ERROR_SERVLET_NAME, servletContextRequest.getServletName());
-            request.setAttribute(ERROR_STATUS_CODE, code);
-            request.setAttribute(ERROR_MESSAGE, message);
-
             // Set Jetty Specific Attributes.
             request.setAttribute(ErrorHandler.ERROR_CONTEXT, servletContextRequest.getServletContext());
             request.setAttribute(ErrorHandler.ERROR_MESSAGE, message);
-            request.setAttribute(ERROR_STATUS, code);
+            request.setAttribute(ErrorHandler.ERROR_STATUS, code);
             request.setAttribute(ErrorHandler.ERROR_ORIGIN, servletContextRequest.getServletName());
 
             _sendError = true;

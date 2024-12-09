@@ -756,7 +756,7 @@ public class Dispatcher implements RequestDispatcher
 
     private class ErrorRequest extends ParameterRequestWrapper
     {
-         private final HttpServletRequest _httpServletRequest;
+        private final HttpServletRequest _httpServletRequest;
 
         public ErrorRequest(HttpServletRequest httpRequest)
         {
@@ -827,7 +827,7 @@ public class Dispatcher implements RequestDispatcher
         public Enumeration<String> getAttributeNames()
         {
             // TODO add all names?
-            List<String> names = new ArrayList<>(List.of(ERROR_REQUEST_URI, ERROR_STATUS_CODE, ERROR_MESSAGE));
+            List<String> names = new ArrayList<>(List.of(ERROR_REQUEST_URI, ERROR_STATUS_CODE, ERROR_MESSAGE, ERROR_SERVLET_NAME, ERROR_EXCEPTION, ERROR_EXCEPTION_TYPE));
             names.addAll(Collections.list(super.getAttributeNames()));
             return Collections.enumeration(names);
         }

@@ -86,7 +86,7 @@ public class ErrorPageErrorHandler extends ErrorHandler implements ErrorHandler.
                 exClass = exClass.getSuperclass();
             }
 
-            cause = (cause instanceof ServletException) ? ((ServletException)cause).getRootCause() : cause.getCause();
+            cause = (cause instanceof ServletException se) ? se.getRootCause() : cause.getCause();
         }
 
         // look for an exact code match
