@@ -83,7 +83,7 @@ public class CompressionConfig extends AbstractLifeCycle
         this.compressPreferredEncoderOrder = List.copyOf(builder.compressPreferredEncoderOrder);
         this.compressEncodings = builder.compressEncodings.asImmutable();
         this.decompressEncodings = builder.decompressEncodings.asImmutable();
-        this.compressMethods = builder.decompressMethods.asImmutable();
+        this.compressMethods = builder.compressMethods.asImmutable();
         this.decompressMethods = builder.decompressMethods.asImmutable();
         this.compressMimeTypes = builder.compressMimeTypes.asImmutable();
         this.decompressMimeTypes = builder.decompressMimeTypes.asImmutable();

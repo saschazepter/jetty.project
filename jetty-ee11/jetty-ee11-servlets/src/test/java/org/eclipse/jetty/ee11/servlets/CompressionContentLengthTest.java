@@ -136,9 +136,9 @@ public class CompressionContentLengthTest
                 {
                     // Not compressible (not large enough)
                     scenarios.add(Arguments.of(compression, compressionWrapping, servlet, 0, "empty.txt", false));
+                    scenarios.add(Arguments.of(compression, compressionWrapping, servlet, 16, "file-tiny.txt", false));
 
                     // Compressible.
-                    scenarios.add(Arguments.of(compression, compressionWrapping, servlet, 16, "file-tiny.txt", true));
                     scenarios.add(Arguments.of(compression, compressionWrapping, servlet, defaultSize / 2, "file-small.txt", true));
                     scenarios.add(Arguments.of(compression, compressionWrapping, servlet, defaultSize, "file-medium.txt", true));
                     scenarios.add(Arguments.of(compression, compressionWrapping, servlet, defaultSize * 4, "file-large.txt", true));
