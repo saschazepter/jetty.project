@@ -17,8 +17,8 @@ compression
 etc/jetty-compression-zstandard.xml
 
 [ini-template]
-## Minimum content length after which brotli is enabled
-# jetty.compression.zstandard.minCompressSize=32
+## Minimum content length after which zstandard is enabled
+# jetty.compression.zstandard.minCompressSize=48
 
 ## Buffer Size for Decoder
 # If unspecified, this default comes from zstd-jni's integration with the zstd libs.

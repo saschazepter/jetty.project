@@ -42,7 +42,7 @@
         <extensions>true</extensions>
         <configuration>
           <instructions>
-            <Bundle-Description>Brotli Compression</Bundle-Description>
+            <Bundle-Description>Zstandard Compression</Bundle-Description>
             <Import-Package>${osgi.slf4j.import.packages},com.github.luben.zstd.*;version="${zstd-jni.version}",*</Import-Package>
             <Export-Package>*</Export-Package>
             <Require-Capability>osgi.extender; filter:="(osgi.extender=osgi.serviceloader.registrar)";resolution:=optional</Require-Capability>

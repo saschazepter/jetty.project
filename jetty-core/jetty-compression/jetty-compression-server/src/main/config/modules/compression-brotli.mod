@@ -18,7 +18,7 @@ etc/jetty-compression-brotli.xml
 
 [ini-template]
 ## Minimum content length after which brotli is enabled
-# jetty.compression.brotli.minCompressSize=32
+# jetty.compression.brotli.minCompressSize=48
 
 ## Buffer Size for Decoder
 # jetty.compression.brotli.decoder.bufferSize=16384
