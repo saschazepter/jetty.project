@@ -1340,8 +1340,9 @@ public class HttpChannelState implements HttpChannel, Components
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("write failed {}", this, x);
-            Callback callback;
+            Callback callback = null;
             HttpChannelState httpChannel;
+            Throwable noChannelFailure = null;
             try (AutoLock ignored = _request._lock.lock())
             {
                 _writeFailure = x;
@@ -1350,8 +1351,22 @@ public class HttpChannelState implements HttpChannel, Components
                 httpChannel = _request.lockedGetHttpChannelState();
                 httpChannel.lockedStreamSendCompleted(false);
             }
-            if (callback != null)
-                httpChannel._writeInvoker.run(() -> HttpChannelState.failed(callback, x));
+            catch (Throwable failure)
+            {
+                httpChannel = null;
+                noChannelFailure = failure;
+            }
+
+            if (httpChannel == null)
+            {
+                // Channel already completed, just fail the callback.
+                HttpChannelState.failed(callback, noChannelFailure);
+            }
+            else
+            {
+                Callback cb = callback;
+                httpChannel._writeInvoker.run(() -> HttpChannelState.failed(cb, x));
+            }
         }
 
         @Override
