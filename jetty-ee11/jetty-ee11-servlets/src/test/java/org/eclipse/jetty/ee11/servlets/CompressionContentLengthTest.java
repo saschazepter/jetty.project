@@ -212,7 +212,7 @@ public class CompressionContentLengthTest
                         contentEncoding.set(f.getValue());
                     return true;
                 })
-                .timeout(555, TimeUnit.SECONDS)
+                .timeout(5, TimeUnit.SECONDS)
                 .send();
 
             assertThat("Response status", response.getStatus(), is(HttpStatus.OK_200));

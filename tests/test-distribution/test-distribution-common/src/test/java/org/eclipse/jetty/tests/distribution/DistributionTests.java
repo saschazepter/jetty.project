@@ -39,6 +39,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -2222,17 +2223,25 @@ public class DistributionTests extends AbstractJettyHomeTest
 
     @ParameterizedTest
     @ValueSource(strings = {"brotli", "gzip", "zstandard"})
-    public void testCompressionHandler(String encoding) throws Exception
+    public void testCompressionHandler(String compressionName) throws Exception
     {
         String jettyVersion = System.getProperty("jettyVersion");
         JettyHomeTester distribution = JettyHomeTester.Builder.newInstance()
             .jettyVersion(jettyVersion)
             .build();
 
+        String encoding = switch (compressionName)
+        {
+            case "brotli" -> "br";
+            case "gzip" -> "gzip";
+            case "zstandard" -> "zstd";
+            default -> throw new IllegalArgumentException();
+        };
+
         String[] modules = {
             "resources",
             "http",
-            "compression-" + encoding,
+            "compression-" + compressionName,
             "ee11-webapp",
             "ee11-deploy"
         };
@@ -2253,24 +2262,25 @@ public class DistributionTests extends AbstractJettyHomeTest
             int port = Tester.freePort();
             try (JettyHomeTester.Run run2 = distribution.start("--approve-all-licenses", "jetty.http.selectors=1", "jetty.http.port=" + port))
             {
-                try
-                {
-                    assertTrue(run2.awaitConsoleLogsFor("Started oejs.Server@", START_TIMEOUT, TimeUnit.SECONDS));
+                assertTrue(run2.awaitConsoleLogsFor("Started oejs.Server@", START_TIMEOUT, TimeUnit.SECONDS));
 
-                    startHttpClient();
-                    URI serverUri = URI.create("http://localhost:" + port + "/test/");
-                    ContentResponse response = client.newRequest(serverUri)
-                        .headers(h -> h.put(HttpHeader.ACCEPT_ENCODING, encoding))
-                        .timeout(15, TimeUnit.SECONDS)
-                        .send();
+                startHttpClient();
+                URI serverUri = URI.create("http://localhost:" + port + "/test/");
+                AtomicReference<String> contentEncoding = new AtomicReference<>();
+                ContentResponse response = client.newRequest(serverUri)
+                    .headers(h -> h.put(HttpHeader.ACCEPT_ENCODING, encoding))
+                    .onResponseHeader((r, f) ->
+                    {
+                        if (f.getHeader() == HttpHeader.CONTENT_ENCODING)
+                            contentEncoding.set(f.getValue());
+                        return true;
+                    })
+                    .timeout(15, TimeUnit.SECONDS)
+                    .send();
 
-                    assertEquals(HttpStatus.OK_200, response.getStatus());
-                    assertThat(response.getContentAsString(), containsStringIgnoringCase("Hello World"));
-                }
-                finally
-                {
-                    run2.getLogs().forEach(System.err::println);
-                }
+                assertEquals(HttpStatus.OK_200, response.getStatus());
+                assertThat(contentEncoding.get(), is(encoding));
+                assertThat(response.getContentAsString(), containsStringIgnoringCase("Hello World"));
             }
         }
     }
