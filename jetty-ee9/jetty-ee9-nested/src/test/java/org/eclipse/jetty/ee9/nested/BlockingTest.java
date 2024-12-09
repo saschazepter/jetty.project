@@ -41,6 +41,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
@@ -84,7 +85,7 @@ public class BlockingTest
             public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException
             {
                 baseRequest.setHandled(true);
-                new Thread(() ->
+                Thread thread = new Thread(() ->
                 {
                     try
                     {
@@ -101,14 +102,19 @@ public class BlockingTest
                         readException.set(t);
                         stopped.countDown();
                     }
-                }).start();
+                });
+                thread.start();
 
                 try
                 {
                     // wait for thread to start and read first byte
-                    started.await(10, TimeUnit.SECONDS);
+                    assertTrue(started.await(10, TimeUnit.SECONDS));
                     // give it time to block on second byte
-                    Thread.sleep(1000);
+                    await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    {
+                        Thread.State state = thread.getState();
+                        return state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING;
+                    });
                 }
                 catch (Throwable e)
                 {
@@ -251,13 +257,14 @@ public class BlockingTest
         CountDownLatch completed = new CountDownLatch(1);
         CountDownLatch stopped = new CountDownLatch(1);
         AtomicReference<Throwable> readException = new AtomicReference<>();
+        AtomicReference<Thread> threadRef = new AtomicReference<>();
         AbstractHandler handler = new AbstractHandler()
         {
             @Override
             public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException
             {
                 baseRequest.setHandled(true);
-                new Thread(() ->
+                Thread thread = new Thread(() ->
                 {
                     try
                     {
@@ -265,8 +272,7 @@ public class BlockingTest
                         if (b == '1')
                         {
                             started.countDown();
-                            completed.await(10, TimeUnit.SECONDS);
-                            Thread.sleep(500);
+                            assertTrue(completed.await(10, TimeUnit.SECONDS));
                             if (baseRequest.getHttpInput().read() > Integer.MIN_VALUE)
                                 throw new IllegalStateException();
                         }
@@ -276,14 +282,20 @@ public class BlockingTest
                         readException.set(t);
                         stopped.countDown();
                     }
-                }).start();
+                });
+                threadRef.set(thread);
+                thread.start();
 
                 try
                 {
                     // wait for thread to start and read first byte
-                    started.await(10, TimeUnit.SECONDS);
+                    assertTrue(started.await(10, TimeUnit.SECONDS));
                     // give it time to block on second byte
-                    Thread.sleep(1000);
+                    await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    {
+                        Thread.State state = thread.getState();
+                        return state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING;
+                    });
                 }
                 catch (Throwable e)
                 {
@@ -319,7 +331,7 @@ public class BlockingTest
             assertThat(response.getContent(), containsString("OK"));
 
             completed.countDown();
-            Thread.sleep(1000);
+            await().atMost(5, TimeUnit.SECONDS).until(() -> threadRef.get().getState() == Thread.State.TERMINATED);
 
             // Async thread should have stopped
             assertTrue(stopped.await(10, TimeUnit.SECONDS));
@@ -333,6 +345,7 @@ public class BlockingTest
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch completed = new CountDownLatch(1);
         CountDownLatch stopped = new CountDownLatch(1);
+        AtomicReference<Thread> threadRef = new AtomicReference<>();
         AtomicReference<Throwable> readException = new AtomicReference<>();
         AbstractHandler handler = new AbstractHandler()
         {
@@ -345,7 +358,7 @@ public class BlockingTest
                     AsyncContext async = request.startAsync();
                     async.setTimeout(100);
 
-                    new Thread(() ->
+                    Thread thread = new Thread(() ->
                     {
                         try
                         {
@@ -353,8 +366,7 @@ public class BlockingTest
                             if (b == '1')
                             {
                                 started.countDown();
-                                completed.await(10, TimeUnit.SECONDS);
-                                Thread.sleep(500);
+                                assertTrue(completed.await(10, TimeUnit.SECONDS));
                                 if (baseRequest.getHttpInput().read() > Integer.MIN_VALUE)
                                     throw new IllegalStateException();
                             }
@@ -364,14 +376,20 @@ public class BlockingTest
                             readException.set(t);
                             stopped.countDown();
                         }
-                    }).start();
+                    });
+                    threadRef.set(thread);
+                    thread.start();
 
                     try
                     {
                         // wait for thread to start and read first byte
-                        started.await(10, TimeUnit.SECONDS);
+                        assertTrue(started.await(10, TimeUnit.SECONDS));
                         // give it time to block on second byte
-                        Thread.sleep(1000);
+                        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                        {
+                            Thread.State state = thread.getState();
+                            return state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING;
+                        });
                     }
                     catch (Throwable e)
                     {
@@ -404,7 +422,7 @@ public class BlockingTest
             assertThat(response.getContent(), containsString("AsyncContext timeout"));
 
             completed.countDown();
-            Thread.sleep(1000);
+            await().atMost(5, TimeUnit.SECONDS).until(() -> threadRef.get().getState() == Thread.State.TERMINATED);
 
             // Async thread should have stopped
             assertTrue(stopped.await(10, TimeUnit.SECONDS));
@@ -426,7 +444,7 @@ public class BlockingTest
                 baseRequest.setHandled(true);
                 if (baseRequest.getDispatcherType() != DispatcherType.ERROR)
                 {
-                    new Thread(() ->
+                    Thread thread = new Thread(() ->
                     {
                         try
                         {
@@ -443,14 +461,19 @@ public class BlockingTest
                             readException.set(t);
                             stopped.countDown();
                         }
-                    }).start();
+                    });
+                    thread.start();
 
                     try
                     {
                         // wait for thread to start and read first byte
-                        started.await(10, TimeUnit.SECONDS);
+                        assertTrue(started.await(10, TimeUnit.SECONDS));
                         // give it time to block on second byte
-                        Thread.sleep(1000);
+                        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                        {
+                            Thread.State state = thread.getState();
+                            return state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING;
+                        });
                     }
                     catch (Throwable e)
                     {
@@ -503,7 +526,7 @@ public class BlockingTest
                 baseRequest.setHandled(true);
                 response.setStatus(200);
                 response.setContentType("text/plain");
-                new Thread(() ->
+                Thread thread = new Thread(() ->
                 {
                     try
                     {
@@ -521,14 +544,19 @@ public class BlockingTest
                         readException.set(t);
                         stopped.countDown();
                     }
-                }).start();
+                });
+                thread.start();
 
                 try
                 {
                     // wait for thread to start and read first byte
-                    started.await(10, TimeUnit.SECONDS);
+                    assertTrue(started.await(10, TimeUnit.SECONDS));
                     // give it time to block on write
-                    Thread.sleep(1000);
+                    await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    {
+                        Thread.State state = thread.getState();
+                        return state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING;
+                    });
                 }
                 catch (Throwable e)
                 {
