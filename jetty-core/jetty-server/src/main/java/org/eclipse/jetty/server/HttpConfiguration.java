@@ -78,9 +78,9 @@ public class HttpConfiguration implements Dumpable
     private boolean _useOutputDirectByteBuffers = true;
     private long _minRequestDataRate;
     private long _minResponseDataRate;
-    private HttpCompliance _httpCompliance = HttpCompliance.RFC7230;
+    private HttpCompliance _httpCompliance = HttpCompliance.RFC9110;
     private UriCompliance _uriCompliance = UriCompliance.DEFAULT;
-    private UriCompliance _redirectUriCompliance = null; // TODO default to UriCompliance.DEFAULT in 12.1 ?;
+    private UriCompliance _redirectUriCompliance = UriCompliance.DEFAULT;
     private CookieCompliance _requestCookieCompliance = CookieCompliance.RFC6265;
     private CookieCompliance _responseCookieCompliance = CookieCompliance.RFC6265;
     private MultiPartCompliance _multiPartCompliance = MultiPartCompliance.RFC7578;

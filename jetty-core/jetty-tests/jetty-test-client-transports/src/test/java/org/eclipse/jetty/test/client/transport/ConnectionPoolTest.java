@@ -48,7 +48,7 @@ public class ConnectionPoolTest extends AbstractTest
         startClient(transport);
         client.setMaxConnectionsPerDestination(maxConnectionsPerDestination);
         if (transport == Transport.HTTPS)
-            ((HttpClientTransportOverHTTP)client.getTransport()).setInitializeConnections(true);
+            ((HttpClientTransportOverHTTP)client.getHttpClientTransport()).setInitializeConnections(true);
 
         var request = client.newRequest(newURI(transport));
         Destination destination = client.resolveDestination(request);
