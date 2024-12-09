@@ -36,9 +36,16 @@ public class IncludeExclude<ITEM> extends IncludeExcludeSet<ITEM, ITEM>
         super(setClass);
     }
 
-    public <SET extends Set<ITEM>> IncludeExclude(Set<ITEM> includeSet, Predicate<ITEM> includePredicate, Set<ITEM> excludeSet,
+    public <SET extends Set<ITEM>> IncludeExclude(SET includeSet, Predicate<ITEM> includePredicate, SET excludeSet,
                                                   Predicate<ITEM> excludePredicate)
     {
         super(includeSet, includePredicate, excludeSet, excludePredicate);
+    }
+
+    @Override
+    public IncludeExclude<ITEM> asImmutable()
+    {
+        return new IncludeExclude<>(Set.copyOf(getIncluded()), getIncludePredicate(),
+            Set.copyOf(getExcluded()), getExcludePredicate());
     }
 }

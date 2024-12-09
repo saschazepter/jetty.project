@@ -35,16 +35,16 @@ public class CompressionResponse extends Response.Wrapper
 {
     private static final Logger LOG = LoggerFactory.getLogger(CompressionResponse.class);
 
-    private final CompressionConfig config;
     private final Compression compression;
+    private final CompressionConfig config;
     private final AtomicReference<State> state = new AtomicReference<>(State.MIGHT_COMPRESS);
     private EncoderSink encoderSink;
 
     public CompressionResponse(Request request, Response wrapped, Compression compression, CompressionConfig config)
     {
         super(request, wrapped);
-        this.config = config;
         this.compression = compression;
+        this.config = config;
     }
 
     @Override
@@ -100,6 +100,18 @@ public class CompressionResponse extends Response.Wrapper
                 {
                     if (LOG.isDebugEnabled())
                         LOG.debug("no compression, nothing to write {}", this);
+                    state.compareAndSet(State.MIGHT_COMPRESS, State.NOT_COMPRESSING);
+                    super.write(last, content, callback);
+                    return;
+                }
+
+                long contentLength = getHeaders().getLongField(HttpHeader.CONTENT_LENGTH);
+                if (contentLength < 0 && last)
+                    contentLength = BufferUtil.length(content);
+                if (contentLength >= 0 && contentLength < compression.getMinCompressSize())
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("no compression, too few content bytes {} {}", contentLength, this);
                     state.compareAndSet(State.MIGHT_COMPRESS, State.NOT_COMPRESSING);
                     super.write(last, content, callback);
                     return;

@@ -54,13 +54,14 @@ public class ZstandardCompression extends Compression
     private static final HttpField CONTENT_ENCODING = new PreEncodedHttpField(HttpHeader.CONTENT_ENCODING, ENCODING_NAME);
     private static final int DEFAULT_MIN_ZSTD_SIZE = 48;
     private static final List<String> EXTENSIONS = List.of("zst");
-    private int minCompressSize = DEFAULT_MIN_ZSTD_SIZE;
+
     private ZstandardEncoderConfig defaultEncoderConfig = new ZstandardEncoderConfig();
     private ZstandardDecoderConfig defaultDecoderConfig = new ZstandardDecoderConfig();
 
     public ZstandardCompression()
     {
         super(ENCODING_NAME);
+        setMinCompressSize(DEFAULT_MIN_ZSTD_SIZE);
     }
 
     @Override
@@ -128,15 +129,9 @@ public class ZstandardCompression extends Compression
     }
 
     @Override
-    public int getMinCompressSize()
-    {
-        return minCompressSize;
-    }
-
-    @Override
     public void setMinCompressSize(int minCompressSize)
     {
-        this.minCompressSize = Math.max(minCompressSize, DEFAULT_MIN_ZSTD_SIZE);
+        super.setMinCompressSize(Math.max(minCompressSize, DEFAULT_MIN_ZSTD_SIZE));
     }
 
     @Override

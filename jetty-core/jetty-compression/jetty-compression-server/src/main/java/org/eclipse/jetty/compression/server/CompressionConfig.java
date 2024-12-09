@@ -14,13 +14,13 @@
 package org.eclipse.jetty.compression.server;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.pathmap.PathSpecSet;
@@ -33,17 +33,8 @@ import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.component.AbstractLifeCycle;
 
 /**
- * Configuration for a specific compression behavior per matching path from the {@link CompressionHandler}.
- *
- * <p>
- * Configuration is split between compression (of responses) and decompression (of requests).
- * </p>
- *
- * <p>
- * Experimental Configuration, subject to change while the implementation is being settled.
- * Please provide feedback at the <a href="https://github.com/jetty/jetty.project/issues">Jetty Issue tracker</a>
- * to influence the direction / development of these experimental features.
- * </p>
+ * <p>Configuration for a specific compression behavior per matching path from the {@link CompressionHandler}.</p>
+ * <p>Configuration is split between compression (of responses) and decompression (of requests).</p>
  */
 @ManagedObject("Compression Configuration")
 public class CompressionConfig extends AbstractLifeCycle
@@ -89,7 +80,7 @@ public class CompressionConfig extends AbstractLifeCycle
 
     private CompressionConfig(Builder builder)
     {
-        this.compressPreferredEncoderOrder = builder.compressPreferredEncoderOrder;
+        this.compressPreferredEncoderOrder = List.copyOf(builder.compressPreferredEncoderOrder);
         this.compressEncodings = builder.compressEncodings.asImmutable();
         this.decompressEncodings = builder.decompressEncodings.asImmutable();
         this.compressMethods = builder.decompressMethods.asImmutable();
@@ -115,8 +106,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of HTTP Method Exclusions")
     public Set<String> getCompressExcludeMethods()
     {
-        Set<String> excluded = compressMethods.getExcluded();
-        return Collections.unmodifiableSet(excluded);
+        return compressMethods.getExcluded();
     }
 
     /**
@@ -128,8 +118,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of Mime-Types Excluded from Response compression")
     public Set<String> getCompressExcludeMimeTypes()
     {
-        Set<String> excluded = compressMimeTypes.getExcluded();
-        return Collections.unmodifiableSet(excluded);
+        return compressMimeTypes.getExcluded();
     }
 
     /**
@@ -141,8 +130,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of Response Compression Path Exclusions")
     public Set<String> getCompressExcludePaths()
     {
-        Set<String> excluded = compressPaths.getExcluded();
-        return Collections.unmodifiableSet(excluded);
+        return compressPaths.getExcluded();
     }
 
     /**
@@ -154,8 +142,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of HTTP Method Inclusions")
     public Set<String> getCompressIncludeMethods()
     {
-        Set<String> includes = compressMethods.getIncluded();
-        return Collections.unmodifiableSet(includes);
+        return compressMethods.getIncluded();
     }
 
     /**
@@ -167,8 +154,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of Mime-Types Included in Response compression")
     public Set<String> getCompressIncludeMimeTypes()
     {
-        Set<String> includes = compressMimeTypes.getIncluded();
-        return Collections.unmodifiableSet(includes);
+        return compressMimeTypes.getIncluded();
     }
 
     /**
@@ -180,8 +166,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of Response Compression Path Inclusions")
     public Set<String> getCompressIncludePaths()
     {
-        Set<String> includes = compressPaths.getIncluded();
-        return Collections.unmodifiableSet(includes);
+        return compressPaths.getIncluded();
     }
 
     /**
@@ -199,7 +184,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Preferred Compression Encoder Order")
     public List<String> getCompressPreferredEncoderOrder()
     {
-        return Collections.unmodifiableList(compressPreferredEncoderOrder);
+        return compressPreferredEncoderOrder;
     }
 
     /**
@@ -222,7 +207,7 @@ public class CompressionConfig extends AbstractLifeCycle
         if (matchedEncoding == null)
             return null;
 
-        if (!compressMethods.test(request.getMethod()))
+        if (!isCompressMethodSupported(request.getMethod()))
             return null;
 
         if (!compressPaths.test(pathInContext))
@@ -250,9 +235,7 @@ public class CompressionConfig extends AbstractLifeCycle
         for (String preferredEncoder: compressPreferredEncoderOrder)
         {
             if (requestAcceptEncoding.contains(preferredEncoder))
-            {
                 preferredEncoderOrder.add(preferredEncoder);
-            }
         }
         return preferredEncoderOrder;
     }
@@ -262,9 +245,7 @@ public class CompressionConfig extends AbstractLifeCycle
         for (String encoding : preferredEncoders)
         {
             if (compressEncodings.test(encoding))
-            {
                 return encoding;
-            }
         }
         return null;
     }
@@ -278,8 +259,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of HTTP Method Exclusions")
     public Set<String> getDecompressExcludeMethods()
     {
-        Set<String> excluded = decompressMethods.getExcluded();
-        return Collections.unmodifiableSet(excluded);
+        return decompressMethods.getExcluded();
     }
 
     /**
@@ -291,8 +271,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of Request Decompression Path Exclusions")
     public Set<String> getDecompressExcludePaths()
     {
-        Set<String> excluded = decompressPaths.getExcluded();
-        return Collections.unmodifiableSet(excluded);
+        return decompressPaths.getExcluded();
     }
 
     /**
@@ -304,8 +283,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of HTTP Method Inclusions")
     public Set<String> getDecompressIncludeMethods()
     {
-        Set<String> includes = decompressMethods.getIncluded();
-        return Collections.unmodifiableSet(includes);
+        return decompressMethods.getIncluded();
     }
 
     /**
@@ -317,8 +295,7 @@ public class CompressionConfig extends AbstractLifeCycle
     @ManagedAttribute("Set of Request Decompression Path Inclusions")
     public Set<String> getDecompressIncludePaths()
     {
-        Set<String> includes = decompressPaths.getIncluded();
-        return Collections.unmodifiableSet(includes);
+        return decompressPaths.getIncluded();
     }
 
     public String getDecompressionEncoding(String requestContentEncoding, Request request, String pathInContext)
@@ -328,11 +305,11 @@ public class CompressionConfig extends AbstractLifeCycle
         if (decompressEncodings.test(requestContentEncoding))
             matchedEncoding = requestContentEncoding;
 
-        if (!decompressMethods.test(request.getMethod()))
+        if (!isDecompressMethodSupported(request.getMethod()))
             return null;
 
         String contentType = request.getHeaders().get(HttpHeader.CONTENT_TYPE);
-        if (!decompressMimeTypes.test(contentType))
+        if (!isDecompressMimeTypeSupported(contentType))
             return null;
 
         if (!decompressPaths.test(pathInContext))
@@ -436,9 +413,9 @@ public class CompressionConfig extends AbstractLifeCycle
 
         private HttpField vary = new PreEncodedHttpField(HttpHeader.VARY, HttpHeader.ACCEPT_ENCODING.asString());
 
-        public CompressionConfig build()
+        private Builder()
         {
-            return new CompressionConfig(this);
+            // Use the static builder() method instead.
         }
 
         /**
@@ -485,7 +462,7 @@ public class CompressionConfig extends AbstractLifeCycle
          * A path that does not support response content compression.
          *
          * <p>
-         * See {@link Builder} for details on PathSpec string.
+         * See {@code Builder} for details on PathSpec string.
          * </p>
          *
          * @param pathSpecString the path spec string to exclude.  The pathInContext
@@ -543,7 +520,7 @@ public class CompressionConfig extends AbstractLifeCycle
          * A path that supports response content compression.
          *
          * <p>
-         * See {@link Builder} for details on PathSpec string.
+         * See {@code Builder} for details on PathSpec string.
          * </p>
          *
          * @param pathSpecString the path spec string to include.  The pathInContext
@@ -676,7 +653,7 @@ public class CompressionConfig extends AbstractLifeCycle
          * A path that does not support request content decompression.
          *
          * <p>
-         * See {@link Builder} for details on PathSpec string.
+         * See {@code Builder} for details on PathSpec string.
          * </p>
          *
          * @param pathSpecString the path spec string to exclude.  The pathInContext
@@ -734,7 +711,7 @@ public class CompressionConfig extends AbstractLifeCycle
          * A path that supports request content decompression.
          *
          * <p>
-         * See {@link Builder} for details on PathSpec string.
+         * See {@code Builder} for details on PathSpec string.
          * </p>
          *
          * @param pathSpecString the path spec string to include.  The pathInContext
@@ -745,73 +722,6 @@ public class CompressionConfig extends AbstractLifeCycle
         public Builder decompressIncludePath(String pathSpecString)
         {
             this.decompressPaths.include(pathSpecString);
-            return this;
-        }
-
-        /**
-         * Setup MimeType exclusion and path exclusion from the provided {@link MimeTypes} configuration.
-         *
-         * @param mimeTypes the mime types to iterate.
-         * @return this builder.
-         */
-        public Builder from(MimeTypes mimeTypes)
-        {
-            for (String type : mimeTypes.getMimeMap().values())
-            {
-                if ("image/svg+xml".equals(type))
-                {
-                    compressExcludeMimeType(type);
-                    decompressExcludeMimeType(type);
-                    compressExcludePath("*.svgz");
-                    decompressExcludePath("*.svgz");
-                }
-                else if (type.startsWith("image/") ||
-                    type.startsWith("audio/") ||
-                    type.startsWith("video/"))
-                {
-                    compressExcludeMimeType(type);
-                    decompressExcludeMimeType(type);
-                }
-            }
-
-            Stream.of("application/compress",
-                "application/zip",
-                "application/gzip",
-                "application/x-bzip2",
-                "application/brotli",
-                "application/x-br",
-                "application/x-xz",
-                "application/x-rar-compressed",
-                "application/vnd.bzip3",
-                "application/zstd",
-                // It is possible to use SSE with CompressionHandler, but only if you use `gzip` encoding with syncFlush to true which will impact performance.
-                "text/event-stream"
-            ).forEach((type) ->
-            {
-                compressExcludeMimeType(type);
-                decompressExcludeMimeType(type);
-            });
-
-            return this;
-        }
-
-        /**
-         * Initialize builder with existing {@link CompressionConfig}
-         *
-         * @param config existing config to base builder off of
-         * @return this builder.
-         */
-        public Builder from(CompressionConfig config)
-        {
-            this.compressEncodings.addAll(config.compressEncodings);
-            this.decompressEncodings.addAll(config.decompressEncodings);
-            this.compressMethods.addAll(config.compressMethods);
-            this.decompressMethods.addAll(config.decompressMethods);
-            this.compressMimeTypes.addAll(config.compressMimeTypes);
-            this.decompressMimeTypes.addAll(config.decompressMimeTypes);
-            this.compressPaths.addAll(config.compressPaths);
-            this.decompressPaths.addAll(config.decompressPaths);
-            this.vary = config.vary;
             return this;
         }
 
@@ -829,6 +739,68 @@ public class CompressionConfig extends AbstractLifeCycle
             else
                 this.vary = new PreEncodedHttpField(vary.getHeader(), vary.getName(), vary.getValue());
             return this;
+        }
+
+        /**
+         * <p>Configures this {@code Builder} with the default configuration.</p>
+         * <p>Additional configuration may be specified using the {@code Builder}
+         * methods, possibly overriding the defaults.</p>
+         *
+         * @return this instance
+         */
+        public Builder defaults()
+        {
+            for (String type : MimeTypes.DEFAULTS.getMimeMap().values())
+            {
+                if ("image/svg+xml".equals(type))
+                {
+                    compressExcludeMimeType(type);
+                    decompressExcludeMimeType(type);
+                    compressExcludePath("*.svgz");
+                    decompressExcludePath("*.svgz");
+                }
+                else if (type.startsWith("image/") ||
+                         type.startsWith("audio/") ||
+                         type.startsWith("video/"))
+                {
+                    compressExcludeMimeType(type);
+                    decompressExcludeMimeType(type);
+                }
+            }
+
+            Stream.of("application/compress",
+                "application/zip",
+                "application/gzip",
+                "application/x-bzip2",
+                "application/brotli",
+                "application/x-br",
+                "application/x-xz",
+                "application/x-rar-compressed",
+                "application/vnd.bzip3",
+                "application/zstd",
+                // It is possible to use SSE with CompressionHandler, but only if you use
+                // `gzip` encoding with syncFlush to true which will impact performance.
+                "text/event-stream"
+            ).forEach((type) ->
+            {
+                compressExcludeMimeType(type);
+                decompressExcludeMimeType(type);
+            });
+
+            decompressIncludeMethod(HttpMethod.POST.asString());
+
+            compressIncludeMethod(HttpMethod.GET.asString());
+            compressIncludeMethod(HttpMethod.POST.asString());
+
+            return this;
+        }
+
+        /**
+         * @return a new {@link CompressionConfig} instance configured with this {@code Builder}.
+         */
+        public CompressionConfig build()
+        {
+            return new CompressionConfig(this);
         }
 
         // TODO: compression specific config (eg: compression level, strategy, etc)

@@ -57,11 +57,10 @@ public class BrotliCompression extends Compression
     private BrotliEncoderConfig defaultEncoderConfig = new BrotliEncoderConfig();
     private BrotliDecoderConfig defaultDecoderConfig = new BrotliDecoderConfig();
 
-    private int minCompressSize = DEFAULT_MIN_BROTLI_SIZE;
-
     public BrotliCompression()
     {
         super(ENCODING_NAME);
+        setMinCompressSize(DEFAULT_MIN_BROTLI_SIZE);
     }
 
     @Override
@@ -122,15 +121,9 @@ public class BrotliCompression extends Compression
     }
 
     @Override
-    public int getMinCompressSize()
-    {
-        return minCompressSize;
-    }
-
-    @Override
     public void setMinCompressSize(int minCompressSize)
     {
-        this.minCompressSize = Math.max(minCompressSize, DEFAULT_MIN_BROTLI_SIZE);
+        super.setMinCompressSize(Math.max(minCompressSize, DEFAULT_MIN_BROTLI_SIZE));
     }
 
     @Override

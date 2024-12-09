@@ -27,7 +27,6 @@ import org.eclipse.jetty.http.EtagUtils;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.pathmap.MappedResource;
 import org.eclipse.jetty.http.pathmap.MatchedResource;
 import org.eclipse.jetty.http.pathmap.PathMappings;
@@ -42,26 +41,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * CompressionHandler to provide compression of response bodies and decompression of request bodies.
- *
- * <p>
- *     Supports any arbitrary content-encoding via {@link org.eclipse.jetty.compression.Compression} implementations
- *     such as {@code gzip}, {@code zstd}, and {@code brotli}.
- *     By default, there are no {@link Compression} implementations that will be automatically added.
- *     It is up to the user to call {@link #putCompression(Compression)} to add which implementations that they want to use.
- * </p>
- *
- * <p>
- *     Configuration is handled by associating a {@link CompressionConfig} against a {@link PathSpec}.
- *     By default, if no configuration is specified, then a default {@link CompressionConfig} is
- *     assigned to the {@code /} {@link PathSpec}.
- * </p>
- *
- * <p>
- *     Experimental CompressionHandler, subject to change while the implementation is being settled.
- *     Please provide feedback at the <a href="https://github.com/jetty/jetty.project/issues">Jetty Issue tracker</a>
- *     to influence the direction / development of these experimental features.
- * </p>
+ * <p>CompressionHandler to provide compression of response bodies and decompression of request bodies.</p>
+ * <p>Supports any arbitrary {@code Content-Encoding} via {@link org.eclipse.jetty.compression.Compression}
+ * implementations such as {@code gzip}, {@code zstd}, and {@code brotli}, discovered via {@link ServiceLoader}.</p>
+ * <p>Configuration is handled by associating a {@link CompressionConfig} against a {@link PathSpec}.
+ * By default, if no configuration is specified, then a default {@link CompressionConfig} is
+ * assigned to the {@code /} {@link PathSpec}.</p>
  */
 public class CompressionHandler extends Handler.Wrapper
 {
@@ -204,10 +189,7 @@ public class CompressionHandler extends Handler.Wrapper
         if (pathConfigs.isEmpty())
         {
             // add default configuration if no paths have been configured.
-            pathConfigs.put("/",
-                CompressionConfig.builder()
-                    .from(MimeTypes.DEFAULTS)
-                    .build());
+            pathConfigs.put("/", CompressionConfig.builder().defaults().build());
         }
 
         // ensure that the preferred encoder order is sane for the configuration.
