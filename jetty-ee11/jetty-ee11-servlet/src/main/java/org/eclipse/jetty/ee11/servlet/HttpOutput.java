@@ -140,6 +140,7 @@ public class HttpOutput extends ServletOutputStream
     private WriteListener _writeListener;
     private volatile Throwable _onError;
     private Callback _closedCallback;
+    private long _contentLengthSet = -1;
 
     public HttpOutput(ServletChannel channel)
     {
@@ -172,6 +173,34 @@ public class HttpOutput extends ServletOutputStream
     public long getWritten()
     {
         return _written;
+    }
+
+    /**
+     * Set the content-length as set by the application.  This may not be the actual content length if compression or
+     * similar handlers are used.
+     * @param len The content-length as set by the application.
+     */
+    public void setContentLengthSet(long len)
+    {
+        _contentLengthSet = len;
+    }
+
+    /**
+     * Get the content-length as set by the application.  This may not be the actual content length if compression or
+     * similar handlers are used.
+     * @return The content-length as set by the application.
+     */
+    public long getContentLengthSet()
+    {
+        return _contentLengthSet;
+    }
+
+    /**
+     * @return {@code true} if a Content-Length has been set and insufficient content has been written.
+     */
+    public boolean isContentIncomplete()
+    {
+        return _contentLengthSet >= 0 && _written < _contentLengthSet;
     }
 
     /**
@@ -365,7 +394,7 @@ public class HttpOutput extends ServletOutputStream
 
                 case PENDING: // an async write is pending and may complete at any time
                     // If this is not the last write, then we must abort
-                    if (_servletChannel.getServletContextResponse().isContentIncomplete(_written))
+                    if (_contentLengthSet >= 0 && _written < _contentLengthSet)
                         error = new CancellationException("Completed whilst write pending");
                     break;
 
@@ -735,7 +764,7 @@ public class HttpOutput extends ServletOutputStream
         if (LOG.isDebugEnabled())
             LOG.debug("write(array {})", BufferUtil.toDetailString(ByteBuffer.wrap(b, off, len)));
 
-        boolean last;
+        boolean last = false;
         boolean aggregate;
         boolean flush;
 
@@ -746,7 +775,15 @@ public class HttpOutput extends ServletOutputStream
             checkWritable();
             long written = _written + len;
             int space = maximizeAggregateSpace();
-            last = _servletChannel.getServletContextResponse().isAllContentWritten(written);
+
+            // Is this the last write due to content-length?
+            if (_contentLengthSet >= 0)
+            {
+                if (_written > _contentLengthSet)
+                    throw new IllegalStateException("too much content written");
+                last = written == _contentLengthSet;
+            }
+
             // Write will be aggregated if:
             //  + it is smaller than the commitSize
             //  + is not the last one, or is last but will fit in an already allocated aggregate buffer.
@@ -872,7 +909,7 @@ public class HttpOutput extends ServletOutputStream
         // This write always bypasses aggregate buffer
         int len = BufferUtil.length(buffer);
         boolean flush;
-        boolean last;
+        boolean last = false;
 
         // Async or Blocking ?
         boolean async;
@@ -880,7 +917,15 @@ public class HttpOutput extends ServletOutputStream
         {
             checkWritable();
             long written = _written + len;
-            last = _servletChannel.getServletContextResponse().isAllContentWritten(written);
+
+            // Is this the last write due to content-length?
+            if (_contentLengthSet >= 0)
+            {
+                if (_written > _contentLengthSet)
+                    throw new IllegalStateException("too much content written");
+                last = written == _contentLengthSet;
+            }
+
             flush = last || len > 0 || (_aggregate != null && _aggregate.hasRemaining());
 
             if (last && _state == State.OPEN)
@@ -951,7 +996,7 @@ public class HttpOutput extends ServletOutputStream
     public void write(int b) throws IOException
     {
         boolean flush;
-        boolean last;
+        boolean last = false;
         // Async or Blocking ?
 
         boolean async = false;
@@ -960,7 +1005,15 @@ public class HttpOutput extends ServletOutputStream
             checkWritable();
             long written = _written + 1;
             int space = maximizeAggregateSpace();
-            last = _servletChannel.getServletContextResponse().isAllContentWritten(written);
+
+            // Is this the last write due to content-length?
+            if (_contentLengthSet >= 0)
+            {
+                if (_written > _contentLengthSet)
+                    throw new IllegalStateException("too much content written");
+                last = written == _contentLengthSet;
+            }
+
             flush = last || space == 1;
 
             if (last && _state == State.OPEN)
@@ -1109,6 +1162,7 @@ public class HttpOutput extends ServletOutputStream
      * @param content The whole content to send
      * @throws IOException if the send fails
      */
+    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(ByteBuffer content) throws IOException
     {
         if (LOG.isDebugEnabled())
@@ -1124,6 +1178,7 @@ public class HttpOutput extends ServletOutputStream
      * @param in The stream content to send
      * @throws IOException if the send fails
      */
+    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(InputStream in) throws IOException
     {
         try (Blocker.Callback blocker = _writeBlocker.callback())
@@ -1139,6 +1194,7 @@ public class HttpOutput extends ServletOutputStream
      * @param in The channel content to send
      * @throws IOException if the send fails
      */
+    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(ReadableByteChannel in) throws IOException
     {
         try (Blocker.Callback blocker = _writeBlocker.callback())
@@ -1154,6 +1210,7 @@ public class HttpOutput extends ServletOutputStream
      * @param content The whole content to send
      * @param callback The callback to use to notify success or failure
      */
+    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(ByteBuffer content, final Callback callback)
     {
         if (LOG.isDebugEnabled())
@@ -1186,6 +1243,7 @@ public class HttpOutput extends ServletOutputStream
      * @param in The stream content to send
      * @param callback The callback to use to notify success or failure
      */
+    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(InputStream in, Callback callback)
     {
         if (LOG.isDebugEnabled())
@@ -1202,6 +1260,7 @@ public class HttpOutput extends ServletOutputStream
      * @param in The channel content to send
      * @param callback The callback to use to notify success or failure
      */
+    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(ReadableByteChannel in, Callback callback)
     {
         if (LOG.isDebugEnabled())
@@ -1282,6 +1341,7 @@ public class HttpOutput extends ServletOutputStream
             _onError = null;
             _firstByteNanoTime = -1;
             _closedCallback = null;
+            _contentLengthSet = -1;
         }
     }
 
@@ -1292,6 +1352,7 @@ public class HttpOutput extends ServletOutputStream
             if (_aggregate != null)
                 _aggregate.clear();
             _written = 0;
+            _contentLengthSet = -1;
         }
     }
 
