@@ -1320,7 +1320,7 @@ public class HttpChannelState implements HttpChannel, Components
                 _writeCallback = null;
                 httpChannel = _request._httpChannelState;
                 if (httpChannel != null)
-                   httpChannel.lockedStreamSendCompleted(true);
+                    httpChannel.lockedStreamSendCompleted(true);
             }
 
             if (callback != null)
