@@ -33,6 +33,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.http.HttpTester;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -253,6 +254,8 @@ public class BlockingTest
     @Test
     public void testNormalCompleteThenBlockingRead() throws Exception
     {
+        Awaitility.setDefaultPollInterval(1, TimeUnit.MICROSECONDS);
+
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch completed = new CountDownLatch(1);
         CountDownLatch stopped = new CountDownLatch(1);
@@ -335,7 +338,10 @@ public class BlockingTest
 
             // Async thread should have stopped
             assertTrue(stopped.await(10, TimeUnit.SECONDS));
-            assertThat(readException.get(), instanceOf(IOException.class));
+            Throwable x = readException.get();
+            if (!(x instanceof IOException))
+                x.printStackTrace();
+            assertThat(x, instanceOf(IOException.class));
         }
     }
 
