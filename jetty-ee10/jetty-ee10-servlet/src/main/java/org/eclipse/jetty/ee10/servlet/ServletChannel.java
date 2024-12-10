@@ -568,7 +568,7 @@ public class ServletChannel
                             // they might be compressed (or changed) by child Handlers.
                             if (getHttpOutput().isContentIncomplete())
                             {
-                                String message = "Insufficient content written %d < %d".formatted(getHttpOutput().getWritten(), getHttpOutput().getContentLengthSet());
+                                String message = "Insufficient content written %d < %d".formatted(getHttpOutput().getWritten(), getHttpOutput().getApplicationContentLength());
                                 if (isCommitted() || _completeAttempted)
                                     abort(new IOException(message));
                                 else

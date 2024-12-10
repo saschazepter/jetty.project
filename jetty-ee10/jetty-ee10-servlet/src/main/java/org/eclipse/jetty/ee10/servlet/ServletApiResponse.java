@@ -352,11 +352,11 @@ public class ServletApiResponse implements HttpServletResponse
 
         if (len >= 0)
         {
-            getServletChannel().getHttpOutput().setContentLengthSet(len);
-        if (len > 0)
-            getResponse().getHeaders().put(HttpHeader.CONTENT_LENGTH, len);
-        else
-            getResponse().getHeaders().put(HttpFields.CONTENT_LENGTH_0);
+            getServletChannel().getHttpOutput().setApplicationContentLength(len);
+            if (len > 0)
+                getResponse().getHeaders().put(HttpHeader.CONTENT_LENGTH, len);
+            else
+                getResponse().getHeaders().put(HttpFields.CONTENT_LENGTH_0);
         }
         else
         {

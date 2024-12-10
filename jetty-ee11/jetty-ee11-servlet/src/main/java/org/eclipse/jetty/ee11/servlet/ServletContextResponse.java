@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Supplier;
 
 import jakarta.servlet.DispatcherType;
@@ -503,9 +502,7 @@ public class ServletContextResponse extends ContextResponse implements ServletCo
         {
             if (isCommitted())
                 return false;
-            if (field.getHeader() == null)
-                return true;
-            if (Objects.requireNonNull(field.getHeader()) == HttpHeader.CONTENT_TYPE)
+            if (field.getHeader() == HttpHeader.CONTENT_TYPE)
             {
                 _contentType = null;
                 _mimeType = null;
