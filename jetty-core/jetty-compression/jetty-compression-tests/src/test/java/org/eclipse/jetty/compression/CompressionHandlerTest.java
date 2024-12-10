@@ -246,7 +246,7 @@ public class CompressionHandlerTest extends AbstractCompressionTest
     public void testDefaultCompressionConfiguration(Class<Compression> compressionClass) throws Exception
     {
         newCompression(compressionClass);
-        String message = "Hello Jetty!";
+        String message = "Hello Jetty!\n".repeat(10);
 
         CompressionHandler compressionHandler = new CompressionHandler();
         compressionHandler.putCompression(compression);
