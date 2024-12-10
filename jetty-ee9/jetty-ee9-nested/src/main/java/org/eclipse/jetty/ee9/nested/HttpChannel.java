@@ -178,7 +178,7 @@ public class HttpChannel implements Runnable, HttpOutput.Interceptor
     {
         ContextHandler.CoreContextRequest coreContextRequest = getCoreRequest();
         if (coreContextRequest == null)
-            return new HttpInput.ErrorContent(new IllegalStateException("Channel has been recycled"));
+            return new HttpInput.ErrorContent(new IOException("Channel has been recycled"));
         Content.Chunk chunk = coreContextRequest.read();
         if (chunk == null)
             return null;

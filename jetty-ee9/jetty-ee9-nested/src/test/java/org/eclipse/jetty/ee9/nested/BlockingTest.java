@@ -338,10 +338,7 @@ public class BlockingTest
 
             // Async thread should have stopped
             assertTrue(stopped.await(10, TimeUnit.SECONDS));
-            Throwable x = readException.get();
-            if (!(x instanceof IOException))
-                x.printStackTrace();
-            assertThat(x, instanceOf(IOException.class));
+            assertThat(readException.get(), instanceOf(IOException.class));
         }
     }
 
