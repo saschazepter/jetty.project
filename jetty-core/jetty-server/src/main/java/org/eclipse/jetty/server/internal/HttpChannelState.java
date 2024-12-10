@@ -1314,6 +1314,7 @@ public class HttpChannelState implements HttpChannel, Components
                 LOG.debug("write succeeded {}", this);
             Callback callback;
             HttpChannelState httpChannel;
+            Throwable noChannelFailure = null;
             try (AutoLock ignored = _request._lock.lock())
             {
                 callback = _writeCallback;
@@ -1321,8 +1322,22 @@ public class HttpChannelState implements HttpChannel, Components
                 httpChannel = _request.lockedGetHttpChannelState();
                 httpChannel.lockedStreamSendCompleted(true);
             }
-            if (callback != null)
+            catch (Throwable failure)
+            {
+                callback = null;
+                httpChannel = null;
+                noChannelFailure = failure;
+            }
+
+            if (httpChannel != null && callback != null)
+            {
                 httpChannel._writeInvoker.run(callback::succeeded);
+            }
+            else
+            {
+                // Channel already completed, just fail the callback.
+                HttpChannelState.failed(callback, noChannelFailure);
+            }
         }
 
         /**
@@ -1340,7 +1355,7 @@ public class HttpChannelState implements HttpChannel, Components
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("write failed {}", this, x);
-            Callback callback = null;
+            Callback callback;
             HttpChannelState httpChannel;
             Throwable noChannelFailure = null;
             try (AutoLock ignored = _request._lock.lock())
@@ -1353,19 +1368,20 @@ public class HttpChannelState implements HttpChannel, Components
             }
             catch (Throwable failure)
             {
+                callback = null;
                 httpChannel = null;
                 noChannelFailure = failure;
             }
 
-            if (httpChannel == null)
+            if (httpChannel != null && callback != null)
             {
-                // Channel already completed, just fail the callback.
-                HttpChannelState.failed(callback, noChannelFailure);
+                Callback finalCallback = callback;
+                httpChannel._writeInvoker.run(() -> HttpChannelState.failed(finalCallback, x));
             }
             else
             {
-                Callback cb = callback;
-                httpChannel._writeInvoker.run(() -> HttpChannelState.failed(cb, x));
+                // Channel already completed, just fail the callback.
+                HttpChannelState.failed(callback, noChannelFailure);
             }
         }
 
