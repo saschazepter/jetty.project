@@ -1145,9 +1145,7 @@ public class HttpOutput extends ServletOutputStream
      *
      * @param content The whole content to send
      * @throws IOException if the send fails
-     * @deprecated Use {@link ResourceServlet}
      */
-    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(ByteBuffer content) throws IOException
     {
         if (LOG.isDebugEnabled())
@@ -1162,9 +1160,7 @@ public class HttpOutput extends ServletOutputStream
      *
      * @param in The stream content to send
      * @throws IOException if the send fails
-     * @deprecated Use {@link ResourceServlet}
      */
-    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(InputStream in) throws IOException
     {
         try (Blocker.Callback blocker = _writeBlocker.callback())
@@ -1179,9 +1175,7 @@ public class HttpOutput extends ServletOutputStream
      *
      * @param in The channel content to send
      * @throws IOException if the send fails
-     * @deprecated Use {@link ResourceServlet}
      */
-    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(ReadableByteChannel in) throws IOException
     {
         try (Blocker.Callback blocker = _writeBlocker.callback())
@@ -1196,9 +1190,7 @@ public class HttpOutput extends ServletOutputStream
      *
      * @param content The whole content to send
      * @param callback The callback to use to notify success or failure
-     * @deprecated Use {@link ResourceServlet}
      */
-    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(ByteBuffer content, final Callback callback)
     {
         if (LOG.isDebugEnabled())
@@ -1230,9 +1222,7 @@ public class HttpOutput extends ServletOutputStream
      *
      * @param in The stream content to send
      * @param callback The callback to use to notify success or failure
-     * @deprecated Use {@link ResourceServlet}
      */
-    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(InputStream in, Callback callback)
     {
         if (LOG.isDebugEnabled())
@@ -1248,9 +1238,7 @@ public class HttpOutput extends ServletOutputStream
      *
      * @param in The channel content to send
      * @param callback The callback to use to notify success or failure
-     * @deprecated Use {@link ResourceServlet}
      */
-    @Deprecated(forRemoval = true, since = "12.1.0")
     public void sendContent(ReadableByteChannel in, Callback callback)
     {
         if (LOG.isDebugEnabled())
@@ -1260,7 +1248,6 @@ public class HttpOutput extends ServletOutputStream
             new ReadableByteChannelWritingCB(in, callback).iterate();
     }
 
-    @Deprecated(forRemoval = true, since = "12.1.0")
     private boolean prepareSendContent(int len, Callback callback)
     {
         try (AutoLock ignored = _channelState.lock())
