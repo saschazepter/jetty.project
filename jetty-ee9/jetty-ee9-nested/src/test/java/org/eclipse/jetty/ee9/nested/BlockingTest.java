@@ -33,7 +33,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.awaitility.Awaitility;
 import org.eclipse.jetty.http.HttpTester;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -254,8 +253,6 @@ public class BlockingTest
     @Test
     public void testNormalCompleteThenBlockingRead() throws Exception
     {
-        Awaitility.setDefaultPollInterval(1, TimeUnit.MICROSECONDS);
-
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch completed = new CountDownLatch(1);
         CountDownLatch stopped = new CountDownLatch(1);
