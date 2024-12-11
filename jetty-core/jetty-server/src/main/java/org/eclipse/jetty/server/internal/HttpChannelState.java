@@ -1329,7 +1329,7 @@ public class HttpChannelState implements HttpChannel, Components
                     httpChannel._writeInvoker.run(callback::succeeded);
                 else
                     // Channel already completed, just fail the callback.
-                    HttpChannelState.failed(callback, new IllegalStateException("channel already completed"));
+                    HttpChannelState.failed(callback, new IOException("channel already completed"));
             }
         }
 
@@ -1366,7 +1366,7 @@ public class HttpChannelState implements HttpChannel, Components
                     httpChannel._writeInvoker.run(() -> HttpChannelState.failed(callback, x));
                 else
                     // Channel already completed, just fail the callback.
-                    HttpChannelState.failed(callback, ExceptionUtil.combine(x, new IllegalStateException("channel already completed")));
+                    HttpChannelState.failed(callback, ExceptionUtil.combine(x, new IOException("channel already completed")));
             }
         }
 
