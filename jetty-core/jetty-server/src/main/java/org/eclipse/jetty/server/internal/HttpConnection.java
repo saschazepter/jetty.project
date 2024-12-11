@@ -1587,6 +1587,7 @@ public class HttpConnection extends AbstractMetaDataConnection implements Runnab
             if (LOG.isDebugEnabled())
                 LOG.debug("aborting", x);
             abort(x);
+            _httpChannel.setHttpStream(null);
             if (!_handling.compareAndSet(true, false))
                 resume();
         }
