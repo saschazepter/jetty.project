@@ -1318,19 +1318,12 @@ public class HttpChannelState implements HttpChannel, Components
             {
                 callback = _writeCallback;
                 _writeCallback = null;
-                httpChannel = _request._httpChannelState;
-                if (httpChannel != null)
-                    httpChannel.lockedStreamSendCompleted(true);
+                httpChannel = _request.lockedGetHttpChannelState();
+                httpChannel.lockedStreamSendCompleted(true);
             }
 
             if (callback != null)
-            {
-                if (httpChannel != null)
-                    httpChannel._writeInvoker.run(callback::succeeded);
-                else
-                    // Channel already completed, just fail the callback.
-                    HttpChannelState.failed(callback, new IOException("channel already completed"));
-            }
+                httpChannel._writeInvoker.run(callback::succeeded);
         }
 
         /**
@@ -1355,19 +1348,12 @@ public class HttpChannelState implements HttpChannel, Components
                 _writeFailure = x;
                 callback = _writeCallback;
                 _writeCallback = null;
-                httpChannel = _request._httpChannelState;
-                if (httpChannel != null)
-                    httpChannel.lockedStreamSendCompleted(false);
+                httpChannel = _request.lockedGetHttpChannelState();
+                httpChannel.lockedStreamSendCompleted(false);
             }
 
             if (callback != null)
-            {
-                if (httpChannel != null)
-                    httpChannel._writeInvoker.run(() -> HttpChannelState.failed(callback, x));
-                else
-                    // Channel already completed, just fail the callback.
-                    HttpChannelState.failed(callback, ExceptionUtil.combine(x, new IOException("channel already completed")));
-            }
+                httpChannel._writeInvoker.run(() -> HttpChannelState.failed(callback, x));
         }
 
         @Override
