@@ -609,6 +609,7 @@ public abstract class HttpReceiver
         private final Content.Source source;
         private final Response response;
         private long decodedLength;
+        private boolean last;
 
         private DecodedContentSource(Content.Source source, Response response)
         {
@@ -643,8 +644,11 @@ public abstract class HttpReceiver
 
                 decodedLength += chunk.remaining();
 
-                if (chunk.isLast())
+                if (chunk.isLast() && !last)
+                {
+                    last = true;
                     afterDecoding(response, decodedLength);
+                }
 
                 return chunk;
             }
@@ -672,7 +676,13 @@ public abstract class HttpReceiver
         @Override
         public boolean rewind()
         {
-            return source.rewind();
+            boolean rewound = source.rewind();
+            if (rewound)
+            {
+                decodedLength = 0;
+                last = false;
+            }
+            return rewound;
         }
     }
 

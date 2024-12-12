@@ -116,7 +116,7 @@ public abstract class ContentSourceTransformer implements Content.Source
                 // return a non-last transformed chunk to force more read() and transform().
                 if (transformedLast && !rawLast)
                 {
-                    if (transformedChunk == Content.Chunk.EOF)
+                    if (transformedChunk.isEmpty())
                         transformedChunk = Content.Chunk.EMPTY;
                     else if (!transformedFailure)
                         transformedChunk = Content.Chunk.asChunk(transformedChunk.getByteBuffer(), false, transformedChunk);

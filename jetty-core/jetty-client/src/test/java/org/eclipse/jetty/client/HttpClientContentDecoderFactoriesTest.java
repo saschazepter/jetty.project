@@ -19,10 +19,12 @@ import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.ArrayByteBufferPool;
 import org.eclipse.jetty.io.Content;
+import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.io.content.ContentSourceTransformer;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.StringUtil;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -63,13 +65,17 @@ public class HttpClientContentDecoderFactoriesTest extends AbstractHttpClientSer
                         if (chunk.isEmpty())
                             return chunk.isLast() ? Content.Chunk.EOF : Content.Chunk.EMPTY;
 
-                        ByteBuffer byteBuffer = chunk.getByteBuffer();
-                        byte b = byteBuffer.get();
+                        ByteBuffer byteBufferIn = chunk.getByteBuffer();
+                        byte b = byteBufferIn.get();
                         if (b == '*')
                             return Content.Chunk.EMPTY;
 
-                        byte lower = StringUtil.asciiToLowerCase(b);
-                        return Content.Chunk.from(ByteBuffer.wrap(new byte[]{lower}), false);
+                        RetainableByteBuffer bufferOut = bufferPool.acquire(1, true);
+                        ByteBuffer byteBufferOut = bufferOut.getByteBuffer();
+                        int pos = BufferUtil.flipToFill(byteBufferOut);
+                        byteBufferOut.put(StringUtil.asciiToLowerCase(b));
+                        BufferUtil.flipToFlush(byteBufferOut, pos);
+                        return Content.Chunk.asChunk(byteBufferOut, false, bufferOut);
                     }
                 };
             }
