@@ -140,6 +140,7 @@ public class HttpOutput extends ServletOutputStream
     private WriteListener _writeListener;
     private volatile Throwable _onError;
     private Callback _closedCallback;
+    private long _applicationContentLength = -1;
 
     public HttpOutput(ServletChannel channel)
     {
@@ -172,6 +173,46 @@ public class HttpOutput extends ServletOutputStream
     public long getWritten()
     {
         return _written;
+    }
+
+    /**
+     * Set the content-length as set by the application.  This may not be the actual content length if compression or
+     * similar handlers are used.
+     * @param len The content-length as set by the application.
+     */
+    public void setApplicationContentLength(long len)
+    {
+        _applicationContentLength = len;
+    }
+
+    /**
+     * Get the content-length as set by the application.  This may not be the actual content length if compression or
+     * similar handlers are used.
+     * @return The content-length as set by the application.
+     */
+    public long getApplicationContentLength()
+    {
+        return _applicationContentLength;
+    }
+
+    /**
+     * @return {@code true} if a Content-Length has been set and insufficient content has been written.
+     */
+    public boolean isContentIncomplete()
+    {
+        long applicationContentLength = _applicationContentLength;
+        return applicationContentLength >= 0 && _written < applicationContentLength;
+    }
+
+    private boolean isAllContentWritten(long written)
+    {
+        if (_applicationContentLength >= 0)
+        {
+            if (written > _applicationContentLength)
+                throw new IllegalStateException("too much content written");
+            return written == _applicationContentLength;
+        }
+        return false;
     }
 
     /**
@@ -365,7 +406,7 @@ public class HttpOutput extends ServletOutputStream
 
                 case PENDING: // an async write is pending and may complete at any time
                     // If this is not the last write, then we must abort
-                    if (_servletChannel.getServletContextResponse().isContentIncomplete(_written))
+                    if (isContentIncomplete())
                         error = new CancellationException("Completed whilst write pending");
                     break;
 
@@ -461,9 +502,9 @@ public class HttpOutput extends ServletOutputStream
     /**
      * Called to indicate that the request cycle has been completed.
      */
-    public void completed(Throwable failure)
+    public void completed(Throwable ignored)
     {
-        try (AutoLock ignored = _channelState.lock())
+        try (AutoLock ignoredLock = _channelState.lock())
         {
             _state = State.CLOSED;
             lockedReleaseBuffer();
@@ -746,7 +787,10 @@ public class HttpOutput extends ServletOutputStream
             checkWritable();
             long written = _written + len;
             int space = maximizeAggregateSpace();
-            last = _servletChannel.getServletContextResponse().isAllContentWritten(written);
+
+            // Is this the last write due to content-length?
+            last = isAllContentWritten(written);
+
             // Write will be aggregated if:
             //  + it is smaller than the commitSize
             //  + is not the last one, or is last but will fit in an already allocated aggregate buffer.
@@ -880,7 +924,10 @@ public class HttpOutput extends ServletOutputStream
         {
             checkWritable();
             long written = _written + len;
-            last = _servletChannel.getServletContextResponse().isAllContentWritten(written);
+
+            // Is this the last write due to content-length?
+            last = isAllContentWritten(written);
+
             flush = last || len > 0 || (_aggregate != null && _aggregate.hasRemaining());
 
             if (last && _state == State.OPEN)
@@ -960,7 +1007,10 @@ public class HttpOutput extends ServletOutputStream
             checkWritable();
             long written = _written + 1;
             int space = maximizeAggregateSpace();
-            last = _servletChannel.getServletContextResponse().isAllContentWritten(written);
+
+            // Is this the last write due to content-length?
+            last = isAllContentWritten(written);
+
             flush = last || space == 1;
 
             if (last && _state == State.OPEN)
@@ -1282,6 +1332,7 @@ public class HttpOutput extends ServletOutputStream
             _onError = null;
             _firstByteNanoTime = -1;
             _closedCallback = null;
+            _applicationContentLength = -1;
         }
     }
 
@@ -1292,6 +1343,7 @@ public class HttpOutput extends ServletOutputStream
             if (_aggregate != null)
                 _aggregate.clear();
             _written = 0;
+            _applicationContentLength = -1;
         }
     }
 
