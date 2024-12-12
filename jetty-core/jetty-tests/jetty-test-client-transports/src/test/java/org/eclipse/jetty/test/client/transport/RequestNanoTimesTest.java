@@ -34,9 +34,9 @@ public class RequestNanoTimesTest extends AbstractTest
 {
     @ParameterizedTest
     @MethodSource("transports")
-    public void testRequestNanoTimes(Transport transport) throws Exception
+    public void testRequestNanoTimes(TransportType transportType) throws Exception
     {
-        start(transport, new Handler.Abstract()
+        start(transportType, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback)
@@ -51,7 +51,7 @@ public class RequestNanoTimesTest extends AbstractTest
         for (int i = 0; i < 2; ++i)
         {
             long clientRequestNanoTime = NanoTime.now();
-            ContentResponse response = client.newRequest(newURI(transport))
+            ContentResponse response = client.newRequest(newURI(transportType))
                 .timeout(5, TimeUnit.SECONDS)
                 .send();
 
