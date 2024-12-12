@@ -186,17 +186,14 @@ public class ServletApiResponse implements HttpServletResponse
         {
             Response.sendRedirect(getServletRequestInfo().getRequest(), getResponse(), callback, code, location, false);
             callback.block();
-            closeOutput();
-        }
-    }
 
-    public void closeOutput() throws IOException
-    {
-        ServletResponseInfo info = getServletResponseInfo();
-        if (info.getOutputType() == ServletContextResponse.OutputType.WRITER)
-            info.getWriter().close();
-        else
-            _servletChannel.getHttpOutput().close();
+            // Close the HttpOutput.
+            ServletResponseInfo info = getServletResponseInfo();
+            if (info.getOutputType() == ServletContextResponse.OutputType.WRITER)
+                info.getWriter().close();
+            else
+                _servletChannel.getHttpOutput().close();
+        }
     }
 
     @Override
