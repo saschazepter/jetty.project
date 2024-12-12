@@ -463,7 +463,7 @@ public class HttpClientStreamTest extends AbstractTest
     {
         // Failure to connect is based on TCP connection refused
         // (as the server is stopped), which does not work for UDP.
-        Assumptions.assumeTrue(transportType != TransportType.H3);
+        Assumptions.assumeTrue(transportType != TransportType.H3_QUICHE);
 
         start(transportType, new EmptyServerHandler());
         URI uri = newURI(transportType);

@@ -225,7 +225,7 @@ public class EventsHandlerTest extends AbstractTest
             // One read, maybe one null read, one write, one write complete.
             case H2:
             case H2C:
-            case H3:
+            case H3_QUICHE:
                 await().atMost(5, TimeUnit.SECONDS).until(() -> eventsHandler.exceptions.size() / 4, allOf(greaterThanOrEqualTo(7), lessThanOrEqualTo(8)));
                 break;
             default:

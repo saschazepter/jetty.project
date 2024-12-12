@@ -170,7 +170,7 @@ public class HttpChannelAssociationTest extends AbstractTest
                     }
                 };
             }
-            case H3:
+            case H3_QUICHE:
             {
                 SslContextFactory.Client sslClient = newSslContextFactoryClient();
                 HTTP3Client http3Client = new HTTP3Client(new ClientQuicConfiguration(sslClient, null));

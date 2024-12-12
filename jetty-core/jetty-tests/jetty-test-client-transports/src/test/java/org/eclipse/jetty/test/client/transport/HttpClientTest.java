@@ -359,7 +359,7 @@ public class HttpClientTest extends AbstractTest
         client.start();
 
         // H3 times out b/c it is QUIC's way of figuring out a connection cannot be established.
-        Class<? extends Exception> expectedType = transportType == TransportType.H3 ? TimeoutException.class : ExecutionException.class;
+        Class<? extends Exception> expectedType = transportType == TransportType.H3_QUICHE ? TimeoutException.class : ExecutionException.class;
         assertThrows(expectedType, () ->
         {
             // Use an IP address not present in the certificate.
@@ -676,7 +676,7 @@ public class HttpClientTest extends AbstractTest
     public void testIPv6Host(TransportType transportType) throws Exception
     {
         assumeTrue(Net.isIpv6InterfaceAvailable());
-        assumeTrue(transportType != TransportType.H3);
+        assumeTrue(transportType != TransportType.H3_QUICHE);
 
         start(transportType, new Handler.Abstract()
         {
@@ -731,7 +731,7 @@ public class HttpClientTest extends AbstractTest
     public void testRequestWithDifferentDestination(TransportType transportType) throws Exception
     {
         // TODO fix for H3
-        Assumptions.assumeFalse(transportType == TransportType.H3);
+        Assumptions.assumeFalse(transportType == TransportType.H3_QUICHE);
         String requestScheme = newURI(transportType).getScheme();
         String requestHost = "otherHost.com";
         int requestPort = 8888;

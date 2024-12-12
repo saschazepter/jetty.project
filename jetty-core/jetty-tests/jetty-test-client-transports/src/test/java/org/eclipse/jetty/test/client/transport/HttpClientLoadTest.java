@@ -93,7 +93,7 @@ public class HttpClientLoadTest extends AbstractTest
     public void testConcurrent(TransportType transportType) throws Exception
     {
         // TODO: cannot run HTTP/3 (or UDP) in Jenkins.
-        Assumptions.assumeTrue(transportType != TransportType.H3);
+        Assumptions.assumeTrue(transportType != TransportType.H3_QUICHE);
 
         start(transportType, new LoadHandler());
         client.stop();
@@ -154,7 +154,7 @@ public class HttpClientLoadTest extends AbstractTest
         ThreadLocalRandom random = ThreadLocalRandom.current();
         // Choose a random destination
         String host;
-        if (transportType == TransportType.H3)
+        if (transportType == TransportType.H3_QUICHE)
             host = "localhost";
         else
             host = random.nextBoolean() ? "localhost" : "127.0.0.1";

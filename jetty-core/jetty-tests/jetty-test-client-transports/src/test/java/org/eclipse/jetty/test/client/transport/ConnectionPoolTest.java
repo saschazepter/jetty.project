@@ -62,7 +62,7 @@ public class ConnectionPoolTest extends AbstractTest
             {
                 case HTTP, HTTPS -> assertThat(serverConnections.filter(HttpConnection.class).size(), is(maxConnectionsPerDestination));
                 case H2C, H2 -> assertThat(serverConnections.filter(HTTP2ServerConnection.class).size(), is(maxConnectionsPerDestination));
-                case H3 -> assertThat(serverConnections.filter(ServerQuicConnection.class).size(), is(1));
+                case H3_QUICHE -> assertThat(serverConnections.filter(ServerQuicConnection.class).size(), is(1));
                 case FCGI -> assertThat(serverConnections.filter(ServerFCGIConnection.class).size(), is(maxConnectionsPerDestination));
             }
         });
@@ -70,7 +70,7 @@ public class ConnectionPoolTest extends AbstractTest
         // Verify that TLS was performed.
         List<Connection> sslConnections = switch (transportType)
         {
-            case HTTP, H2C, FCGI, H3 -> null;
+            case HTTP, H2C, FCGI, H3_QUICHE -> null;
             case HTTPS, H2 -> serverConnections.filter(SslConnection.class);
         };
         if (sslConnections != null)

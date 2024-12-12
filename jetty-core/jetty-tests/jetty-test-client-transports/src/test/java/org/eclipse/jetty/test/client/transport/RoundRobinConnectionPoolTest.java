@@ -224,7 +224,7 @@ public class RoundRobinConnectionPoolTest extends AbstractTest
                 return true;
             }
         });
-        if (transportType == TransportType.H3)
+        if (transportType == TransportType.H3_QUICHE)
             ((QuicServerConnector)connector).getQuicConfiguration().setMaxBidirectionalRemoteStreams(maxUsage);
         client.getHttpClientTransport().setConnectionPoolFactory(destination ->
         {
@@ -249,7 +249,7 @@ public class RoundRobinConnectionPoolTest extends AbstractTest
         assertEquals(count, remotePorts.size());
 
         // UDP does not have TIME_WAIT so ports may be reused by different connections.
-        if (transportType == TransportType.H3)
+        if (transportType == TransportType.H3_QUICHE)
             return;
 
         // Maps {remote_port -> number_of_times_port_was_used}.

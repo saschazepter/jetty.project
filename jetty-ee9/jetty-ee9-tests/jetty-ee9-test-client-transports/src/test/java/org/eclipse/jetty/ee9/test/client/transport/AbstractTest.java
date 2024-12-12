@@ -88,7 +88,7 @@ public class AbstractTest
     {
         EnumSet<TransportType> transportTypes = EnumSet.allOf(TransportType.class);
         if ("ci".equals(System.getProperty("env")))
-            transportTypes.remove(TransportType.H3);
+            transportTypes.remove(TransportType.H3_QUICHE);
         return transportTypes;
     }
 
@@ -202,7 +202,7 @@ public class AbstractTest
         {
             case HTTP, HTTPS, H2C, H2, FCGI ->
                 new ServerConnector(server, 1, 1, newServerConnectionFactory(transportType));
-            case H3 ->
+            case H3_QUICHE ->
                 new QuicServerConnector(server, serverQuicConfig, newServerConnectionFactory(transportType));
         };
     }
@@ -233,7 +233,7 @@ public class AbstractTest
                 SslConnectionFactory ssl = new SslConnectionFactory(sslContextFactoryServer, alpn.getProtocol());
                 yield List.of(ssl, alpn, h2);
             }
-            case H3 ->
+            case H3_QUICHE ->
             {
                 httpConfig.addCustomizer(new SecureRequestCustomizer());
                 httpConfig.addCustomizer(new HostHeaderCustomizer());
@@ -271,7 +271,7 @@ public class AbstractTest
                 HTTP2Client http2Client = new HTTP2Client(clientConnector);
                 yield new HttpClientTransportOverHTTP2(http2Client);
             }
-            case H3 ->
+            case H3_QUICHE ->
             {
                 ClientConnector clientConnector = new ClientConnector();
                 clientConnector.setSelectors(1);
@@ -313,14 +313,14 @@ public class AbstractTest
 
     public enum TransportType
     {
-        HTTP, HTTPS, H2C, H2, H3, FCGI;
+        HTTP, HTTPS, H2C, H2, H3_QUICHE, FCGI;
 
         public boolean isSecure()
         {
             return switch (this)
             {
                 case HTTP, H2C, FCGI -> false;
-                case HTTPS, H2, H3 -> true;
+                case HTTPS, H2, H3_QUICHE -> true;
             };
         }
     }
