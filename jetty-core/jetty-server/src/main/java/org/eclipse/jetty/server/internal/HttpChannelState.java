@@ -700,6 +700,9 @@ public class HttpChannelState implements HttpChannel, Components
             if (LOG.isDebugEnabled())
                 LOG.debug("stream={}, failure={}, callbackCompleted={}, completeStream={}", stream, failure, callbackCompleted, completeStream);
 
+            if (stream == null)
+                return;
+
             if (completeStream)
             {
                 if (LOG.isDebugEnabled())
@@ -1520,7 +1523,10 @@ public class HttpChannelState implements HttpChannel, Components
 
                 // We convert a call to succeeded with pending demand/write into a call to failed.
                 if (httpChannelState._onContentAvailable != null)
+                {
+                    ThreadPool.executeImmediately(httpChannelState.getExecutor(), httpChannelState._onContentAvailable);
                     failure = ExceptionUtil.combine(failure, new IllegalStateException("demand pending"));
+                }
                 if (response.lockedIsWriting())
                     failure = ExceptionUtil.combine(failure, new IllegalStateException("write pending"));
 
