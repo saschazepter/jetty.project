@@ -87,12 +87,12 @@ if [ ! -d "$ALT_DEPLOY_DIR" ] ; then
 fi
 
 # DEPLOY_OPTS="-Dmaven.test.failure.ignore=true"
-DEPLOY_OPTS="-DskipTests -Dtest=None"
+DEPLOY_OPTS="-DskipTests -Dtest=None -DdeployAtEnd=true -DretryFailedDeploymentCount=3  "
 # DEPLOY_OPTS="$DEPLOY_OPTS -DaltDeploymentRepository=intarget::default::file://$ALT_DEPLOY_DIR/"
 
 # Uncomment for Java 1.7
 # export MAVEN_OPTS="-Xmx1g -XX:MaxPermSize=128m"
-export MAVEN_OPTS="-Xmx2g"
+export MAVEN_OPTS="-Xmx8g"
 
 echo ""
 echo "-----------------------------------------------"
