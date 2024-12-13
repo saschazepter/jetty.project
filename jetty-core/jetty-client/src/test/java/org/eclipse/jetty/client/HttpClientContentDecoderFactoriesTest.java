@@ -68,7 +68,10 @@ public class HttpClientContentDecoderFactoriesTest extends AbstractHttpClientSer
                         ByteBuffer byteBufferIn = chunk.getByteBuffer();
                         byte b = byteBufferIn.get();
                         if (b == '*')
-                            return Content.Chunk.EMPTY;
+                        {
+                            RetainableByteBuffer.Mutable empty = bufferPool.acquire(0, true);
+                            return Content.Chunk.asChunk(empty.getByteBuffer(), false, empty);
+                        }
 
                         RetainableByteBuffer bufferOut = bufferPool.acquire(1, true);
                         ByteBuffer byteBufferOut = bufferOut.getByteBuffer();
