@@ -41,13 +41,13 @@ public class ThreadStarvationTest extends AbstractTest
 {
     @ParameterizedTest
     @MethodSource("transports")
-    public void testReadStarvation(Transport transport) throws Exception
+    public void testReadStarvation(TransportType transportType) throws Exception
     {
         // Leave only 1 thread available to handle requests.
         // 1 acceptor (0 for H3), 1 selector, 1 available.
-        int maxThreads = transport == Transport.H3 ? 2 : 3;
+        int maxThreads = transportType == TransportType.H3_QUICHE ? 2 : 3;
         AtomicReference<Thread> handlerThreadRef = new AtomicReference<>();
-        prepareServer(transport, new Handler.Abstract()
+        prepareServer(transportType, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback) throws Exception
@@ -68,12 +68,12 @@ public class ThreadStarvationTest extends AbstractTest
 
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertEquals(1, serverThreads.getReadyThreads()));
 
-        startClient(transport);
+        startClient(transportType);
 
         // Send one request that will block the last thread on the server.
         CountDownLatch responseLatch = new CountDownLatch(1);
         AsyncRequestContent content = new AsyncRequestContent(UTF_8.encode("0"));
-        client.newRequest(newURI(transport))
+        client.newRequest(newURI(transportType))
             .method(HttpMethod.POST)
             .body(content)
             .timeout(5, TimeUnit.SECONDS)
@@ -101,12 +101,12 @@ public class ThreadStarvationTest extends AbstractTest
 
     @ParameterizedTest
     @MethodSource("transports")
-    public void testIdleTimeoutStarvation(Transport transport) throws Exception
+    public void testIdleTimeoutStarvation(TransportType transportType) throws Exception
     {
         long idleTimeout = 1000;
         AtomicReference<Thread> handlerThreadRef = new AtomicReference<>();
         CountDownLatch serverExceptionLatch = new CountDownLatch(1);
-        prepareServer(transport, new Handler.Abstract()
+        prepareServer(transportType, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback) throws Exception
@@ -144,7 +144,7 @@ public class ThreadStarvationTest extends AbstractTest
         });
         // Leave only 1 thread available to handle requests.
         // 1 acceptor (0 for H3), 1 selector, 1 available.
-        int maxThreads = transport == Transport.H3 ? 2 : 3;
+        int maxThreads = transportType == TransportType.H3_QUICHE ? 2 : 3;
         QueuedThreadPool serverThreads = (QueuedThreadPool)server.getThreadPool();
         serverThreads.setReservedThreads(0);
         serverThreads.setDetailedDump(true);
@@ -155,12 +155,12 @@ public class ThreadStarvationTest extends AbstractTest
 
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> assertEquals(1, serverThreads.getReadyThreads()));
 
-        startClient(transport);
+        startClient(transportType);
 
         // Send one request that will block the last thread on the server.
         CountDownLatch responseLatch = new CountDownLatch(1);
         AsyncRequestContent content = new AsyncRequestContent();
-        client.newRequest(newURI(transport))
+        client.newRequest(newURI(transportType))
             .method(HttpMethod.POST)
             .body(content)
             .timeout(2 * idleTimeout, TimeUnit.MILLISECONDS)

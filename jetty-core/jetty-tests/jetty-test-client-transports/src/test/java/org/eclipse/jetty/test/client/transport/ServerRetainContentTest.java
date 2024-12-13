@@ -41,12 +41,12 @@ public class ServerRetainContentTest extends AbstractTest
 {
     @ParameterizedTest
     @MethodSource("transportsNoFCGI")
-    public void testRetainPOST(Transport transport) throws Exception
+    public void testRetainPOST(TransportType transportType) throws Exception
     {
         Queue<Content.Chunk> chunks = new ConcurrentLinkedQueue<>();
         CountDownLatch blocked = new CountDownLatch(1);
 
-        start(transport, new Handler.Abstract()
+        start(transportType, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback)
@@ -87,7 +87,7 @@ public class ServerRetainContentTest extends AbstractTest
         long baseMemory = byteBufferPool.getDirectMemory() + byteBufferPool.getHeapMemory() + byteBufferPool.getReserved();
 
         CountDownLatch latch = new CountDownLatch(1);
-        client.newRequest(newURI(transport))
+        client.newRequest(newURI(transportType))
             .method("POST")
             .body(content)
             .send(result ->
@@ -129,7 +129,7 @@ public class ServerRetainContentTest extends AbstractTest
                 totalData += chunk.remaining();
         }
 
-        assertThat(finalMemory - baseMemory, lessThanOrEqualTo((transport.isSecure() ? 100 : 32) * 1024L));
+        assertThat(finalMemory - baseMemory, lessThanOrEqualTo((transportType.isSecure() ? 100 : 32) * 1024L));
 
         client.close();
     }
