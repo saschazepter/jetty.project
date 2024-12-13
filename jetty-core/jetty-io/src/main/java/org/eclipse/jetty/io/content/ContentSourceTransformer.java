@@ -113,12 +113,12 @@ public abstract class ContentSourceTransformer implements Content.Source
                 boolean transformedFailure = Content.Chunk.isFailure(transformedChunk);
 
                 // Transformation may be complete, but rawSource is not read until EOF,
-                // return a non-last transformed chunk to force more read() and transform().
-                if (transformedLast && !rawLast)
+                // change to non-last transformed chunk to force more read() and transform().
+                if (transformedLast && !transformedFailure && !rawLast)
                 {
                     if (transformedChunk.isEmpty())
                         transformedChunk = Content.Chunk.EMPTY;
-                    else if (!transformedFailure)
+                    else
                         transformedChunk = Content.Chunk.asChunk(transformedChunk.getByteBuffer(), false, transformedChunk);
                 }
 
