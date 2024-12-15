@@ -2222,7 +2222,7 @@ public class DistributionTests extends AbstractJettyHomeTest
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"brotli", "gzip", "zstandard"})
+    @ValueSource(strings = {"brotli", "gzip", "zstandard", "all"})
     public void testCompressionHandler(String compressionName) throws Exception
     {
         String jettyVersion = System.getProperty("jettyVersion");
@@ -2235,6 +2235,16 @@ public class DistributionTests extends AbstractJettyHomeTest
             case "brotli" -> "br";
             case "gzip" -> "gzip";
             case "zstandard" -> "zstd";
+            case "all" -> "br;q=0.5, gzip;q=1, zstd;q=0.1";
+            default -> throw new IllegalArgumentException();
+        };
+
+        String expected = switch (compressionName)
+        {
+            case "brotli" -> "br";
+            case "gzip" -> "gzip";
+            case "zstandard" -> "zstd";
+            case "all" -> "gzip";
             default -> throw new IllegalArgumentException();
         };
 
@@ -2279,7 +2289,7 @@ public class DistributionTests extends AbstractJettyHomeTest
                     .send();
 
                 assertEquals(HttpStatus.OK_200, response.getStatus());
-                assertThat(contentEncoding.get(), is(encoding));
+                assertThat(contentEncoding.get(), is(expected));
                 assertThat(response.getContentAsString(), containsStringIgnoringCase("Hello World"));
             }
         }
