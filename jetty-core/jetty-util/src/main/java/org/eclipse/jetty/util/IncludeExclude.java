@@ -13,6 +13,7 @@
 
 package org.eclipse.jetty.util;
 
+import java.util.Collections;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -45,7 +46,7 @@ public class IncludeExclude<ITEM> extends IncludeExcludeSet<ITEM, ITEM>
     @Override
     public IncludeExclude<ITEM> asImmutable()
     {
-        return new IncludeExclude<>(Set.copyOf(getIncluded()), getIncludePredicate(),
-            Set.copyOf(getExcluded()), getExcludePredicate());
+        return new IncludeExclude<>(Collections.unmodifiableSet(getIncluded()), getIncludePredicate(),
+            Collections.unmodifiableSet(getExcluded()), getExcludePredicate());
     }
 }

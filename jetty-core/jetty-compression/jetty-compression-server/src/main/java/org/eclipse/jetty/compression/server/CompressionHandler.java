@@ -13,9 +13,7 @@
 
 package org.eclipse.jetty.compression.server;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.TreeMap;
@@ -27,7 +25,8 @@ import org.eclipse.jetty.http.EtagUtils;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.http.pathmap.MappedResource;
+import org.eclipse.jetty.http.PreEncodedHttpField;
+import org.eclipse.jetty.http.QuotedQualityCSV;
 import org.eclipse.jetty.http.pathmap.MatchedResource;
 import org.eclipse.jetty.http.pathmap.PathMappings;
 import org.eclipse.jetty.http.pathmap.PathSpec;
@@ -35,7 +34,6 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
-import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.TypeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +51,7 @@ public class CompressionHandler extends Handler.Wrapper
     public static final String HANDLER_ETAGS = CompressionHandler.class.getPackageName() + ".ETag";
 
     private static final Logger LOG = LoggerFactory.getLogger(CompressionHandler.class);
+    private final HttpField varyAcceptEncoding = new PreEncodedHttpField(HttpHeader.VARY, HttpHeader.ACCEPT_ENCODING.asString());
     private final Map<String, Compression> supportedEncodings = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private final PathMappings<CompressionConfig> pathConfigs = new PathMappings<>();
 
@@ -188,28 +187,8 @@ public class CompressionHandler extends Handler.Wrapper
 
         if (pathConfigs.isEmpty())
         {
-            // add default configuration if no paths have been configured.
+            // Add default configuration if no paths have been configured.
             pathConfigs.put("/", CompressionConfig.builder().defaults().build());
-        }
-
-        // ensure that the preferred encoder order is sane for the configuration.
-        for (MappedResource<CompressionConfig> pathConfig : pathConfigs)
-        {
-            List<String> preferredEncoders = pathConfig.getResource().getCompressPreferredEncoderOrder();
-            if (preferredEncoders.isEmpty())
-                continue;
-            ListIterator<String> preferredIter = preferredEncoders.listIterator();
-            while (preferredIter.hasNext())
-            {
-                String listedEncoder = preferredIter.next();
-                if (!supportedEncodings.containsKey(listedEncoder))
-                {
-                    LOG.warn("Unable to find compression encoder {} from configuration for pathspec {} in registered compression encoders [{}]",
-                        listedEncoder, pathConfig.getPathSpec(),
-                        String.join(", ", supportedEncodings.keySet()));
-                    preferredIter.remove(); // remove bad encoding
-                }
-            }
         }
 
         super.doStart();
@@ -246,14 +225,14 @@ public class CompressionHandler extends Handler.Wrapper
         // The `Content-Encoding` request header indicating that the request body content compression technique.
         String requestContentEncoding = null;
         // The `Accept-Encoding` request header indicating the supported list of compression encoding techniques.
-        List<String> requestAcceptEncoding = null;
+        List<QuotedQualityCSV.QualityValue> requestAcceptEncoding = List.of();
         // Tracks the `If-Match` or `If-None-Match` request headers contains an etag separator.
         boolean etagMatches = false;
 
+        QuotedQualityCSV qualityCSV = null;
         HttpFields fields = request.getHeaders();
-        for (ListIterator<HttpField> i = fields.listIterator(fields.size()); i.hasPrevious(); )
+        for (HttpField field : fields)
         {
-            HttpField field = i.previous();
             HttpHeader header = field.getHeader();
             if (header == null)
                 continue;
@@ -261,35 +240,29 @@ public class CompressionHandler extends Handler.Wrapper
             {
                 case CONTENT_ENCODING ->
                 {
+                    // We are only interested in the last encoding.
                     String contentEncoding = field.getValue();
                     if (supportedEncodings.containsKey(contentEncoding))
                         requestContentEncoding = contentEncoding;
+                    else
+                        requestContentEncoding = null;
                 }
                 case ACCEPT_ENCODING ->
                 {
-                    // Get ordered list of supported encodings
-                    List<String> values = field.getValueList();
-                    if (values != null)
-                    {
-                        for (String value : values)
-                        {
-                            String lvalue = StringUtil.asciiToLowerCase(value);
-                            // only track encodings that are supported by this handler
-                            if ("*".equals(value) || supportedEncodings.containsKey(lvalue))
-                            {
-                                if (requestAcceptEncoding == null)
-                                    requestAcceptEncoding = new ArrayList<>();
-                                requestAcceptEncoding.add(lvalue);
-                            }
-                        }
-                    }
+                    // Collect all Accept-Encoding headers.
+                    if (qualityCSV == null)
+                        qualityCSV = new QuotedQualityCSV();
+                    qualityCSV.addValue(field.getValue());
                 }
                 case IF_MATCH, IF_NONE_MATCH -> etagMatches |= field.getValue().contains(EtagUtils.ETAG_SEPARATOR);
             }
         }
 
-        String decompressEncoding = config.getDecompressionEncoding(requestContentEncoding, request, pathInContext);
-        String compressEncoding = config.getCompressionEncoding(requestAcceptEncoding, request, pathInContext);
+        if (qualityCSV != null)
+            requestAcceptEncoding = qualityCSV.getQualityValues();
+
+        String decompressEncoding = config.getDecompressionEncoding(supportedEncodings.keySet(), request, requestContentEncoding, pathInContext);
+        String compressEncoding = config.getCompressionEncoding(supportedEncodings.keySet(), request, requestAcceptEncoding, pathInContext);
 
         if (LOG.isDebugEnabled())
         {
@@ -297,7 +270,6 @@ public class CompressionHandler extends Handler.Wrapper
                 request, requestContentEncoding, requestAcceptEncoding, decompressEncoding, compressEncoding);
         }
 
-        // Can we skip looking at the request and wrapping request or response?
         if (decompressEncoding == null && compressEncoding == null)
         {
             if (LOG.isDebugEnabled())
@@ -309,32 +281,24 @@ public class CompressionHandler extends Handler.Wrapper
         Request decompressionRequest = request;
         Response compressionResponse = response;
 
-        // We need to wrap the request IFF we are inflating or have seen etags with compression separators
+        // We need to wrap the request IFF we can inflate or have seen etags with compression separators.
         if (decompressEncoding != null || etagMatches)
-        {
             decompressionRequest = newDecompressionRequest(request, decompressEncoding);
-        }
 
-        // Wrap the response and callback IFF we can be deflated and will try to deflate
+        // Wrap the response IFF we can deflate.
         if (compressEncoding != null)
         {
-            if (config.getVary() != null)
-            {
-                // The response may vary based on the presence or lack of Accept-Encoding.
-                response.getHeaders().ensureField(config.getVary());
-            }
-
+            // The response may vary based on the presence or lack of Accept-Encoding.
+            response.getHeaders().ensureField(varyAcceptEncoding);
             compressionResponse = newCompressionResponse(request, response, compressEncoding, config);
         }
 
         if (LOG.isDebugEnabled())
             LOG.debug("handle {} {} {}", decompressionRequest, compressionResponse, this);
 
-        // Call handle() with the possibly wrapped request, response and callback
         if (next.handle(decompressionRequest, compressionResponse, callback))
             return true;
 
-        // If the request was not accepted, destroy any compressRequest wrapper
         if (request instanceof DecompressionRequest decompressRequest)
             decompressRequest.destroy();
 
