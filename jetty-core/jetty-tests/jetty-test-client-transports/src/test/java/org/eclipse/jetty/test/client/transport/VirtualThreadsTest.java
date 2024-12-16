@@ -46,10 +46,10 @@ public class VirtualThreadsTest extends AbstractTest
 {
     @ParameterizedTest
     @MethodSource("transportsNoFCGI")
-    public void testHandlerInvokedOnVirtualThread(Transport transport) throws Exception
+    public void testHandlerInvokedOnVirtualThread(TransportType transportType) throws Exception
     {
         String virtualThreadsName = "green-";
-        prepareServer(transport, new Handler.Abstract()
+        prepareServer(transportType, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback)
@@ -69,32 +69,32 @@ public class VirtualThreadsTest extends AbstractTest
             ((VirtualThreads.Configurable)threadPool).setVirtualThreadsExecutor(virtualThreadsExecutor);
         }
         server.start();
-        startClient(transport);
+        startClient(transportType);
 
-        ContentResponse response = client.newRequest(newURI(transport))
+        ContentResponse response = client.newRequest(newURI(transportType))
             .timeout(5, TimeUnit.SECONDS)
             .send();
 
-        assertEquals(HttpStatus.OK_200, response.getStatus(), " for transport " + transport);
+        assertEquals(HttpStatus.OK_200, response.getStatus(), " for transport " + transportType);
     }
 
     @ParameterizedTest
     @MethodSource("transports")
-    public void testBlockingClientListenersInvokedOnVirtualThread(Transport transport) throws Exception
+    public void testBlockingClientListenersInvokedOnVirtualThread(TransportType transportType) throws Exception
     {
-        testClientListeners(transport, true);
+        testClientListeners(transportType, true);
     }
 
     @ParameterizedTest
     @MethodSource("transports")
-    public void testNonBlockingClientListenersInvokedOnPlatformThread(Transport transport) throws Exception
+    public void testNonBlockingClientListenersInvokedOnPlatformThread(TransportType transportType) throws Exception
     {
-        testClientListeners(transport, false);
+        testClientListeners(transportType, false);
     }
 
-    private void testClientListeners(Transport transport, boolean blocking) throws Exception
+    private void testClientListeners(TransportType transportType, boolean blocking) throws Exception
     {
-        startServer(transport, new Handler.Abstract()
+        startServer(transportType, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback) throws Exception
@@ -110,13 +110,13 @@ public class VirtualThreadsTest extends AbstractTest
             }
         });
 
-        prepareClient(transport);
+        prepareClient(transportType);
         VirtualThreads.Configurable executor = (VirtualThreads.Configurable)client.getExecutor();
         VirtualThreadPool vtp = new VirtualThreadPool();
         vtp.setName("green-");
         executor.setVirtualThreadsExecutor(vtp);
         Invocable.InvocationType invocationType = blocking ? Invocable.InvocationType.BLOCKING : Invocable.InvocationType.NON_BLOCKING;
-        client.getTransport().setInvocationType(invocationType);
+        client.getHttpClientTransport().setInvocationType(invocationType);
         client.start();
 
         for (int i = 0; i < 2; ++i)
@@ -124,7 +124,7 @@ public class VirtualThreadsTest extends AbstractTest
             AtomicReference<Result> resultRef = new AtomicReference<>();
             ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
             Consumer<String> verify = name -> queue.offer((VirtualThreads.isVirtualThread() ? "virtual" : "platform") + "-" + name);
-            client.newRequest(newURI(transport))
+            client.newRequest(newURI(transportType))
                 .onResponseBegin(r -> verify.accept("begin"))
                 .onResponseHeaders(r -> verify.accept("headers"))
                 .onResponseContent((r, b) -> verify.accept("content"))

@@ -43,7 +43,7 @@ public class PushedResourcesTest extends AbstractTest
 {
     @ParameterizedTest
     @MethodSource("transportsWithPushSupport")
-    public void testPushedResources(Transport transport) throws Exception
+    public void testPushedResources(TransportType transportType) throws Exception
     {
         Random random = new Random();
         byte[] bytes = new byte[512];
@@ -55,7 +55,7 @@ public class PushedResourcesTest extends AbstractTest
 
         String path1 = "/secondary1";
         String path2 = "/secondary2";
-        start(transport, new HttpServlet()
+        start(transportType, new HttpServlet()
         {
             @Override
             protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException
@@ -84,7 +84,7 @@ public class PushedResourcesTest extends AbstractTest
 
         CountDownLatch latch1 = new CountDownLatch(1);
         CountDownLatch latch2 = new CountDownLatch(1);
-        ContentResponse response = client.newRequest(newURI(transport))
+        ContentResponse response = client.newRequest(newURI(transportType))
             .onPush((mainRequest, pushedRequest) -> new BufferingResponseListener()
             {
                 @Override
@@ -114,7 +114,7 @@ public class PushedResourcesTest extends AbstractTest
 
     @ParameterizedTest
     @MethodSource("transportsWithPushSupport")
-    public void testPushedResourcesSomewhatLikeTCK(Transport transport) throws Exception
+    public void testPushedResourcesSomewhatLikeTCK(TransportType transportType) throws Exception
     {
         Random random = new Random();
         byte[] bytes = new byte[512];
@@ -126,7 +126,7 @@ public class PushedResourcesTest extends AbstractTest
 
         String path1 = "/secondary1";
         String path2 = "/secondary2";
-        start(transport, new HttpServlet()
+        start(transportType, new HttpServlet()
         {
             @Override
             protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException
@@ -202,7 +202,7 @@ public class PushedResourcesTest extends AbstractTest
 
         CountDownLatch latch1 = new CountDownLatch(1);
         CountDownLatch latch2 = new CountDownLatch(1);
-        ContentResponse response = client.newRequest(newURI(transport))
+        ContentResponse response = client.newRequest(newURI(transportType))
             .onPush((mainRequest, pushedRequest) -> new BufferingResponseListener()
             {
                 @Override
@@ -232,11 +232,11 @@ public class PushedResourcesTest extends AbstractTest
 
     @ParameterizedTest
     @MethodSource("transportsWithPushSupport")
-    public void testPushedResourcesLikeTCK(Transport transport) throws Exception
+    public void testPushedResourcesLikeTCK(TransportType transportType) throws Exception
     {
         String path1 = "/secondary1.html";
 
-        prepareServer(transport, new DefaultServlet());
+        prepareServer(transportType, new DefaultServlet());
         Path staticDir = MavenTestingUtils.getTestResourcePath("serverpushtck");
         assertNotNull(staticDir);
         servletContextHandler.setBaseResourceAsPath(staticDir);
@@ -302,10 +302,10 @@ public class PushedResourcesTest extends AbstractTest
             "/serverpushtck/*");
 
         server.start();
-        startClient(transport);
+        startClient(transportType);
         CountDownLatch latch1 = new CountDownLatch(1);
 
-        String scheme = transport.isSecure() ? "https" : "http";
+        String scheme = transportType.isSecure() ? "https" : "http";
         String uri = scheme + "://localhost";
         if (connector instanceof NetworkConnector networkConnector)
             uri += ":" + networkConnector.getLocalPort();
@@ -335,7 +335,7 @@ public class PushedResourcesTest extends AbstractTest
 
     @ParameterizedTest
     @MethodSource("transportsWithPushSupport")
-    public void testPushedResourceRedirect(Transport transport) throws Exception
+    public void testPushedResourceRedirect(TransportType transportType) throws Exception
     {
         Random random = new Random();
         byte[] pushBytes = new byte[512];
@@ -343,7 +343,7 @@ public class PushedResourcesTest extends AbstractTest
 
         String oldPath = "/old";
         String newPath = "/new";
-        start(transport, new HttpServlet()
+        start(transportType, new HttpServlet()
         {
             @Override
             protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException
@@ -360,7 +360,7 @@ public class PushedResourcesTest extends AbstractTest
 
         CountDownLatch latch = new CountDownLatch(1);
 
-        ContentResponse response = client.newRequest(newURI(transport))
+        ContentResponse response = client.newRequest(newURI(transportType))
             .onPush((mainRequest, pushedRequest) -> new BufferingResponseListener()
             {
                 @Override

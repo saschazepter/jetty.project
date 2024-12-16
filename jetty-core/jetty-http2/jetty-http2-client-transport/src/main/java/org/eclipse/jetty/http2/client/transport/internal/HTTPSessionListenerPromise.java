@@ -97,7 +97,7 @@ public class HTTPSessionListenerPromise implements Session.Listener, Promise<Ses
     {
         HttpClient httpClient = (HttpClient)context.get(ClientConnectionFactory.CLIENT_CONTEXT_KEY);
         HttpConnectionOverHTTP2 result = new HttpConnectionOverHTTP2(destination, session, connection);
-        result.setInvocationType(httpClient.getTransport().getInvocationType());
+        result.setInvocationType(httpClient.getHttpClientTransport().getInvocationType());
         return result;
     }
 

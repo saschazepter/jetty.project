@@ -53,7 +53,7 @@ public class HttpClientConnectionFactory implements ClientConnectionFactory
         HttpClient httpClient = (HttpClient)context.get(ClientConnectionFactory.CLIENT_CONTEXT_KEY);
         HttpConnectionOverHTTP connection = new HttpConnectionOverHTTP(endPoint, context);
         connection.setInitialize(isInitializeConnections());
-        connection.setInvocationType(httpClient.getTransport().getInvocationType());
+        connection.setInvocationType(httpClient.getHttpClientTransport().getInvocationType());
         return customize(connection, context);
     }
 
