@@ -250,8 +250,6 @@ public class ServletApiResponse implements HttpServletResponse
     @Override
     public void setStatus(int sc)
     {
-        if (sc < 100 || sc > 999)
-            throw new IllegalArgumentException();
         getResponse().setStatus(sc);
     }
 
