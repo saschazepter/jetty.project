@@ -497,18 +497,21 @@ public class HttpURITest
                 {"http://localhost:9000/x\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", "/x\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", "/x\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", EnumSet.noneOf(Violation.class)},
                 {"http://localhost:9000/\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", "/\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", "/\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32\uD83C\uDF32", EnumSet.noneOf(Violation.class)},
                 // @checkstyle-enable-check : AvoidEscapedUnicodeCharactersCheck
+
+                // An empty (null) authority
+                {"http://", null, null, null}
             }).map(Arguments::of);
     }
 
     @ParameterizedTest
     @MethodSource("decodePathTests")
-    public void testDecodedPath(String input, String canonicalPath, String decodedPath, EnumSet<Violation> expected)
+    public void testDecodedPath(String input, String expectedCanonicalPath, String expectedDecodedPath, EnumSet<Violation> expected)
     {
         try
         {
             HttpURI uri = HttpURI.from(input);
-            assertThat("Canonical Path", uri.getCanonicalPath(), is(canonicalPath));
-            assertThat("Decoded Path", uri.getDecodedPath(), is(decodedPath));
+            assertThat("Canonical Path", uri.getCanonicalPath(), is(expectedCanonicalPath));
+            assertThat("Decoded Path", uri.getDecodedPath(), is(expectedDecodedPath));
 
             EnumSet<Violation> ambiguous = EnumSet.copyOf(expected);
             ambiguous.retainAll(EnumSet.complementOf(EnumSet.of(Violation.UTF16_ENCODINGS, Violation.BAD_UTF8_ENCODING)));
@@ -523,9 +526,9 @@ public class HttpURITest
         }
         catch (Exception e)
         {
-            if (decodedPath != null)
+            if (expectedDecodedPath != null)
                 e.printStackTrace();
-            assertThat(decodedPath, nullValue());
+            assertThat(expectedDecodedPath, nullValue());
         }
     }
 
