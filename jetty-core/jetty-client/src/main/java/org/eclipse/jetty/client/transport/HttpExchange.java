@@ -157,11 +157,11 @@ public class HttpExchange implements CyclicTimeouts.Expirable
     {
         try (AutoLock ignored = lock.lock())
         {
-            return completeRequest(failure);
+            return lockedCompleteRequest(failure);
         }
     }
 
-    private boolean completeRequest(Throwable failure)
+    private boolean lockedCompleteRequest(Throwable failure)
     {
         assert lock.isHeldByCurrentThread();
         if (requestState == State.PENDING)
@@ -185,11 +185,11 @@ public class HttpExchange implements CyclicTimeouts.Expirable
     {
         try (AutoLock ignored = lock.lock())
         {
-            return completeResponse(failure);
+            return lockedCompleteResponse(failure);
         }
     }
 
-    private boolean completeResponse(Throwable failure)
+    private boolean lockedCompleteResponse(Throwable failure)
     {
         assert lock.isHeldByCurrentThread();
         if (responseState == State.PENDING)
@@ -251,8 +251,8 @@ public class HttpExchange implements CyclicTimeouts.Expirable
         boolean abortResponse;
         try (AutoLock ignored = lock.lock())
         {
-            abortRequest = completeRequest(failure);
-            abortResponse = completeResponse(failure);
+            abortRequest = lockedCompleteRequest(failure);
+            abortResponse = lockedCompleteResponse(failure);
         }
 
         if (!abortRequest && !abortResponse)
