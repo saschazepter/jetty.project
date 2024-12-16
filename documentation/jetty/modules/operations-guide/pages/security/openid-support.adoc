@@ -16,6 +16,8 @@
 
 A more general discussion about OpenID and its support in Jetty is available in xref:programming-guide:security/openid-support.adoc[this section].
 
+Also see xref:operations-guide:modules/standard.adoc#openid[OpenID Module] for more information about the module configuration.
+
 == OpenID Provider Configuration
 
 To enable OpenID support, you need to enable the `openid` module:
@@ -24,10 +26,23 @@ To enable OpenID support, you need to enable the `openid` module:
 $ java -jar $JETTY_HOME/start.jar --add-modules=openid
 ----
 
-To configure OpenID Authentication with Jetty you will need to specify the OpenID Provider's issuer identifier (case-sensitive URL using the `https` scheme) and the OAuth 2.0 Client ID and Client Secret.
+To configure OpenID Authentication with Jetty you will need to specify the OpenID Provider's issuer identifier (case-sensitive URL) and the OAuth 2.0 Client ID and Client Secret.
 
 If the OpenID Provider does not allow metadata discovery you will also need to specify the token endpoint and authorization endpoint of the OpenID Provider.
 These values can be set as properties in `$JETTY_BASE/start.d/openid.ini` file.
+
+This is an example of an openid.ini file which uses discovery of the OpenID endpoints:
+[source]
+----
+## The OpenID Identity Provider's issuer ID (the entire URL *before* ".well-known/openid-configuration")
+jetty.openid.provider=https://id.example.com/
+
+## The Client Identifier
+jetty.openid.clientId=test1234
+
+## The Client Secret
+jetty.openid.clientSecret=XT_Mafv_aUCGheuCaKY8P
+----
 
 == Web Application Specific Configuration in `web.xml`
 
@@ -35,7 +50,7 @@ The `web.xml` file needs some specific configuration to use OpenID.
 
 There must be a `login-config` element with an `auth-method` value of `OPENID`, and a `realm-name` value of the exact URL string used to set the OpenID Provider.
 
-To set the error page, you must set an `init-param` named `org.eclipse.jetty.security.openid.error_page` whose value should be a path relative to the webapp where authentication errors should be redirected.
+To set the error page, you must set an `context-param` named `org.eclipse.jetty.security.openid.error_page` whose value should be a path relative to the web application where authentication errors should be redirected.
 
 For example:
 
@@ -60,8 +75,16 @@ For example:
 </web-app>
 ----
 
+== Authorization
+
+A nested `LoginService` can be added in order to specify known users by their SUB (subject identifier) with an empty credential.
+This can be used to assign security roles to users, and you can configure `openid.ini` to only authenticate users known to the nested `LoginService`.
+
+This nested `LoginService`can be configured in XML through `$JETTY_BASE/etc/openid-baseloginservice.xml`.
+
 == Supporting Multiple OpenID Providers
 
-You may override the `jetty-openid.xml` file in `$JETTY_BASE/etc/jetty-openid.xml` to add additional `OpenIdConfiguration` instances as beans on the server.
+It is possible to support multiple OpenID Providers on the same server, where the web application selects the provider it wants to use through the `<realm-name>` in its `<login-config>` element of `web.xml`.
 
-If there are multiple OpenID configuration instances found on the server then the `OpenIdAuthenticationFactory` will select the one with an `issuer` matching the `<realm-name>` of the `web.xml` for a given web app.
+You may create a custom module to add additional `OpenIdConfiguration` instances as beans on the server.
+See the xref:operations-guide:modules/custom.adoc[Custom Module] section as well as `$JETTY_HOME/etc/jetty-openid.xml` for information on how to do this.

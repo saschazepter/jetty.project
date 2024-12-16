@@ -14,11 +14,12 @@
 package org.eclipse.jetty.docs.programming.security;
 
 import java.io.PrintStream;
+import java.security.Principal;
 import java.util.Map;
 
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.security.Authenticator;
+import org.eclipse.jetty.security.AuthenticationState;
 import org.eclipse.jetty.security.Constraint;
 import org.eclipse.jetty.security.HashLoginService;
 import org.eclipse.jetty.security.LoginService;
@@ -31,103 +32,17 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.Session;
 import org.eclipse.jetty.session.SessionHandler;
-import org.eclipse.jetty.tests.OpenIdProvider;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Fields;
-import org.eclipse.jetty.util.security.Credential;
 
 public class OpenIdDocs
 {
-    private static final String ISSUER = "";
-    private static final String CLIENT_ID = "";
-    private static final String CLIENT_SECRET = "";
-    private static final String TOKEN_ENDPOINT = "";
-    private static final String AUTH_ENDPOINT = "";
-    private static final String END_SESSION_ENDPOINT = "";
-    private static final String AUTH_METHOD = "";
-    private static final HttpClient httpClient = new HttpClient();
-    private static Server server = new Server();
-
-    private OpenIdConfiguration openIdConfig;
-    private SecurityHandler securityHandler;
-
-    public void createConfigurationWithDiscovery()
-    {
-        // tag::createConfigurationWithDiscovery[]
-        OpenIdConfiguration openIdConfig = new OpenIdConfiguration(ISSUER, CLIENT_ID, CLIENT_SECRET);
-        // end::createConfigurationWithDiscovery[]
-    }
-
-    public void createConfiguration()
-    {
-        // tag::createConfiguration[]
-        OpenIdConfiguration openIdConfig = new OpenIdConfiguration(ISSUER, TOKEN_ENDPOINT, AUTH_ENDPOINT, END_SESSION_ENDPOINT,
-            CLIENT_ID, CLIENT_SECRET, AUTH_METHOD, httpClient);
-        // end::createConfiguration[]
-    }
-
-    public void configureLoginService()
-    {
-        // tag::configureLoginService[]
-        LoginService loginService = new OpenIdLoginService(openIdConfig);
-        securityHandler.setLoginService(loginService);
-        // end::configureLoginService[]
-    }
-
-    public void configureAuthenticator()
-    {
-        // tag::configureAuthenticator[]
-        Authenticator authenticator = new OpenIdAuthenticator(openIdConfig, "/error");
-        securityHandler.setAuthenticator(authenticator);
-        // end::configureAuthenticator[]
-    }
-
-    @SuppressWarnings("unchecked")
-    public void accessClaims()
-    {
-        Request request = new Request.Wrapper(null);
-
-        // tag::accessClaims[]
-        Map<String, Object> claims = (Map<String, Object>)request.getSession(true).getAttribute("org.eclipse.jetty.security.openid.claims");
-        String userId = (String)claims.get("sub");
-
-        Map<String, Object> response = (Map<String, Object>)request.getSession(true).getAttribute("org.eclipse.jetty.security.openid.response");
-        String accessToken = (String)response.get("access_token");
-        // tag::accessClaims[]
-    }
-
-    public void wrappedLoginService()
-    {
-        // tag::wrappedLoginService[]
-        // Use the optional LoginService for Roles.
-        LoginService wrappedLoginService = createWrappedLoginService();
-        LoginService loginService = new OpenIdLoginService(openIdConfig, wrappedLoginService);
-        // end::wrappedLoginService[]
-    }
-
-    private LoginService createWrappedLoginService()
-    {
-        HashLoginService loginService = new HashLoginService();
-        UserStore userStore = new UserStore();
-        userStore.addUser("admin", Credential.getCredential("password"), new String[]{"admin"});
-        loginService.setUserStore(userStore);
-        loginService.setName(ISSUER);
-        return loginService;
-    }
-
-    public static void main(String[] args) throws Exception
-    {
-        new OpenIdDocs().combinedExample();
-    }
-
     public void combinedExample() throws Exception
     {
-        OpenIdProvider openIdProvider = new OpenIdProvider("my-client-id", "my-client-secret");
-        openIdProvider.addRedirectUri("http://localhost:8080/j_security_check");
-        openIdProvider.start();
-
-        server = new Server(8080);
+        Server server = new Server(8080);
+        // tag::openIdUsageExample[]
         server.setHandler(new Handler.Abstract()
         {
             @Override
@@ -138,12 +53,24 @@ public class OpenIdDocs
                 String pathInContext = Request.getPathInContext(request);
                 if (pathInContext.startsWith("/error"))
                 {
+                    // Handle requests to the error page which may have an error description parameter.
                     Fields parameters = Request.getParameters(request);
-                    writer.println("error: " + parameters.get("error_description"));
+                    writer.println("error_description: " + parameters.get("error_description_jetty") + "<br>");
                 }
                 else
                 {
-                    writer.println("hello world");
+                    Principal userPrincipal = AuthenticationState.getUserPrincipal(request);
+                    writer.println("userPrincipal: " + userPrincipal);
+                    if (userPrincipal != null)
+                    {
+                        // You can access the full openid claims for an authenticated session.
+                        Session session = request.getSession(false);
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> claims = (Map<String, String>)session.getAttribute("org.eclipse.jetty.security.openid.claims");
+                        writer.println("claims: " + claims);
+                        writer.println("name: " + claims.get("name"));
+                        writer.println("sub: " + claims.get("sub"));
+                    }
                 }
 
                 writer.close();
@@ -151,7 +78,9 @@ public class OpenIdDocs
                 return true;
             }
         });
+        // end::openIdUsageExample[]
 
+        // tag::openIdConfigExample[]
         // To create an OpenIdConfiguration you can rely on discovery of the OIDC metadata.
         OpenIdConfiguration openIdConfig = new OpenIdConfiguration(
             "https://example.com/issuer",           // ISSUER
@@ -168,41 +97,38 @@ public class OpenIdDocs
             "my-client-id",                         // CLIENT_ID
             "my-client-secret",                     // CLIENT_SECRET
             "client_secret_post",                   // AUTH_METHOD (e.g., client_secret_post, client_secret_basic)
-            httpClient                              // HttpClient instance
-        );
-
-        openIdConfig = new OpenIdConfiguration(
-            openIdProvider.getProvider(),
-            openIdProvider.getClientId(),
-            openIdProvider.getClientSecret()
+            new HttpClient()                        // HttpClient instance
         );
 
         // The specific security handler implementation will change depending on whether you are using EE8/EE9/EE10/EE11 or Jetty Core API.
         SecurityHandler.PathMapped securityHandler = new SecurityHandler.PathMapped();
         server.insertHandler(securityHandler);
-        securityHandler.put("/*", Constraint.ANY_USER);
+        securityHandler.put("/auth/*", Constraint.ANY_USER);
 
         // A nested LoginService is optional and used to specify known users with defined roles.
         // This can be any instance of LoginService and is not restricted to be a HashLoginService.
         HashLoginService nestedLoginService = new HashLoginService();
         UserStore userStore = new UserStore();
-        userStore.addUser("admin", null, new String[]{"admin"});
+        userStore.addUser("<admin-user-subject-identifier>", null, new String[]{"admin"});
         nestedLoginService.setUserStore(userStore);
+
+        // Optional configuration to allow new users not listed in the nested LoginService to be authenticated.
+        openIdConfig.setAuthenticateNewUsers(true);
 
         // An OpenIdLoginService should be used which can optionally wrap the nestedLoginService to support roles.
         LoginService loginService = new OpenIdLoginService(openIdConfig, nestedLoginService);
         securityHandler.setLoginService(loginService);
 
         // Configure an OpenIdAuthenticator.
-        Authenticator authenticator = new OpenIdAuthenticator(openIdConfig,
+        securityHandler.setAuthenticator(new OpenIdAuthenticator(openIdConfig,
             "/j_security_check", // The path where the OIDC provider redirects back to Jetty.
-            "/error", // The error page where authentication errors are redirected.
-            "/logoutRedirect" // After logout the user is redirected to this page.
-        );
-        securityHandler.setAuthenticator(authenticator);
+            "/error", // Optional page where authentication errors are redirected.
+            "/logoutRedirect" // Optional page where the user is redirected to this page after logout.
+        ));
 
+        // Session handler is required for OpenID authentication.
         server.insertHandler(new SessionHandler());
-        server.setDumpAfterStart(true);
+        // end::openIdConfigExample[]
         server.start();
         server.join();
     }

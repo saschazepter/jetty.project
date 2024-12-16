@@ -356,6 +356,15 @@ The module properties are:
 include::{jetty-home}/modules/openid.mod[tags=documentation]
 ----
 
+Among the configurable properties, the only required properties are:
+
+`jetty.openid.provider`::
+The issuer identifier of the OpenID Provider, which is the base URL before .well-known/openid-configuration. It must match the issuer field in the provider's configuration and is case-sensitive.
+`jetty.openid.clientId`::
+The Client Identifier assigned to your application by the OpenID Provider, used to uniquely identify your app during authentication requests.
+`jetty.openid.clientSecret`::
+The Client Secret issued by the OpenID Provider, used to verify your application's identity during the authentication process. This must be kept confidential.
+
 [[qos]]
 == Module `qos`
 

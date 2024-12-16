@@ -14,79 +14,55 @@
 [[openid-support]]
 = OpenID Support
 
-== External Setup
+Jetty supports authentication using the OpenID Connect protocol (see link:https://openid.net/specs/openid-connect-core-1_0-final.html[OpenID Connect Core 1.0]).
+This allows users to authenticate with third party OpenID Providers, making possible to integrate features like "Sign in with Google" or "Sign in with Microsoft", among others.
+With OpenID Connect, Jetty applications can offload the responsibility of managing user credentials while enabling features like single sign-on (SSO).
 
-=== Registering an App with OpenID Provider
-You must register the app with an OpenID Provider such as link:https://developers.google.com/identity/protocols/OpenIDConnect[Google] or link:https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html[Amazon].
-This will give you a Client ID and Client Secret.
+== External Configuration
 
-Once obtained the Client ID and the Client Secret, you must also register all the possible URIs for your web application with the path `/j_security_check` so that the OpenId Provider will allow redirection back to the webapp.
+To use OpenID Connect authentication with Jetty you are required to set up an external OpenID Provider, some examples of this are link:https://developers.google.com/identity/protocols/OpenIDConnect[Google] and link:https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html[Amazon].
+Once you have set up your OpenID Provider you will have access to a Client ID and Client Secret which you can use to configure Jetty.
 
-These may look like:
+You must also configure your OpenID Provider to recognize the redirect URIs that your application will use to handle authentication responses.
+By default, the redirect path is `/j_security_check`, but this can be customized through the `OpenIdAuthenticator` configuration if needed.
 
- * `+http://localhost:8080/openid-webapp/j_security_check+`
- * `+https://example.com/j_security_check+`
+For example, you may wish to register the following URIs:
 
-== Code Setup
+ * For a deployed application, `+https://example.com/j_security_check+`.
+ * For local development, `+http://localhost:8080/j_security_check+`.
 
-=== Define the `OpenIdConfiguration` for a specific OpenID Provider.
+Ensure that all relevant environments where your application is deployed have their corresponding URIs registered with the OpenID Provider to avoid authentication errors.
 
-If the OpenID Provider allows metadata discovery then you can use:
+== Jetty Configuration
+
+=== Code Example
+
+This is an example of how you can configure OpenID Connect authentication with an embedded Jetty environment with the Jetty Core API.
 
 [,java,indent=0]
 ----
-include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/OpenIdDocs.java[tags=createConfigurationWithDiscovery]
+include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/OpenIdDocs.java[tags=openIdConfigExample]
 ----
 
-Otherwise, you can manually enter the necessary information:
+=== Application Usage
+
+Here is an example of a Jetty Core `Handler` which handles authenticated requests by accessing the OpenID claims, and also handles authentication errors at `/error`.
 
 [,java,indent=0]
 ----
-include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/OpenIdDocs.java[tags=createConfiguration]
+include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/OpenIdDocs.java[tags=openIdUsageExample]
 ----
-
-=== Configuring an `OpenIdLoginService`
-[,java,indent=0]
-----
-include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/OpenIdDocs.java[tags=configureLoginService]
-----
-
-=== Configuring an `OpenIdAuthenticator` with `OpenIdConfiguration` and Error Page Redirect
-[,java,indent=0]
-----
-include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/OpenIdDocs.java[tags=configureAuthenticator]
-----
-
-=== Usage
 
 ==== Claims and Access Token
 Claims about the user can be found using attributes in the HTTP session attribute `org.eclipse.jetty.security.openid.claims`, and the full response containing the OAuth 2.0 Access Token can be found in the HTTP session attribute `org.eclipse.jetty.security.openid.response`.
 
-Example:
-[,java,indent=0]
-----
-include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/OpenIdDocs.java[tags=configureAuthenticator]
-----
+=== Authorization
 
-== Scopes
-The OpenID scope is always used but additional scopes can be requested which can give you additional resources or privileges.
+If security roles are required they can be configured through a nested `LoginService` which is deferred to for user roles.
 
-For the Google OpenID Provider it can be useful to request the scopes `profile` and `email` which will give you additional user claims.
+The nested `LoginService` be configured through the constructor arguments of `OpenIdLoginService`, or left `null` if no user roles are required.
 
-Additional scopes can be specified using `OpenIdConfiguration.addScopes(\...);`.
+When using authorization roles, the `authenticateNewUsers` setting becomes significant, which can be configured through the `OpenIdConfiguration`, or directly on the `OpenIdLoginService`.
 
-== Authorization
-
-If security roles are required they can be configured through a wrapped `LoginService` which is deferred to for role information by the `OpenIdLoginService`.
-
-This can be configured in XML through `etc/openid-baseloginservice.xml` in the Distribution, or in embedded code using the constructor for the `OpenIdLoginService`.
-
-[,java,indent=0]
-----
-include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/OpenIdDocs.java[tags=wrappedLoginService]
-----
-
-When using authorization roles, the setting `authenticateNewUsers` becomes significant.
-If set to `true` users not found by the wrapped `LoginService` will still be authenticated but will have no roles.
-If set to `false` those users will be not be allowed to authenticate and are redirected to the error page.
-This setting is configured through the property `jetty.openid.authenticateNewUsers` in the `start.ini` or `start.d/openid.ini` file, or with `OpenIdLoginService.setAuthenticateNewUsers(...);` in embedded code.
+ * If set to `true`, users not known by the nested `LoginService` will still be authenticated but will have no roles.
+ * If set to `false`, users not known by the nested `LoginService` will be not be allowed to authenticate and are redirected to the error page.
