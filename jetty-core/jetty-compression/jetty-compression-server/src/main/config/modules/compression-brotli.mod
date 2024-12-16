@@ -17,6 +17,7 @@ compression
 etc/jetty-compression-brotli.xml
 
 [ini-template]
+# tag::documentation[]
 ## Minimum content length after which brotli is enabled
 # jetty.compression.brotli.minCompressSize=48
 
@@ -39,3 +40,4 @@ etc/jetty-compression-brotli.xml
 ## Brotli log2(LZ window size) for Encoder
 # valid values from 10 to 24
 # jetty.compression.brotli.encoder.lgWindow=22
+# end::documentation[]

@@ -17,6 +17,7 @@ compression
 etc/jetty-compression-gzip.xml
 
 [ini-template]
+# tag::documentation[]
 ## Minimum content length after which gzip is enabled
 # jetty.compression.gzip.minCompressSize=32
 
@@ -56,3 +57,4 @@ etc/jetty-compression-gzip.xml
 ## syncFlush for Encoder
 ## true for SYNC_FLUSH, false for NO_FLUSH (default)
 # jetty.compression.gzip.encoder.syncFlush=false
+# end::documentation[]

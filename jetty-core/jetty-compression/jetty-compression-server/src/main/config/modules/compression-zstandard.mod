@@ -17,6 +17,7 @@ compression
 etc/jetty-compression-zstandard.xml
 
 [ini-template]
+# tag::documentation[]
 ## Minimum content length after which zstandard is enabled
 # jetty.compression.zstandard.minCompressSize=48
 
@@ -52,3 +53,4 @@ etc/jetty-compression-zstandard.xml
 # Enable/Disable compression checksums
 # Note: browser zstandard implementations requires this to be false.
 # jetty.compression.zstandard.encoder.checksum=false
+# end::documentation[]

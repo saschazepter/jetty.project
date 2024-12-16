@@ -1421,6 +1421,8 @@ public class HTTPServerDocs
             // Do not compress these mime types.
             .compressExcludeMimeType("font/ttf")
             .build();
+        // Map the request URI path spec '/*' with the compression configuration.
+        // You can map different path specs with different compression configurations.
         compressionHandler.putConfiguration("/*", compressionConfig);
 
         // Create a ContextHandlerCollection to manage contexts.
