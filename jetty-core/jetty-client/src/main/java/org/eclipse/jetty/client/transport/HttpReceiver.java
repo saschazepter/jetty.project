@@ -15,6 +15,7 @@ package org.eclipse.jetty.client.transport;
 
 import java.net.URI;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -30,12 +31,10 @@ import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.QuotedCSV;
 import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.io.RetainableByteBuffer;
-import org.eclipse.jetty.io.content.ContentSourceTransformer;
 import org.eclipse.jetty.util.ExceptionUtil;
 import org.eclipse.jetty.util.Promise;
-import org.eclipse.jetty.util.component.Destroyable;
 import org.eclipse.jetty.util.thread.AutoLock;
+import org.eclipse.jetty.util.thread.Invocable;
 import org.eclipse.jetty.util.thread.SerializedInvoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +70,8 @@ public abstract class HttpReceiver
     private final HttpChannel channel;
     private final SerializedInvoker invoker;
     private ResponseState responseState = ResponseState.IDLE;
-    private NotifiableContentSource contentSource;
+    private ContentSource rawContentSource;
+    private Content.Source contentSource;
     private Throwable failure;
 
     protected HttpReceiver(HttpChannel channel)
@@ -259,7 +259,7 @@ public abstract class HttpReceiver
 
             // HEAD responses may have Content-Encoding
             // and Content-Length, but have no content.
-            ContentDecoder decoder = null;
+            ContentDecoder.Factory decoderFactory = null;
             if (!HttpMethod.HEAD.is(exchange.getRequest().getMethod()))
             {
                 // Content-Encoding may have multiple values in the order they
@@ -279,8 +279,8 @@ public abstract class HttpReceiver
                 {
                     if (factory.getEncoding().equalsIgnoreCase(contentEncoding))
                     {
-                        decoder = factory.newContentDecoder();
-                        decoder.beforeDecoding(response);
+                        decoderFactory = factory;
+                        beforeDecoding(response, contentEncoding);
                         break;
                     }
                 }
@@ -301,12 +301,17 @@ public abstract class HttpReceiver
             }
 
             responseState = ResponseState.CONTENT;
-            if (contentSource != null)
+            if (rawContentSource != null)
                 throw new IllegalStateException();
-            contentSource = new ContentSource();
+            rawContentSource = new ContentSource();
+            contentSource = rawContentSource;
 
-            if (decoder != null)
-                contentSource = new DecodingContentSource(contentSource, invoker, decoder, response);
+            if (decoderFactory != null)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Decoding {} response content", decoderFactory.getEncoding());
+                contentSource = new DecodedContentSource(decoderFactory.newDecoderContentSource(rawContentSource), response);
+            }
 
             if (LOG.isDebugEnabled())
                 LOG.debug("Response content {} {}", response, contentSource);
@@ -335,7 +340,7 @@ public abstract class HttpReceiver
             if (exchange.isResponseCompleteOrTerminated())
                 return;
 
-            contentSource.onDataAvailable();
+            rawContentSource.onDataAvailable();
         });
     }
 
@@ -472,8 +477,7 @@ public abstract class HttpReceiver
 
     private void cleanup()
     {
-        if (contentSource != null)
-            contentSource.destroy();
+        rawContentSource = null;
         contentSource = null;
     }
 
@@ -499,7 +503,7 @@ public abstract class HttpReceiver
             responseState = ResponseState.FAILURE;
             this.failure = failure;
             if (contentSource != null)
-                contentSource.error(failure);
+                contentSource.fail(failure);
             dispose();
 
             HttpResponse response = exchange.getResponse();
@@ -511,6 +515,48 @@ public abstract class HttpReceiver
             // respect to concurrency between request and response.
             terminateResponse(exchange);
             promise.succeeded(true);
+        });
+    }
+
+    private void beforeDecoding(Response response, String contentEncoding)
+    {
+        HttpResponse httpResponse = (HttpResponse)response;
+        httpResponse.headers(headers ->
+        {
+            boolean seenContentEncoding = false;
+            for (ListIterator<HttpField> iterator = headers.listIterator(headers.size()); iterator.hasPrevious();)
+            {
+                HttpField field = iterator.previous();
+                HttpHeader header = field.getHeader();
+                if (header == HttpHeader.CONTENT_LENGTH)
+                {
+                    // Content-Length is not valid anymore while we are decoding.
+                    iterator.remove();
+                }
+                else if (header == HttpHeader.CONTENT_ENCODING && !seenContentEncoding)
+                {
+                    // Last Content-Encoding should be removed/modified as the content will be decoded.
+                    seenContentEncoding = true;
+                    // TODO: introduce HttpFields.removeLast() or similar.
+                    //  Use the contentEncoding parameter.
+                    String value = field.getValue();
+                    int comma = value.lastIndexOf(",");
+                    if (comma < 0)
+                        iterator.remove();
+                    else
+                        iterator.set(new HttpField(HttpHeader.CONTENT_ENCODING, value.substring(0, comma)));
+                }
+            }
+        });
+    }
+
+    private void afterDecoding(Response response, long decodedLength)
+    {
+        HttpResponse httpResponse = (HttpResponse)response;
+        httpResponse.headers(headers ->
+        {
+            headers.remove(HttpHeader.TRANSFER_ENCODING);
+            headers.put(HttpHeader.CONTENT_LENGTH, decodedLength);
         });
     }
 
@@ -556,129 +602,87 @@ public abstract class HttpReceiver
         FAILURE
     }
 
-    private interface NotifiableContentSource extends Content.Source, Destroyable
+    private class DecodedContentSource implements Content.Source
     {
-        boolean error(Throwable failure);
+        private static final Logger LOG = LoggerFactory.getLogger(DecodedContentSource.class);
 
-        void onDataAvailable();
+        private final Content.Source source;
+        private final Response response;
+        private long decodedLength;
+        private boolean last;
 
-        @Override
-        default void destroy()
+        private DecodedContentSource(Content.Source source, Response response)
         {
-        }
-    }
-
-    private static class DecodingContentSource extends ContentSourceTransformer implements NotifiableContentSource
-    {
-        private static final Logger LOG = LoggerFactory.getLogger(DecodingContentSource.class);
-
-        private final ContentDecoder _decoder;
-        private final Response _response;
-        private volatile Content.Chunk _chunk;
-
-        private DecodingContentSource(NotifiableContentSource rawSource, SerializedInvoker invoker, ContentDecoder decoder, Response response)
-        {
-            super(rawSource, invoker);
-            _decoder = decoder;
-            _response = response;
+            this.source = source;
+            this.response = response;
         }
 
         @Override
-        protected NotifiableContentSource getContentSource()
+        public long getLength()
         {
-            return (NotifiableContentSource)super.getContentSource();
+            return source.getLength();
         }
 
         @Override
-        public void onDataAvailable()
-        {
-            getContentSource().onDataAvailable();
-        }
-
-        @Override
-        protected Content.Chunk transform(Content.Chunk inputChunk)
+        public Content.Chunk read()
         {
             while (true)
             {
-                boolean retain = _chunk == null;
+                Content.Chunk chunk = source.read();
+
                 if (LOG.isDebugEnabled())
-                    LOG.debug("input: {}, chunk: {}, retain? {}", inputChunk, _chunk, retain);
-                if (_chunk == null)
-                    _chunk = inputChunk;
-                if (_chunk == null)
+                    LOG.debug("Decoded chunk {}", chunk);
+
+                if (chunk == null)
                     return null;
-                if (Content.Chunk.isFailure(_chunk))
+
+                if (chunk.isEmpty() && !chunk.isLast())
                 {
-                    Content.Chunk failure = _chunk;
-                    _chunk = Content.Chunk.next(failure);
-                    return failure;
+                    chunk.release();
+                    continue;
                 }
 
-                // Retain the input chunk because its ByteBuffer will be referenced by the Inflater.
-                if (retain)
-                    _chunk.retain();
-                if (LOG.isDebugEnabled())
-                    LOG.debug("decoding: {}", _chunk);
-                RetainableByteBuffer decodedBuffer = _decoder.decode(_chunk.getByteBuffer());
-                if (LOG.isDebugEnabled())
-                    LOG.debug("decoded: {}", decodedBuffer);
+                decodedLength += chunk.remaining();
 
-                if (decodedBuffer != null && decodedBuffer.hasRemaining())
+                if (chunk.isLast() && !last)
                 {
-                    // The decoded ByteBuffer is a transformed "copy" of the
-                    // compressed one, so it has its own reference counter.
-                    if (decodedBuffer.canRetain())
-                    {
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("returning decoded content");
-                        return Content.Chunk.asChunk(decodedBuffer.getByteBuffer(), false, decodedBuffer);
-                    }
-                    else
-                    {
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("returning non-retainable decoded content");
-                        return Content.Chunk.from(decodedBuffer.getByteBuffer(), false);
-                    }
+                    last = true;
+                    afterDecoding(response, decodedLength);
                 }
-                else
-                {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("decoding produced no content");
-                    if (decodedBuffer != null)
-                        decodedBuffer.release();
 
-                    if (!_chunk.hasRemaining())
-                    {
-                        Content.Chunk result = _chunk.isLast() ? Content.Chunk.EOF : null;
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("Could not decode more from this chunk, releasing it, r={}", result);
-                        _chunk.release();
-                        _chunk = null;
-                        return result;
-                    }
-                    else
-                    {
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("retrying transformation");
-                    }
-                }
+                return chunk;
             }
         }
 
         @Override
-        public boolean error(Throwable failure)
+        public void demand(Runnable demandCallback)
         {
-            if (_chunk != null)
-                _chunk.release();
-            _chunk = null;
-            return getContentSource().error(failure);
+            Runnable demand = new Invocable.ReadyTask(Invocable.getInvocationType(demandCallback), () -> invoker.run(demandCallback));
+            source.demand(demand);
         }
 
         @Override
-        public void destroy()
+        public void fail(Throwable failure)
         {
-            _decoder.afterDecoding(_response);
-            getContentSource().destroy();
+            source.fail(failure);
+        }
+
+        @Override
+        public void fail(Throwable failure, boolean last)
+        {
+            source.fail(failure, last);
+        }
+
+        @Override
+        public boolean rewind()
+        {
+            boolean rewound = source.rewind();
+            if (rewound)
+            {
+                decodedLength = 0;
+                last = false;
+            }
+            return rewound;
         }
     }
 
@@ -686,7 +690,7 @@ public abstract class HttpReceiver
      * This Content.Source implementation guarantees that all {@link #read(boolean)} calls
      * happening from a {@link #demand(Runnable)} callback must be serialized.
      */
-    private class ContentSource implements NotifiableContentSource
+    private class ContentSource implements Content.Source
     {
         private static final Logger LOG = LoggerFactory.getLogger(ContentSource.class);
 
@@ -729,8 +733,7 @@ public abstract class HttpReceiver
             }
         }
 
-        @Override
-        public void onDataAvailable()
+        private void onDataAvailable()
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("onDataAvailable on {}", this);
@@ -826,8 +829,7 @@ public abstract class HttpReceiver
             invokeDemandCallback(true);
         }
 
-        @Override
-        public boolean error(Throwable failure)
+        private boolean error(Throwable failure)
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("Erroring {}", this);
