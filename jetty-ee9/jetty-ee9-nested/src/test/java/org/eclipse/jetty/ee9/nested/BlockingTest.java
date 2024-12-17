@@ -17,6 +17,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -42,14 +44,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.core.Is.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @Disabled // TODO
 public class BlockingTest
@@ -152,6 +158,119 @@ public class BlockingTest
     }
 
     @Test
+    public void testBlockingCloseWhileReading() throws Exception
+    {
+        AtomicReference<Thread> threadRef = new AtomicReference<>();
+        AtomicReference<Throwable> threadFailure = new AtomicReference<>();
+
+        Handler handler = new AbstractHandler()
+        {
+            @Override
+            public void handle(String target, Request baseRequest, HttpServletRequest req, HttpServletResponse resp)
+            {
+                try
+                {
+                    baseRequest.setHandled(true);
+                    AsyncContext asyncContext = req.startAsync();
+                    ServletOutputStream outputStream = resp.getOutputStream();
+                    resp.setStatus(200);
+                    resp.setContentType("text/plain");
+
+                    Thread thread = new Thread(() ->
+                    {
+                        try
+                        {
+                            try
+                            {
+                                for (int i = 0; i < 5; i++)
+                                {
+                                    int b = req.getInputStream().read();
+                                    assertThat(b, not(is(-1)));
+                                }
+                                outputStream.write("All read.".getBytes(StandardCharsets.UTF_8));
+                            }
+                            catch (IOException e)
+                            {
+                                throw new RuntimeException(e);
+                            }
+
+                            // this read should throw IOException as the client has closed the connection
+                            assertThrows(IOException.class, () -> req.getInputStream().read());
+
+                            try
+                            {
+                                outputStream.close();
+                            }
+                            catch (IOException e)
+                            {
+                                throw new RuntimeException(e);
+                            }
+                            finally
+                            {
+                                asyncContext.complete();
+                            }
+                        }
+                        catch (Throwable x)
+                        {
+                            threadFailure.set(x);
+                        }
+                    })
+                    {
+                        @Override
+                        public String toString()
+                        {
+                            return super.toString() + " " + outputStream;
+                        }
+                    };
+                    threadRef.set(thread);
+                    thread.start();
+                }
+                catch (Exception e)
+                {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+        ContextHandler contextHandler = new ContextHandler();
+        contextHandler.setHandler(handler);
+
+        server.setHandler(contextHandler);
+        server.start();
+
+        String request = "POST /ctx/path/info HTTP/1.1\r\n" +
+            "Host: localhost\r\n" +
+            "Accept-Encoding: gzip, *\r\n" +
+            "Content-Type: test/data\r\n" +
+            "Transfer-Encoding: chunked\r\n" +
+            "\r\n" +
+            "10\r\n" +
+            "01234";
+
+        try (Socket socket = new Socket("localhost", connector.getLocalPort()))
+        {
+            socket.getOutputStream().write(request.getBytes(StandardCharsets.ISO_8859_1));
+
+            // Wait for handler thread to be started and for it to have read all bytes of the request.
+            await().pollInterval(1, TimeUnit.MICROSECONDS).atMost(5, TimeUnit.SECONDS).until(() ->
+            {
+                Thread thread = threadRef.get();
+                return thread != null && (thread.getState() == Thread.State.WAITING || thread.getState() == Thread.State.TIMED_WAITING);
+            });
+        }
+        threadRef.get().join(5000);
+        if (threadRef.get().isAlive())
+        {
+            System.err.println("Blocked handler thread: " + threadRef.get().toString());
+            for (StackTraceElement stackTraceElement : threadRef.get().getStackTrace())
+            {
+                System.err.println("\tat " + stackTraceElement);
+            }
+            fail("handler thread should not be alive anymore");
+        }
+        assertThat("handler thread failed: " + toString(threadFailure.get()), threadFailure.get(), nullValue());
+    }
+
+    @Test
     public void testBlockingReadAndBlockingWriteGzipped() throws Exception
     {
         AtomicReference<Thread> threadRef = new AtomicReference<>();
@@ -165,9 +284,9 @@ public class BlockingTest
                 try
                 {
                     baseRequest.setHandled(true);
-                    final AsyncContext asyncContext = baseRequest.startAsync();
-                    final ServletOutputStream outputStream = response.getOutputStream();
-                    final Thread thread = new Thread(() ->
+                    AsyncContext asyncContext = baseRequest.startAsync();
+                    ServletOutputStream outputStream = response.getOutputStream();
+                    Thread thread = new Thread(() ->
                     {
                         try
                         {
@@ -243,7 +362,23 @@ public class BlockingTest
             barrier.await(); // wait for all bytes of the request to be read
         }
         threadRef.get().join(5000);
+        if (threadRef.get().isAlive())
+        {
+            for (StackTraceElement stackTraceElement : threadRef.get().getStackTrace())
+            {
+                System.err.println(stackTraceElement);
+            }
+        }
         assertThat("handler thread should not be alive anymore", threadRef.get().isAlive(), is(false));
+    }
+
+    private static String toString(Throwable x)
+    {
+        if (x == null)
+            return "null";
+        StringWriter sw = new StringWriter();
+        x.printStackTrace(new PrintWriter(sw));
+        return sw.toString();
     }
 
     @Test
