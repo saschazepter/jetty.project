@@ -463,7 +463,7 @@ public class HttpInput extends ServletInputStream implements Runnable
                 // Intercept the current content.
                 // The interceptor may be called several
                 // times for the same content.
-                _intercepted = intercept();
+                _intercepted = _interceptor.readFrom(_content);
 
                 // If interception produced new content
                 if (_intercepted != null && _intercepted != _content)
@@ -493,25 +493,6 @@ public class HttpInput extends ServletInputStream implements Runnable
         }
 
         return null;
-    }
-
-    private Content intercept() throws IOException
-    {
-        try
-        {
-            return _interceptor.readFrom(_content);
-        }
-        catch (Throwable x)
-        {
-            IOException failure = new IOException("Bad content", x);
-            _content.failed(failure);
-            _content = null;
-            HttpChannel channel = _channelState.getHttpChannel();
-            Response response = channel.getResponse();
-            if (response.isCommitted())
-                channel.abort(failure);
-            throw failure;
-        }
     }
 
     private void consume(Content content)
