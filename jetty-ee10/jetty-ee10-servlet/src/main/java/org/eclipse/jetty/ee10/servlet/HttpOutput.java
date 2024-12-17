@@ -263,7 +263,7 @@ public class HttpOutput extends ServletOutputStream
         try (AutoLock ignored = _channelState.lock())
         {
             if (LOG.isDebugEnabled())
-                state = stateString();
+                state = lockedStateString();
 
             // Transition to CLOSED state if we were the last write or we have failed
             if (last || failure != null)
@@ -273,7 +273,7 @@ public class HttpOutput extends ServletOutputStream
                 _closedCallback = null;
                 if (failure == null)
                     lockedReleaseBuffer();
-                wake = updateApiState(failure);
+                wake = lockedUpdateApiState(failure);
             }
             else if (_state == State.CLOSE)
             {
@@ -285,13 +285,13 @@ public class HttpOutput extends ServletOutputStream
             }
             else
             {
-                wake = updateApiState(null);
+                wake = lockedUpdateApiState(null);
             }
-        }
 
-        if (LOG.isDebugEnabled())
-            LOG.debug("onWriteComplete({},{}) {}->{} c={} cb={} w={}",
-                last, failure, state, stateString(), BufferUtil.toDetailString(closeContent), closedCallback, wake, failure);
+            if (LOG.isDebugEnabled())
+                LOG.debug("onWriteComplete({},{}) {}->{} c={} cb={} w={}",
+                    last, failure, state, lockedStateString(), BufferUtil.toDetailString(closeContent), closedCallback, wake, failure);
+        }
 
         try
         {
@@ -314,8 +314,10 @@ public class HttpOutput extends ServletOutputStream
         }
     }
 
-    private boolean updateApiState(Throwable failure)
+    private boolean lockedUpdateApiState(Throwable failure)
     {
+        assert _channelState.isLockHeldByCurrentThread();
+
         boolean wake = false;
         switch (_apiState)
         {
@@ -342,7 +344,7 @@ public class HttpOutput extends ServletOutputStream
             default:
                 if (_state == State.CLOSED)
                     break;
-                throw new IllegalStateException(stateString());
+                throw new IllegalStateException(lockedStateString());
         }
         return wake;
     }
@@ -465,10 +467,10 @@ public class HttpOutput extends ServletOutputStream
                         break;
                 }
             }
-        }
 
-        if (LOG.isDebugEnabled())
-            LOG.debug("complete({}) {} s={} e={}, c={}", callback, stateString(), succeeded, error, BufferUtil.toDetailString(content));
+            if (LOG.isDebugEnabled())
+                LOG.debug("complete({}) {} s={} e={}, c={}", callback, lockedStateString(), succeeded, error, BufferUtil.toDetailString(content));
+        }
 
         if (succeeded)
         {
@@ -580,10 +582,10 @@ public class HttpOutput extends ServletOutputStream
                     }
                     break;
             }
-        }
 
-        if (LOG.isDebugEnabled())
-            LOG.debug("close() {} c={} b={}", stateString(), BufferUtil.toDetailString(content), blocker);
+            if (LOG.isDebugEnabled())
+                LOG.debug("close() {} c={} b={}", lockedStateString(), BufferUtil.toDetailString(content), blocker);
+        }
 
         if (content == null)
         {
@@ -701,7 +703,7 @@ public class HttpOutput extends ServletOutputStream
 
                         case ASYNC:
                         case PENDING:
-                            throw new IllegalStateException("isReady() not called: " + stateString());
+                            throw new IllegalStateException("isReady() not called: " + lockedStateString());
 
                         case READY:
                             _apiState = ApiState.PENDING;
@@ -711,7 +713,7 @@ public class HttpOutput extends ServletOutputStream
                             throw new WritePendingException();
 
                         default:
-                            throw new IllegalStateException(stateString());
+                            throw new IllegalStateException(lockedStateString());
                     }
                 }
             }
@@ -795,7 +797,7 @@ public class HttpOutput extends ServletOutputStream
                     break;
 
                 case ASYNC:
-                    throw new IllegalStateException("isReady() not called: " + stateString());
+                    throw new IllegalStateException("isReady() not called: " + lockedStateString());
 
                 case READY:
                     async = true;
@@ -807,7 +809,7 @@ public class HttpOutput extends ServletOutputStream
                     throw new WritePendingException();
 
                 default:
-                    throw new IllegalStateException(stateString());
+                    throw new IllegalStateException(lockedStateString());
             }
 
             _written = written;
@@ -823,7 +825,7 @@ public class HttpOutput extends ServletOutputStream
                 {
                     if (LOG.isDebugEnabled())
                         LOG.debug("write(array) {} aggregated !flush {}",
-                            stateString(), _aggregate);
+                            lockedStateString(), _aggregate);
                     return;
                 }
 
@@ -831,11 +833,11 @@ public class HttpOutput extends ServletOutputStream
                 off += filled;
                 len -= filled;
             }
-        }
 
-        if (LOG.isDebugEnabled())
-            LOG.debug("write(array) {} last={} agg={} flush=true async={}, len={} {}",
-                stateString(), last, aggregate, async, len, _aggregate);
+            if (LOG.isDebugEnabled())
+                LOG.debug("write(array) {} last={} agg={} flush=true async={}, len={} {}",
+                    lockedStateString(), last, aggregate, async, len, _aggregate);
+        }
 
         if (async)
         {
@@ -928,7 +930,7 @@ public class HttpOutput extends ServletOutputStream
                     break;
 
                 case ASYNC:
-                    throw new IllegalStateException("isReady() not called: " + stateString());
+                    throw new IllegalStateException("isReady() not called: " + lockedStateString());
 
                 case READY:
                     async = true;
@@ -940,7 +942,7 @@ public class HttpOutput extends ServletOutputStream
                     throw new WritePendingException();
 
                 default:
-                    throw new IllegalStateException(stateString());
+                    throw new IllegalStateException(lockedStateString());
             }
             _written = written;
         }
@@ -1010,7 +1012,7 @@ public class HttpOutput extends ServletOutputStream
                     break;
 
                 case ASYNC:
-                    throw new IllegalStateException("isReady() not called: " + stateString());
+                    throw new IllegalStateException("isReady() not called: " + lockedStateString());
 
                 case READY:
                     async = true;
@@ -1022,7 +1024,7 @@ public class HttpOutput extends ServletOutputStream
                     throw new WritePendingException();
 
                 default:
-                    throw new IllegalStateException(stateString());
+                    throw new IllegalStateException(lockedStateString());
             }
             _written = written;
 
@@ -1282,7 +1284,7 @@ public class HttpOutput extends ServletOutputStream
             }
 
             if (_apiState != ApiState.BLOCKING)
-                throw new IllegalStateException(stateString());
+                throw new IllegalStateException(lockedStateString());
             _apiState = ApiState.PENDING;
             if (len > 0)
                 _written += len;
@@ -1337,13 +1339,13 @@ public class HttpOutput extends ServletOutputStream
     @Override
     public void setWriteListener(WriteListener writeListener)
     {
-        if (!_servletChannel.getServletRequestState().isAsync())
-            throw new IllegalStateException("!ASYNC: " + stateString());
         boolean wake;
         try (AutoLock ignored = _channelState.lock())
         {
+            if (!_servletChannel.getServletRequestState().isAsync())
+                throw new IllegalStateException("!ASYNC: " + lockedStateString());
             if (_apiState != ApiState.BLOCKING)
-                throw new IllegalStateException("!OPEN" + stateString());
+                throw new IllegalStateException("!OPEN" + lockedStateString());
             _apiState = ApiState.READY;
             _writeListener = writeListener;
             wake = _servletChannel.getServletRequestState().onWritePossible();
@@ -1422,17 +1424,24 @@ public class HttpOutput extends ServletOutputStream
         }
     }
 
-    private String stateString()
+    private String lockedStateString()
     {
-        return String.format("s=%s,api=%s,sc=%b,e=%s", _state, _apiState, _softClose, _onError);
+        assert _channelState.isLockHeldByCurrentThread();
+        return unsafeStateString();
+    }
+
+    private String unsafeStateString()
+    {
+        return String.format("s=%s,api=%s,sc=%b,e=%s,wb=%s", _state, _apiState, _softClose, _onError, _writeBlocker);
     }
 
     @Override
     public String toString()
     {
-        try (AutoLock ignored = _channelState.lock())
+        try (AutoLock lock = _channelState.tryLock())
         {
-            return String.format("%s@%x{%s}", this.getClass().getSimpleName(), hashCode(), stateString());
+            boolean held = lock.isHeldByCurrentThread();
+            return String.format("%s@%x{%s%s}", this.getClass().getSimpleName(), hashCode(), held ? "" : "?:", unsafeStateString());
         }
     }
 
