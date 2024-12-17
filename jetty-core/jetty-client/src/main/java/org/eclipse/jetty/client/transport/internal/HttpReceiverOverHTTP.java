@@ -526,7 +526,7 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
             throw new IllegalStateException();
 
         if (LOG.isDebugEnabled())
-            LOG.debug("Receiving next request in {}", this);
+            LOG.debug("Receiving next response in {}", this);
         boolean setFillInterest = parseAndFill(true);
         if (!hasContent() && setFillInterest)
             getHttpConnection().fillInterested();

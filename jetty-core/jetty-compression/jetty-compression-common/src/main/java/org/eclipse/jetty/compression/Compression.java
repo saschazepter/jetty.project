@@ -35,6 +35,7 @@ public abstract class Compression extends ContainerLifeCycle
     private ByteBufferPool byteBufferPool;
     private Container container;
     private int bufferSize = 2048;
+    private int minCompressSize;
 
     public Compression(String encoding)
     {
@@ -188,9 +189,15 @@ public abstract class Compression extends ContainerLifeCycle
      */
     public abstract List<String> getFileExtensionNames();
 
-    public abstract int getMinCompressSize();
+    public int getMinCompressSize()
+    {
+        return minCompressSize;
+    }
 
-    public abstract void setMinCompressSize(int minCompressSize);
+    public void setMinCompressSize(int minCompressSize)
+    {
+        this.minCompressSize = minCompressSize;
+    }
 
     /**
      * @return the name of the compression implementation.

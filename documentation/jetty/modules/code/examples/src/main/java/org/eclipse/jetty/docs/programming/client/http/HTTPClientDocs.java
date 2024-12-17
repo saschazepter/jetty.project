@@ -426,6 +426,20 @@ public class HTTPClientDocs
         // end::outputStreamRequestContent[]
     }
 
+    public void removeDecoders() throws Exception
+    {
+        // tag::removeDecoders[]
+        HttpClient httpClient = new HttpClient();
+
+        // Starting HttpClient will discover response content decoders
+        // implementations from the module-path or class-path via ServiceLoader.
+        httpClient.start();
+
+        // Remove all response content decoders.
+        httpClient.getContentDecoderFactories().clear();
+        // end::removeDecoders[]
+    }
+
     public void futureResponseListener() throws Exception
     {
         HttpClient httpClient = new HttpClient();

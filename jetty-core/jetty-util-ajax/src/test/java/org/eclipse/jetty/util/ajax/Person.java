@@ -11,15 +11,8 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.compression;
+package org.eclipse.jetty.util.ajax;
 
-import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.io.content.ContentSourceTransformer;
-
-public abstract class DecoderSource extends ContentSourceTransformer
+public record Person(String name, int age)
 {
-    public DecoderSource(Content.Source rawSource)
-    {
-        super(rawSource);
-    }
 }
