@@ -30,14 +30,11 @@ import org.eclipse.jetty.compression.EncoderConfig;
 import org.eclipse.jetty.compression.EncoderSink;
 import org.eclipse.jetty.compression.brotli.internal.BrotliDecoderSource;
 import org.eclipse.jetty.compression.brotli.internal.BrotliEncoderSink;
-import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.io.RetainableByteBuffer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Brotli Compression.
@@ -47,8 +44,6 @@ import org.slf4j.LoggerFactory;
 public class BrotliCompression extends Compression
 {
     private static final List<String> EXTENSIONS = List.of("br");
-    private static final Logger LOG = LoggerFactory.getLogger(BrotliCompression.class);
-    private static final CompressedContentFormat BR = new CompressedContentFormat("br", ".br");
     private static final String ENCODING_NAME = "br";
     private static final HttpField X_CONTENT_ENCODING = new PreEncodedHttpField("X-Content-Encoding", ENCODING_NAME);
     private static final HttpField CONTENT_ENCODING = new PreEncodedHttpField(HttpHeader.CONTENT_ENCODING, ENCODING_NAME);
@@ -62,11 +57,10 @@ public class BrotliCompression extends Compression
     private BrotliEncoderConfig defaultEncoderConfig = new BrotliEncoderConfig();
     private BrotliDecoderConfig defaultDecoderConfig = new BrotliDecoderConfig();
 
-    private int minCompressSize = DEFAULT_MIN_BROTLI_SIZE;
-
     public BrotliCompression()
     {
         super(ENCODING_NAME);
+        setMinCompressSize(DEFAULT_MIN_BROTLI_SIZE);
     }
 
     @Override
@@ -127,15 +121,9 @@ public class BrotliCompression extends Compression
     }
 
     @Override
-    public int getMinCompressSize()
-    {
-        return minCompressSize;
-    }
-
-    @Override
     public void setMinCompressSize(int minCompressSize)
     {
-        this.minCompressSize = Math.max(minCompressSize, DEFAULT_MIN_BROTLI_SIZE);
+        super.setMinCompressSize(Math.max(minCompressSize, DEFAULT_MIN_BROTLI_SIZE));
     }
 
     @Override

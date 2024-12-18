@@ -54,6 +54,57 @@ This property allows you to cap the max heap memory retained by the pool.
 `jetty.byteBufferPool.maxDirectMemory`::
 This property allows you to cap the max direct memory retained by the pool.
 
+[[compression]]
+== Compression Modules
+
+The compression modules allow you to configure server-wide request decompression and response compression by installing the `org.eclipse.jetty.compression.server.CompressionHandler` at the root of the `Handler` tree (see also xref:programming-guide:server/http.adoc#handler-use-compression[this section] for further details).
+
+The supported algorithms are the following:
+
+* brotli, via the <<compression-brotli,compression-brotli>> module
+* gzip, via the <<compression-gzip,compression-gzip>> module
+* zstandard, via the <<compression-zstandard,compression-zstandard>> module
+
+You can explicitly enable one or more of the compression modules, or all of them with the <<compression-all,compression-all>> module.
+
+[[compression-all]]
+=== Module `compression-all`
+
+This module enables request decompression and response compression for all the currently supported algorithms listed in <<compression,this section>>.
+
+[[compression-brotli]]
+=== Module `compression-brotli`
+
+This module enables request decompression and response compression with the link:https://github.com/google/brotli[brotli] algorithm.
+
+The module properties are:
+
+----
+include::{jetty-home}/modules/compression-brotli.mod[tags=documentation]
+----
+
+[[compression-gzip]]
+=== Module `compression-gzip`
+
+This module enables request decompression and response compression with the link:https://en.wikipedia.org/wiki/Gzip[gzip] algorithm.
+
+The module properties are:
+
+----
+include::{jetty-home}/modules/compression-gzip.mod[tags=documentation]
+----
+
+[[compression-zstandard]]
+=== Module `compression-zstandard`
+
+This module enables request decompression and response compression with the link:https://github.com/facebook/zstd[zstdandard] algorithm.
+
+The module properties are:
+
+----
+include::{jetty-home}/modules/compression-zstandard.mod[tags=documentation]
+----
+
 [[connectionlimit]]
 == Module `connectionlimit`
 

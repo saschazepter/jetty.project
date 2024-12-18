@@ -73,6 +73,7 @@ import org.eclipse.jetty.ee11.servlet.ServletContextResponse.OutputType;
 import org.eclipse.jetty.ee11.servlet.security.ConstraintAware;
 import org.eclipse.jetty.ee11.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee11.servlet.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.pathmap.MatchedResource;
 import org.eclipse.jetty.io.IOResources;
@@ -113,6 +114,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static jakarta.servlet.ServletContext.TEMPDIR;
+import static org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS;
 
 /**
  * Servlet Context.
@@ -1145,7 +1147,6 @@ public class ServletContextHandler extends ContextHandler
         decodedPathInContext = URIUtil.decodePath(getContext().getPathInContext(request.getHttpURI().getCanonicalPath()));
         matchedResource = _servletHandler.getMatchedServlet(decodedPathInContext);
 
-
         if (matchedResource == null)
             return wrapNoServlet(request, response);
         ServletHandler.MappedServlet mappedServlet = matchedResource.getResource();
@@ -1195,7 +1196,23 @@ public class ServletContextHandler extends ContextHandler
         if (!initialDispatch)
             return false;
 
-        return super.handleByContextHandler(pathInContext, request, response, callback);
+        if (isProtectedTarget(pathInContext))
+        {
+            if (getErrorHandler() instanceof ErrorHandler.ErrorPageMapper mapper)
+            {
+                ErrorHandler.ErrorPageMapper.ErrorPage errorPage = mapper.getErrorPage(404, null);
+                if (errorPage != null)
+                {
+                    // Do nothing here other than set the error status so that the ServletHandler will handle as if a sendError
+                    request.setAttribute(ERROR_STATUS, 404);
+                    response.setStatus(HttpStatus.NOT_FOUND_404);
+                    return false;
+                }
+            }
+            Response.writeError(request, response, callback, HttpStatus.NOT_FOUND_404, null);
+            return true;
+        }
+        return false;
     }
 
     @Override
