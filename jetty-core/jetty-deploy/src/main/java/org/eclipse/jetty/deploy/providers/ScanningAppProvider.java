@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -61,6 +62,8 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
 
     private final Scanner.BulkListener _scannerBulkListener = new Scanner.BulkListener()
     {
+        private final Set<Path> _addedPaths = new HashSet<>();
+
         @Override
         public void pathsChanged(Set<Path> paths) throws Exception
         {
@@ -71,14 +74,22 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
             for (Path path : sortedPaths)
             {
                 if (Files.exists(path))
-                    ScanningAppProvider.this.pathChanged(path);
+                {
+                    if (_addedPaths.add(path))
+                        ScanningAppProvider.this.pathAdded(path);
+                    else
+                        ScanningAppProvider.this.pathChanged(path);
+                }
                 else
+                {
+                    _addedPaths.remove(path);
                     ScanningAppProvider.this.pathRemoved(path);
+                }
             }
         }
 
         @Override
-        public void filesChanged(Set<String> filenames) throws Exception
+        public void filesChanged(Set<String> filenames)
         {
             // ignore, as we are using the pathsChanged() technique only.
         }

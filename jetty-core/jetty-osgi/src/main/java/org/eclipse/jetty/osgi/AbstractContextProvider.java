@@ -13,16 +13,14 @@
 
 package org.eclipse.jetty.osgi;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 
 import org.eclipse.jetty.deploy.App;
 import org.eclipse.jetty.deploy.AppProvider;
 import org.eclipse.jetty.deploy.DeploymentManager;
-import org.eclipse.jetty.server.Deployable;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.osgi.framework.Bundle;
@@ -46,7 +44,7 @@ public abstract class AbstractContextProvider extends AbstractLifeCycle implemen
     private Server _server;
     private ContextFactory _contextFactory;
     private String _environment;
-    private final Map<String, String> _properties = new HashMap<>();
+    private final Attributes _attributes = new Attributes.Mapped();
 
     public AbstractContextProvider(String environment, Server server, ContextFactory contextFactory)
     {
@@ -60,9 +58,9 @@ public abstract class AbstractContextProvider extends AbstractLifeCycle implemen
         return _server;
     }
 
-    public Map<String, String> getProperties()
+    public Attributes getAttributes()
     {
-        return _properties;
+        return _attributes;
     }
     
     @Override
@@ -82,10 +80,12 @@ public abstract class AbstractContextProvider extends AbstractLifeCycle implemen
     {
         _deploymentManager = deploymentManager;
     }
-    
+
     @Override
     public String getEnvironmentName()
     {
+        // TODO: when AppProvider.getEnvironmentName is eventually removed, leave this method here for
+        // these OSGI based AppProviders to use.
         return _environment;
     }
 
@@ -95,109 +95,12 @@ public abstract class AbstractContextProvider extends AbstractLifeCycle implemen
     }
     
     /**
-     * Get the extractWars.
-     * This is equivalent to getting the {@link Deployable#EXTRACT_WARS} property.
-     *
-     * @return the extractWars
-     */
-    public boolean isExtractWars()
-    {
-        return Boolean.parseBoolean(_properties.get(Deployable.EXTRACT_WARS));
-    }
-
-    /**
-     * Set the extractWars.
-     * This is equivalent to setting the {@link Deployable#EXTRACT_WARS} property.
-     *
-     * @param extractWars the extractWars to set
-     */
-    public void setExtractWars(boolean extractWars)
-    {
-        _properties.put(Deployable.EXTRACT_WARS, Boolean.toString(extractWars));
-    }
-
-    /**
-     * Get the parentLoaderPriority.
-     * This is equivalent to getting the {@link Deployable#PARENT_LOADER_PRIORITY} property.
-     *
-     * @return the parentLoaderPriority
-     */
-    public boolean isParentLoaderPriority()
-    {
-        return Boolean.parseBoolean(_properties.get(Deployable.PARENT_LOADER_PRIORITY));
-    }
-
-    /**
-     * Set the parentLoaderPriority.
-     * This is equivalent to setting the {@link Deployable#PARENT_LOADER_PRIORITY} property.
-     *
-     * @param parentLoaderPriority the parentLoaderPriority to set
-     */
-    public void setParentLoaderPriority(boolean parentLoaderPriority)
-    {
-        _properties.put(Deployable.PARENT_LOADER_PRIORITY, Boolean.toString(parentLoaderPriority));
-    }
-
-    /**
-     * Get the defaultsDescriptor.
-     * This is equivalent to getting the {@link Deployable#DEFAULTS_DESCRIPTOR} property.
-     *
-     * @return the defaultsDescriptor
-     */
-    public String getDefaultsDescriptor()
-    {
-        return _properties.get(Deployable.DEFAULTS_DESCRIPTOR);
-    }
-
-    /**
-     * Set the defaultsDescriptor.
-     * This is equivalent to setting the {@link Deployable#DEFAULTS_DESCRIPTOR} property.
-     *
-     * @param defaultsDescriptor the defaultsDescriptor to set
-     */
-    public void setDefaultsDescriptor(String defaultsDescriptor)
-    {
-        _properties.put(Deployable.DEFAULTS_DESCRIPTOR, defaultsDescriptor);
-    }
-
-    /**
-     * This is equivalent to setting the {@link Deployable#CONFIGURATION_CLASSES} property.
-     * @param configurations The configuration class names as a comma separated list
-     */
-    public void setConfigurationClasses(String configurations)
-    {
-        setConfigurationClasses(StringUtil.isBlank(configurations) ? null : configurations.split(","));
-    }
-
-    /**
-     * This is equivalent to setting the {@link Deployable#CONFIGURATION_CLASSES} property.
-     * @param configurations The configuration class names.
-     */
-    public void setConfigurationClasses(String[] configurations)
-    {
-        _properties.put(Deployable.CONFIGURATION_CLASSES, (configurations == null)
-            ? null
-            : String.join(",", configurations));
-    }
-
-    /**
-     *
-     * This is equivalent to getting the {@link Deployable#CONFIGURATION_CLASSES} property.
-     * @return The configuration class names.
-     */
-    public String[] getConfigurationClasses()
-    {
-        String cc = _properties.get(Deployable.CONFIGURATION_CLASSES);
-        return cc == null ? new String[0] : cc.split(",");
-    }
-
-    /**
      * @param tldBundles Comma separated list of bundles that contain tld jars
      * that should be setup on the context instances created here.
      */
     public void setTldBundles(String tldBundles)
     {
-       _properties.put(OSGiWebappConstants.REQUIRE_TLD_BUNDLE, tldBundles);
+        _attributes.setAttribute(OSGiWebappConstants.REQUIRE_TLD_BUNDLE, tldBundles);
     }
 
     /**
@@ -206,7 +109,7 @@ public abstract class AbstractContextProvider extends AbstractLifeCycle implemen
      */
     public String getTldBundles()
     {
-        return _properties.get(OSGiWebappConstants.REQUIRE_TLD_BUNDLE);
+        return (String)_attributes.getAttribute(OSGiWebappConstants.REQUIRE_TLD_BUNDLE);
     }
     
     public boolean isDeployable(Bundle bundle)
@@ -220,8 +123,8 @@ public abstract class AbstractContextProvider extends AbstractLifeCycle implemen
         
         return false;
     }
-    
-    public boolean isDeployable(ServiceReference service)
+
+    public boolean isDeployable(ServiceReference<?> service)
     {
         if (service == null)
             return false;

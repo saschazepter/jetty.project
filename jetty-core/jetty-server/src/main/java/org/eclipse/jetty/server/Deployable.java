@@ -14,7 +14,6 @@
 package org.eclipse.jetty.server;
 
 import java.util.Comparator;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,9 +68,6 @@ public interface Deployable
     String SCI_ORDER = "jetty.deploy.servletContainerInitializerOrder";
     String WAR = "jetty.deploy.war";
     String WEBINF_SCAN_JARS = "jetty.deploy.webInfScanJarPattern";
-
-    // TODO: should we deprecate this one?
-    void initializeDefaults(Map<String, String> properties);
 
     void initializeDefaults(Attributes attributes);
 }

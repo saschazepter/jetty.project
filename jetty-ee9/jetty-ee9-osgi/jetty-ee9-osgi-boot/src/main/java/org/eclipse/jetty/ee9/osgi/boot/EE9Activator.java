@@ -169,8 +169,8 @@ public class EE9Activator implements BundleActivator
                 //ensure the providers are configured with the extra bundles that must be scanned from the container classpath
                 if (containerScanBundlePattern != null)
                 {
-                    contextProvider.getProperties().put(OSGiMetaInfConfiguration.CONTAINER_BUNDLE_PATTERN, containerScanBundlePattern);
-                    webAppProvider.getProperties().put(OSGiMetaInfConfiguration.CONTAINER_BUNDLE_PATTERN, containerScanBundlePattern);
+                    contextProvider.getAttributes().setAttribute(OSGiMetaInfConfiguration.CONTAINER_BUNDLE_PATTERN, containerScanBundlePattern);
+                    webAppProvider.getAttributes().setAttribute(OSGiMetaInfConfiguration.CONTAINER_BUNDLE_PATTERN, containerScanBundlePattern);
                 }
             }
             else
@@ -362,7 +362,7 @@ public class EE9Activator implements BundleActivator
             WebAppContext webApp = new WebAppContext();
 
             //Apply defaults from the deployer providers
-            webApp.initializeDefaults(provider.getProperties());
+            webApp.initializeDefaults(provider.getAttributes());
             
             // provides access to core classes
             ClassLoader coreLoader = (ClassLoader)osgiApp.getDeploymentManager().getServer().getAttribute(OSGiServerConstants.SERVER_CLASSLOADER); 
@@ -415,7 +415,7 @@ public class EE9Activator implements BundleActivator
             webApp.setClassLoader(webAppLoader);
             
             //Take care of extra provider properties
-            webApp.setAttribute(OSGiMetaInfConfiguration.CONTAINER_BUNDLE_PATTERN, provider.getProperties().get(OSGiMetaInfConfiguration.CONTAINER_BUNDLE_PATTERN));
+            webApp.setAttribute(OSGiMetaInfConfiguration.CONTAINER_BUNDLE_PATTERN, provider.getAttributes().getAttribute(OSGiMetaInfConfiguration.CONTAINER_BUNDLE_PATTERN));
             
             //TODO needed?
             webApp.setAttribute(OSGiWebappConstants.REQUIRE_TLD_BUNDLE, requireTldBundles);

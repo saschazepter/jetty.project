@@ -154,24 +154,11 @@ public class ContextProvider extends ScanningAppProvider
             // prepare app attributes to use for app deployment
             Attributes appAttributes = initAttributes(environment, app);
 
-            Object context = null;
-
             // check if there is a specific ContextHandler type to create set in the
             // properties associated with the webapp. If there is, we create it _before_
             // applying the environment xml file.
-            String contextHandlerClassName = (String)appAttributes.getAttribute(Deployable.CONTEXT_HANDLER_CLASS);
-            if (contextHandlerClassName != null)
-            {
-                Class<?> contextClass = Loader.loadClass(contextHandlerClassName);
-                if (contextClass == null)
-                {
-                    throw new IllegalStateException("Unknown ContextHandler class " + contextHandlerClassName + " for " + app + " in environment " + environment.getName());
-                }
-                else
-                {
-                    context = contextClass.getDeclaredConstructor().newInstance();
-                }
-            }
+            Object context = newContextInstance((String)appAttributes.getAttribute(Deployable.CONTEXT_HANDLER_CLASS), app);
+            initializeContextPath(getContextHandler(context), path);
 
             // Collect the optional environment context xml files.
             // Order them according to the name of their property key names.
@@ -222,6 +209,17 @@ public class ContextProvider extends ScanningAppProvider
                 appAttributes.setAttribute(Deployable.WAR, path.toString());
             }
 
+            if (context == null)
+            {
+                context = newContextInstance((String)environment.getAttribute(Deployable.CONTEXT_HANDLER_CLASS_DEFAULT), app);
+                initializeContextPath(getContextHandler(context), path);
+            }
+
+            if (context == null)
+            {
+                throw new IllegalStateException("ContextHandler class is null for app " + app);
+            }
+
             // Look for the contextHandler itself
             ContextHandler contextHandler = getContextHandler(context);
             if (contextHandler == null)
@@ -239,6 +237,22 @@ public class ContextProvider extends ScanningAppProvider
         finally
         {
             Thread.currentThread().setContextClassLoader(old);
+        }
+    }
+
+    private Object newContextInstance(String contextHandlerClassName, App app) throws Exception
+    {
+        if (StringUtil.isBlank(contextHandlerClassName))
+            return null;
+
+        Class<?> contextClass = Loader.loadClass(contextHandlerClassName);
+        if (contextClass == null)
+        {
+            throw new IllegalStateException("Unknown ContextHandler class " + contextHandlerClassName + " for " + app + " in environment " + app.getEnvironmentName());
+        }
+        else
+        {
+            return contextClass.getConstructor().newInstance();
         }
     }
 
@@ -356,6 +370,7 @@ public class ContextProvider extends ScanningAppProvider
                 }
                 else
                 {
+                    ContextProvider.this.initializeContextPath(contextHandler, xml);
                     ContextProvider.this.initializeContextHandler(contextHandler, xml, attributes);
                 }
             }
@@ -464,6 +479,9 @@ public class ContextProvider extends ScanningAppProvider
 
     private ContextHandler getContextHandler(Object context)
     {
+        if (context == null)
+            return null;
+
         // find the ContextHandler
         ContextHandler contextHandler;
         if (context instanceof ContextHandler handler)
@@ -490,8 +508,6 @@ public class ContextProvider extends ScanningAppProvider
             LOG.debug("initializeContextHandler {}", contextHandler);
 
         assert contextHandler != null;
-
-        initializeContextPath(contextHandler, path);
 
         if (contextHandler.getBaseResource() == null)
         {
@@ -521,6 +537,9 @@ public class ContextProvider extends ScanningAppProvider
 
     protected void initializeContextPath(ContextHandler context, Path path)
     {
+        if (context == null)
+            return;
+
         // Strip any 3 char extension from non directories
         String basename = FileID.getBasename(path);
         String contextPath = basename;
@@ -543,11 +562,8 @@ public class ContextProvider extends ScanningAppProvider
         if (contextPath.charAt(0) != '/')
             contextPath = "/" + contextPath;
 
-        // Set the display name and context Path
-        if (StringUtil.isBlank(context.getDisplayName()))
-            context.setDisplayName(basename);
-        if (StringUtil.isBlank(context.getContextPath()))
-            context.setContextPath(contextPath);
+        context.setDisplayName(basename);
+        context.setContextPath(contextPath);
     }
 
     protected boolean isDeployable(Path path)

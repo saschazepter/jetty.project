@@ -57,7 +57,6 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.ExceptionUtil;
 import org.eclipse.jetty.util.IO;
-import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.component.ClassLoaderDump;
@@ -240,36 +239,6 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
     }
 
     @Override
-    public void initializeDefaults(Map<String, String> properties)
-    {
-        for (String property : properties.keySet())
-        {
-            String value = properties.get(property);
-            if (LOG.isDebugEnabled())
-                LOG.debug("init {}: {}", property, value);
-            switch (property)
-            {
-                case Deployable.WAR -> setWar(value);
-                case Deployable.TEMP_DIR -> setTempDirectory(IO.asFile(value));
-                case Deployable.CONFIGURATION_CLASSES -> setConfigurationClasses(value == null ? null : value.split(","));
-                case Deployable.CONTAINER_SCAN_JARS -> setAttribute(MetaInfConfiguration.CONTAINER_JAR_PATTERN, value);
-                case Deployable.EXTRACT_WARS -> setExtractWAR(Boolean.parseBoolean(value));
-                case Deployable.PARENT_LOADER_PRIORITY -> setParentLoaderPriority(Boolean.parseBoolean(value));
-                case Deployable.WEBINF_SCAN_JARS -> setAttribute(MetaInfConfiguration.WEBINF_JAR_PATTERN, value);
-                case Deployable.DEFAULTS_DESCRIPTOR -> setDefaultsDescriptor(value);
-                case Deployable.SCI_EXCLUSION_PATTERN -> setAttribute("org.eclipse.jetty.containerInitializerExclusionPattern", value);
-                case Deployable.SCI_ORDER -> setAttribute("org.eclipse.jetty.containerInitializerOrder", value);
-                default ->
-                {
-                    if (LOG.isDebugEnabled() && StringUtil.isNotBlank(value))
-                        LOG.debug("unknown property {}={}", property, value);
-                }
-            }
-        }
-        _defaultContextPath = true;
-    }
-
-    @Override
     public void initializeDefaults(Attributes attributes)
     {
         for (String keyName : attributes.getAttributeNameSet())
@@ -296,7 +265,7 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
                 case Deployable.SCI_ORDER -> setAttribute("org.eclipse.jetty.containerInitializerOrder", value);
                 default ->
                 {
-                    if (LOG.isDebugEnabled() && value != null)
+                    if (LOG.isDebugEnabled())
                         LOG.debug("unknown property {}={}", keyName, value);
                 }
             }
