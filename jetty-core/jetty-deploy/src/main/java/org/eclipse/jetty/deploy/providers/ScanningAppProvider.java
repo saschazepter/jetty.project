@@ -125,9 +125,8 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
      * Isolated in a method so that it is possible to override the default App
      * object for specialized implementations of the AppProvider.
      *
-     * @param path The file that is the context.xml. It is resolved by
-     * {@link org.eclipse.jetty.util.resource.ResourceFactory#newResource(String)}
-     * @return The App object for this particular context definition file.
+     * @param path The file that the main point of deployment (eg: a context XML, a WAR file, a directory, etc)
+     * @return The App object for this particular context.
      */
     protected App createApp(Path path)
     {

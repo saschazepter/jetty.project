@@ -14,6 +14,7 @@
 package org.eclipse.jetty.deploy.providers;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -212,7 +213,7 @@ public class ContextProviderStartupTest
     public void testPropertySubstitution() throws Exception
     {
         Path jettyBase = jetty.getJettyBasePath();
-        Path propsCoreAFile = Files.writeString(jettyBase.resolve("webapps/core.properties"), Deployable.ENVIRONMENT_XML + " = etc/core-context-sub.xml\ntest.displayName=DisplayName Set By Property", StandardOpenOption.CREATE_NEW);
+        Files.writeString(jettyBase.resolve("webapps/core.properties"), Deployable.ENVIRONMENT_XML + " = etc/core-context-sub.xml\ntest.displayName=DisplayName Set By Property", StandardOpenOption.CREATE_NEW);
         Files.copy(MavenPaths.findTestResourceFile("etc/core-context-sub.xml"), jettyBase.resolve("etc/core-context-sub.xml"), StandardCopyOption.REPLACE_EXISTING);
         jetty.copyWebapp("bar-core-context.properties", "bar.properties");
         startJetty();
@@ -223,10 +224,13 @@ public class ContextProviderStartupTest
 
     private static void writeXmlDisplayName(Path filePath, String displayName) throws IOException
     {
-        String content = "<!DOCTYPE Configure PUBLIC \"-//Jetty//Configure//EN\" \"https://jetty.org/configure_10_0.dtd\">\n" +
-                            "<Configure class=\"org.eclipse.jetty.server.handler.ContextHandler\">\n" +
-                            "    <Set name=\"displayName\">";
+        String content = """
+            <!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "https://jetty.org/configure_10_0.dtd">
+            <Configure class="org.eclipse.jetty.server.handler.ContextHandler">
+              <Set name="displayName">@NAME@</Set>
+            </Configure>
+            """.replace("@NAME@", displayName);
 
-         Files.writeString(filePath, content + displayName + "</Set>\n</Configure>", StandardOpenOption.CREATE_NEW);
+        Files.writeString(filePath, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
     }
 }
