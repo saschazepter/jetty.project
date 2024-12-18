@@ -155,8 +155,12 @@ public class HttpChannel implements Runnable, HttpOutput.Interceptor
      */
     public boolean needContent()
     {
+        ContextHandler.CoreContextRequest coreContextRequest = getCoreRequest();
+        // When coreContextRequest is null, produceContent() always immediately returns an error content.
+        if (coreContextRequest == null)
+            return true;
         // TODO: optimize by attempting a read?
-        getCoreRequest().demand(_needContentTask);
+        coreContextRequest.demand(_needContentTask);
         return false;
     }
 
@@ -171,7 +175,10 @@ public class HttpChannel implements Runnable, HttpOutput.Interceptor
      */
     public HttpInput.Content produceContent()
     {
-        Content.Chunk chunk = getCoreRequest().read();
+        ContextHandler.CoreContextRequest coreContextRequest = getCoreRequest();
+        if (coreContextRequest == null)
+            return new HttpInput.ErrorContent(new IOException("Channel has been recycled"));
+        Content.Chunk chunk = coreContextRequest.read();
         if (chunk == null)
             return null;
 
