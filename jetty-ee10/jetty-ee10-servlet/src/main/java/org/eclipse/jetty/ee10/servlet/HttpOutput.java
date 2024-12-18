@@ -503,6 +503,7 @@ public class HttpOutput extends ServletOutputStream
     @Override
     public void close() throws IOException
     {
+        RetainableByteBuffer aggregate = null;
         ByteBuffer content = null;
         Blocker.Callback blocker = null;
         try (AutoLock ignored = _channelState.lock())
@@ -551,7 +552,16 @@ public class HttpOutput extends ServletOutputStream
                             _apiState = ApiState.BLOCKED;
                             _state = State.CLOSING;
                             blocker = _writeBlocker.callback();
-                            content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
+                            aggregate = _aggregate;
+                            if (aggregate != null && _aggregate.hasRemaining())
+                            {
+                                aggregate.retain();
+                                content = aggregate.getByteBuffer();
+                            }
+                            else
+                            {
+                                content = BufferUtil.EMPTY_BUFFER;
+                            }
                             break;
 
                         case BLOCKED:
@@ -569,7 +579,16 @@ public class HttpOutput extends ServletOutputStream
                             // Output is idle in async state, so we can do an async close
                             _apiState = ApiState.PENDING;
                             _state = State.CLOSING;
-                            content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
+                            aggregate = _aggregate;
+                            if (aggregate != null && _aggregate.hasRemaining())
+                            {
+                                aggregate.retain();
+                                content = aggregate.getByteBuffer();
+                            }
+                            else
+                            {
+                                content = BufferUtil.EMPTY_BUFFER;
+                            }
                             break;
 
                         case UNREADY:
@@ -604,7 +623,10 @@ public class HttpOutput extends ServletOutputStream
             if (blocker == null)
             {
                 // Do an async close
-                channelWrite(content, true, new WriteCompleteCB());
+                Callback callback = new WriteCompleteCB();
+                if (aggregate != null)
+                    callback = Callback.from(callback, aggregate::release);
+                channelWrite(content, true, callback);
             }
             else
             {
@@ -613,6 +635,8 @@ public class HttpOutput extends ServletOutputStream
                 {
                     channelWrite(content, true, blocker);
                     b.block();
+                    if (aggregate != null)
+                        aggregate.release();
                     onWriteComplete(true, null);
                 }
                 catch (Throwable t)
