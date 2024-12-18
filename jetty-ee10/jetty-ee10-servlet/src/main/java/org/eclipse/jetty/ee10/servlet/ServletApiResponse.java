@@ -350,12 +350,18 @@ public class ServletApiResponse implements HttpServletResponse
         if (isCommitted())
             return;
 
-        if (len > 0)
-            getResponse().getHeaders().put(HttpHeader.CONTENT_LENGTH, len);
-        else if (len == 0)
-            getResponse().getHeaders().put(HttpFields.CONTENT_LENGTH_0);
+        if (len >= 0)
+        {
+            getServletChannel().getHttpOutput().setApplicationContentLength(len);
+            if (len > 0)
+                getResponse().getHeaders().put(HttpHeader.CONTENT_LENGTH, len);
+            else
+                getResponse().getHeaders().put(HttpFields.CONTENT_LENGTH_0);
+        }
         else
+        {
             getResponse().getHeaders().remove(HttpHeader.CONTENT_LENGTH);
+        }
     }
 
     @Override
