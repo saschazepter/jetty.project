@@ -350,8 +350,8 @@ public class ServletApiResponse implements HttpServletResponse
                 // We must use an implementation of AbstractOutputStreamWriter here as we rely on the non cached characters
                 // in the writer implementation for flush and completion operations.
                 WriteThroughWriter outputStreamWriter = WriteThroughWriter.newWriter(getServletChannel().getHttpOutput(), encoding);
-                getServletResponseInfo().setWriter(writer = new ResponseWriter(
-                    outputStreamWriter, locale, encoding));
+                writer = new ResponseWriter(outputStreamWriter, locale, encoding);
+                getServletResponseInfo().setWriter(writer);
             }
 
             // Set the output type at the end, because setCharacterEncoding() checks for it.
