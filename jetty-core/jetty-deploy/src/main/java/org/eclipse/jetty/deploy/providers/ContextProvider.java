@@ -718,11 +718,11 @@ public class ContextProvider extends ScanningAppProvider
         // syntax to skip setting of an environment attribute if property is unset,
         // allowing the in code values to be same defaults as they are in embedded-jetty.
 
-        private final Environment environment;
+        private final Environment _environment;
 
         private EnvironmentConfig(Environment environment)
         {
-            this.environment = environment;
+            this._environment = environment;
         }
 
         /**
@@ -745,9 +745,9 @@ public class ContextProvider extends ScanningAppProvider
         public void setConfigurationClasses(String[] configurations)
         {
             if (configurations == null)
-                environment.removeAttribute(Deployable.CONFIGURATION_CLASSES);
+                _environment.removeAttribute(Deployable.CONFIGURATION_CLASSES);
             else
-                environment.setAttribute(Deployable.CONFIGURATION_CLASSES, configurations);
+                _environment.setAttribute(Deployable.CONFIGURATION_CLASSES, configurations);
         }
 
         /**
@@ -758,7 +758,7 @@ public class ContextProvider extends ScanningAppProvider
          */
         public void setContainerScanJarPattern(String pattern)
         {
-            environment.setAttribute(Deployable.CONTAINER_SCAN_JARS, pattern);
+            _environment.setAttribute(Deployable.CONTAINER_SCAN_JARS, pattern);
         }
 
         /**
@@ -776,7 +776,7 @@ public class ContextProvider extends ScanningAppProvider
          */
         public void setContextHandlerClass(String classname)
         {
-            environment.setAttribute(Deployable.CONTEXT_HANDLER_CLASS_DEFAULT, classname);
+            _environment.setAttribute(Deployable.CONTEXT_HANDLER_CLASS_DEFAULT, classname);
         }
 
         /**
@@ -788,7 +788,7 @@ public class ContextProvider extends ScanningAppProvider
          */
         public void setDefaultsDescriptor(String defaultsDescriptor)
         {
-            environment.setAttribute(Deployable.DEFAULTS_DESCRIPTOR, defaultsDescriptor);
+            _environment.setAttribute(Deployable.DEFAULTS_DESCRIPTOR, defaultsDescriptor);
         }
 
         /**
@@ -799,7 +799,7 @@ public class ContextProvider extends ScanningAppProvider
          */
         public void setExtractWars(boolean extractWars)
         {
-            environment.setAttribute(Deployable.EXTRACT_WARS, extractWars);
+            _environment.setAttribute(Deployable.EXTRACT_WARS, extractWars);
         }
 
         /**
@@ -810,7 +810,7 @@ public class ContextProvider extends ScanningAppProvider
          */
         public void setParentLoaderPriority(boolean parentLoaderPriority)
         {
-            environment.setAttribute(Deployable.PARENT_LOADER_PRIORITY, parentLoaderPriority);
+            _environment.setAttribute(Deployable.PARENT_LOADER_PRIORITY, parentLoaderPriority);
         }
 
         /**
@@ -821,7 +821,7 @@ public class ContextProvider extends ScanningAppProvider
          */
         public void setServletContainerInitializerExclusionPattern(String pattern)
         {
-            environment.setAttribute(Deployable.SCI_EXCLUSION_PATTERN, pattern);
+            _environment.setAttribute(Deployable.SCI_EXCLUSION_PATTERN, pattern);
         }
 
         /**
@@ -832,7 +832,7 @@ public class ContextProvider extends ScanningAppProvider
          */
         public void setServletContainerInitializerOrder(String order)
         {
-            environment.setAttribute(Deployable.SCI_ORDER, order);
+            _environment.setAttribute(Deployable.SCI_ORDER, order);
         }
 
         /**
@@ -843,7 +843,7 @@ public class ContextProvider extends ScanningAppProvider
          */
         public void setWebInfScanJarPattern(String pattern)
         {
-            environment.setAttribute(Deployable.WEBINF_SCAN_JARS, pattern);
+            _environment.setAttribute(Deployable.WEBINF_SCAN_JARS, pattern);
         }
     }
 
