@@ -37,13 +37,13 @@ public class VirtualThreadsTest extends AbstractTest
 {
     @ParameterizedTest
     @MethodSource("transports")
-    public void testHandlerInvokedOnVirtualThread(Transport transport) throws Exception
+    public void testHandlerInvokedOnVirtualThread(TransportType transportType) throws Exception
     {
         // No virtual thread support in FCGI server-side.
-        Assumptions.assumeTrue(transport != Transport.FCGI);
+        Assumptions.assumeTrue(transportType != TransportType.FCGI);
 
         String virtualThreadsName = "green-";
-        prepareServer(transport, new Handler.Abstract()
+        prepareServer(transportType, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback)
@@ -63,12 +63,12 @@ public class VirtualThreadsTest extends AbstractTest
             ((VirtualThreads.Configurable)threadPool).setVirtualThreadsExecutor(virtualThreadsExecutor);
         }
         server.start();
-        startClient(transport);
+        startClient(transportType);
 
-        ContentResponse response = client.newRequest(newURI(transport))
+        ContentResponse response = client.newRequest(newURI(transportType))
             .timeout(5, TimeUnit.SECONDS)
             .send();
 
-        assertEquals(HttpStatus.OK_200, response.getStatus(), " for transport " + transport);
+        assertEquals(HttpStatus.OK_200, response.getStatus(), " for transport " + transportType);
     }
 }

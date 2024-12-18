@@ -791,13 +791,13 @@ public class CustomRequestLogTest
         });
 
         HttpTester.Response response = getResponse("""
-            GET / HTTP/1.1
-            Host: localhost
-            Transfer-Encoding: chunked
-            
-            0
-            trailerName: 42
-            
+            GET / HTTP/1.1\r
+            Host: localhost\r
+            Transfer-Encoding: chunked\r
+            \r
+            0\r
+            trailerName: 42\r
+            \r
             """);
         assertEquals(HttpStatus.OK_200, response.getStatus());
         String log = _logs.poll(5, TimeUnit.SECONDS);

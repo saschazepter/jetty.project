@@ -37,9 +37,9 @@ public class InformationalResponseTest extends AbstractTest
 {
     @ParameterizedTest
     @MethodSource("transportsNoFCGI")
-    public void test102Processing(Transport transport) throws Exception
+    public void test102Processing(TransportType transportType) throws Exception
     {
-        start(transport, new HttpServlet()
+        start(transportType, new HttpServlet()
         {
             @Override
             protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException
@@ -64,7 +64,7 @@ public class InformationalResponseTest extends AbstractTest
                 completeLatch.countDown();
             }
         };
-        client.newRequest(newURI(transport))
+        client.newRequest(newURI(transportType))
             .method("GET")
             .timeout(10, TimeUnit.SECONDS)
             .send(listener);
@@ -76,9 +76,9 @@ public class InformationalResponseTest extends AbstractTest
 
     @ParameterizedTest
     @MethodSource("transportsNoFCGI")
-    public void test103EarlyHint(Transport transport) throws Exception
+    public void test103EarlyHint(TransportType transportType) throws Exception
     {
-        start(transport, new HttpServlet()
+        start(transportType, new HttpServlet()
         {
             @Override
             protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException
@@ -106,7 +106,7 @@ public class InformationalResponseTest extends AbstractTest
                 complete.countDown();
             }
         };
-        client.newRequest(newURI(transport))
+        client.newRequest(newURI(transportType))
             .method("GET")
             .timeout(5, TimeUnit.SECONDS)
             .send(listener);
