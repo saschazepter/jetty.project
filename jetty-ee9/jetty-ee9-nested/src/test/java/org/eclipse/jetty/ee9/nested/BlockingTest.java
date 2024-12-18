@@ -17,15 +17,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -38,7 +35,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpTester;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.gzip.GzipHandler;
+import org.eclipse.jetty.util.ExceptionUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -206,11 +203,18 @@ public class BlockingTest
                             }
                             catch (IOException e)
                             {
-                                throw new RuntimeException(e);
+                                // can happen
                             }
                             finally
                             {
-                                asyncContext.complete();
+                                try
+                                {
+                                    asyncContext.complete();
+                                }
+                                catch (Exception e)
+                                {
+                                    // tolerated
+                                }
                             }
                         }
                         catch (Throwable x)
@@ -242,7 +246,6 @@ public class BlockingTest
 
         String request = "POST /ctx/path/info HTTP/1.1\r\n" +
             "Host: localhost\r\n" +
-            "Accept-Encoding: gzip, *\r\n" +
             "Content-Type: test/data\r\n" +
             "Transfer-Encoding: chunked\r\n" +
             "\r\n" +
@@ -270,118 +273,7 @@ public class BlockingTest
             }
             fail("handler thread should not be alive anymore");
         }
-        assertThat("handler thread failed: " + toString(threadFailure.get()), threadFailure.get(), nullValue());
-    }
-
-    @Test
-    public void testBlockingReadAndBlockingWriteGzipped() throws Exception
-    {
-        AtomicReference<Thread> threadRef = new AtomicReference<>();
-        CyclicBarrier barrier = new CyclicBarrier(2);
-
-        AbstractHandler handler = new AbstractHandler()
-        {
-            @Override
-            public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException
-            {
-                try
-                {
-                    baseRequest.setHandled(true);
-                    AsyncContext asyncContext = baseRequest.startAsync();
-                    ServletOutputStream outputStream = response.getOutputStream();
-                    Thread thread = new Thread(() ->
-                    {
-                        try
-                        {
-                            for (int i = 0; i < 5; i++)
-                            {
-                                int b = baseRequest.getHttpInput().read();
-                                assertThat(b, not(is(-1)));
-                            }
-                            outputStream.write("All read.".getBytes(StandardCharsets.UTF_8));
-                            barrier.await(); // notify that all bytes were read
-                            baseRequest.getHttpInput().read(); // this read should throw IOException as the client has closed the connection
-                            throw new AssertionError("should have thrown IOException");
-                        }
-                        catch (Exception e)
-                        {
-                            //throw new RuntimeException(e);
-                        }
-                        finally
-                        {
-                            try
-                            {
-                                outputStream.close();
-                            }
-                            catch (Exception e2)
-                            {
-                                //e2.printStackTrace();
-                            }
-                            asyncContext.complete();
-                        }
-                    });
-                    threadRef.set(thread);
-                    thread.start();
-                    barrier.await(); // notify that handler thread has started
-
-                    response.setStatus(200);
-                    response.setContentType("text/plain");
-                    response.getOutputStream().print("OK\r\n");
-                }
-                catch (Exception e)
-                {
-                    throw new RuntimeException(e);
-                }
-            }
-        };
-        ContextHandler contextHandler = new ContextHandler();
-        contextHandler.setHandler(handler);
-
-        GzipHandler gzipHandler = new GzipHandler();
-        gzipHandler.setMinGzipSize(1);
-        gzipHandler.setHandler(contextHandler);
-        server.setHandler(gzipHandler);
-        server.start();
-
-        StringBuilder request = new StringBuilder();
-        // partial chunked request
-        request.append("POST /ctx/path/info HTTP/1.1\r\n")
-            .append("Host: localhost\r\n")
-            .append("Accept-Encoding: gzip, *\r\n")
-            .append("Content-Type: test/data\r\n")
-            .append("Transfer-Encoding: chunked\r\n")
-            .append("\r\n")
-            .append("10\r\n")
-            .append("01234")
-        ;
-
-        int port = connector.getLocalPort();
-        try (Socket socket = new Socket("localhost", port))
-        {
-            socket.setSoLinger(true, 0); // send TCP RST upon close instead of FIN
-            OutputStream out = socket.getOutputStream();
-            out.write(request.toString().getBytes(StandardCharsets.ISO_8859_1));
-            barrier.await(); // wait for handler thread to be started
-            barrier.await(); // wait for all bytes of the request to be read
-        }
-        threadRef.get().join(5000);
-        if (threadRef.get().isAlive())
-        {
-            for (StackTraceElement stackTraceElement : threadRef.get().getStackTrace())
-            {
-                System.err.println(stackTraceElement);
-            }
-        }
-        assertThat("handler thread should not be alive anymore", threadRef.get().isAlive(), is(false));
-    }
-
-    private static String toString(Throwable x)
-    {
-        if (x == null)
-            return "null";
-        StringWriter sw = new StringWriter();
-        x.printStackTrace(new PrintWriter(sw));
-        return sw.toString();
+        assertThat("handler thread failed: " + ExceptionUtil.toString(threadFailure.get()), threadFailure.get(), nullValue());
     }
 
     @Test

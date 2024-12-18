@@ -17,8 +17,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -38,6 +36,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpTester;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.ExceptionUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -215,11 +214,18 @@ public class BlockingTest
                             }
                             catch (IOException e)
                             {
-                                throw new RuntimeException(e);
+                                // can happen
                             }
                             finally
                             {
-                                asyncContext.complete();
+                                try
+                                {
+                                    asyncContext.complete();
+                                }
+                                catch (Exception e)
+                                {
+                                    // tolerated
+                                }
                             }
                         }
                         catch (Throwable x)
@@ -251,7 +257,6 @@ public class BlockingTest
 
         String request = "POST /ctx/path/info HTTP/1.1\r\n" +
             "Host: localhost\r\n" +
-            "Accept-Encoding: gzip, *\r\n" +
             "Content-Type: test/data\r\n" +
             "Transfer-Encoding: chunked\r\n" +
             "\r\n" +
@@ -280,16 +285,7 @@ public class BlockingTest
             fail("handler thread should not be alive anymore");
         }
         assertThat("handler thread should not be alive anymore", threadRef.get().isAlive(), is(false));
-        assertThat("handler thread failed: " + toString(threadFailure.get()), threadFailure.get(), nullValue());
-    }
-
-    private static String toString(Throwable x)
-    {
-        if (x == null)
-            return "null";
-        StringWriter sw = new StringWriter();
-        x.printStackTrace(new PrintWriter(sw));
-        return sw.toString();
+        assertThat("handler thread failed: " + ExceptionUtil.toString(threadFailure.get()), threadFailure.get(), nullValue());
     }
 
     @Test

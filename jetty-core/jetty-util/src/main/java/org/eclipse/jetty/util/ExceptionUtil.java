@@ -13,6 +13,8 @@
 
 package org.eclipse.jetty.util;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.List;
@@ -464,6 +466,15 @@ public class ExceptionUtil
         {
             throw new RuntimeException(e.getCause());
         }
+    }
+
+    public static String toString(Throwable x)
+    {
+        if (x == null)
+            return "null";
+        StringWriter sw = new StringWriter();
+        x.printStackTrace(new PrintWriter(sw));
+        return sw.toString();
     }
 
     private ExceptionUtil()
