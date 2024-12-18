@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -36,6 +37,7 @@ import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.annotation.ManagedOperation;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 import org.eclipse.jetty.util.component.LifeCycle;
+import org.eclipse.jetty.util.resource.PathCollators;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.resource.Resources;
@@ -57,24 +59,28 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
     private boolean _useRealPaths;
     private boolean _deferInitialScan = false;
 
-    private final Scanner.DiscreteListener _scannerListener = new Scanner.DiscreteListener()
+    private final Scanner.BulkListener _scannerBulkListener = new Scanner.BulkListener()
     {
         @Override
-        public void pathAdded(Path path) throws Exception
+        public void pathsChanged(Set<Path> paths) throws Exception
         {
-            ScanningAppProvider.this.pathAdded(path);
+            List<Path> sortedPaths = paths.stream()
+                .sorted(PathCollators.byName(true))
+                .toList();
+
+            for (Path path : sortedPaths)
+            {
+                if (Files.exists(path))
+                    ScanningAppProvider.this.pathChanged(path);
+                else
+                    ScanningAppProvider.this.pathRemoved(path);
+            }
         }
 
         @Override
-        public void pathChanged(Path path) throws Exception
+        public void filesChanged(Set<String> filenames) throws Exception
         {
-            ScanningAppProvider.this.pathChanged(path);
-        }
-
-        @Override
-        public void pathRemoved(Path path) throws Exception
-        {
-            ScanningAppProvider.this.pathRemoved(path);
+            // ignore, as we are using the pathsChanged() technique only.
         }
     };
 
@@ -176,7 +182,7 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
         _scanner.setFilenameFilter(_filenameFilter);
         _scanner.setReportDirs(true);
         _scanner.setScanDepth(1); //consider direct dir children of monitored dir
-        _scanner.addListener(_scannerListener);
+        _scanner.addListener(_scannerBulkListener);
         _scanner.setReportExistingFilesOnStartup(true);
         _scanner.setAutoStartScanning(!_deferInitialScan);
         addBean(_scanner);
@@ -211,7 +217,7 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
         if (_scanner != null)
         {
             removeBean(_scanner);
-            _scanner.removeListener(_scannerListener);
+            _scanner.removeListener(_scannerBulkListener);
             _scanner = null;
         }
     }
