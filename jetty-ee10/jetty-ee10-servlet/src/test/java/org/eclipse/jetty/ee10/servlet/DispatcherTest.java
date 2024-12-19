@@ -145,8 +145,7 @@ public class DispatcherTest
 
         assertEquals(expected, rawResponse);
     }
-
-
+    
     @Test
     public void testMultiPartForwardAttribute() throws Exception
     {
