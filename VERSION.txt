@@ -1,3 +1,5 @@
+jetty-12.1.0-SNAPSHOT
+
 jetty-12.1.0.alpha1 - 19 December 2024
  + 3377 Improve jetty-ssl-context.xml
  + 5308 Extract httpConfig and scheduler configuration out of jetty.xml
