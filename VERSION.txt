@@ -1,4 +1,49 @@
-jetty-12.1.0-SNAPSHOT
+jetty-12.1.0.alpha1 - 19 December 2024
+ + 3377 Improve jetty-ssl-context.xml
+ + 5308 Extract httpConfig and scheduler configuration out of jetty.xml
+ + 8768 JSON support for Java 16+ Records
+ + 9051 Review Jetty-12 DelayedHandler
+ + 9206 Review 100 continue handling in Jetty 12
+ + 9529 Expose TCP connection establishment information
+ + 11307 Explicit demand control in WebSocket endpoints with only
+   onWebSocketFrame()
+ + 11325 Review content-length check in ServletChannel
+ + 11413 Conscrypt does not support server-side SNI
+ + 11579 Introduce `UriCompliance.Violation.FRAGMENT` to reject HTTP Request
+   Line that includes fragment section.
+ + 11947 Jetty12: HttpConfiguration#_relativeRedirectAllowed flipped to true
+   per default
+ + 12153 Failed to serve resource java.lang.IllegalStateException: s=HANDLING
+   rs=ASYNC os=OPEN is=IDLE awp=false se=false i=true al=0
+ + 12266 InvocationType improvements and cleanups
+ + 12272 Potential deadlock with Vaadin
+ + 12323 AsyncMiddleManServlet response flushing
+ + 12324 Response compression does not work when the `Accept-Encoding: *`
+   request header is used.
+ + 12429 HandshakeRequest getHeaders are case sensitive.
+ + 12436 Allow headers size extend to maxRequestHeadersSize in http client
+ + 12469 Content.Sink.write(sink, last, utf8Content, callback) could become
+   faster
+ + 12481 Exception when a Content-Length is set on a 304 response
+ + 12482 CustomRequestLog %q inconsistency with a doc
+ + 12488 HTTP/2 headers may not be split in CONTINUATION frames
+ + 12496 MultiPartFormData.Parser question.
+ + 12505 `ErrorPageErrorHandler` does not use the proper attributes for error
+   handling
+ + 12520 Numerous stack traces logged at warning level when running under
+   HTTP/2 (regression in 12.0.15)
+ + 12553 Execute immediately HTTP/2 failures
+ + 12558 Document graceful shutdown
+ + 12577 org.eclipse.jetty.http.HttpURI.getDecodedPath() throws an NPE when
+   there is no path
+ + 12578 HttpServletRequest.getParameterMap - UnmodifiableMap does not wrap a
+   jetty MultiMap
+ + 12588 oejhs.AbstractHTTP2ServerConnectionFactory installs the
+   HTTP2SessionContainer bean twice
+ + 12603 ee9 / UnsupportedOperationException: Read Only
+ + 12612 Use Compression classes for client decoding
+ + 12625 Request.getBeginNanoTime returns invalid values
+ + 12646 CompleteListener may be invoked twice
 
 jetty-12.1.0.alpha0 - 05 November 2024
  + 842 Implement RFC7239 support in Proxy and Middleman
@@ -6,7 +51,8 @@ jetty-12.1.0.alpha0 - 05 November 2024
    throws "Response header too large" exception
  + 5888 Limit usage of HTTP/2 connections
  + 6328 High CPU usage of method handle invocations in Jetty 10
- + 8769 Introduce new CompressionHandler with support for gzip, brotli, and zstandard
+ + 8769 Introduce new CompressionHandler with support for gzip, brotli, and
+   zstandard
  + 8790 Jetty-12 HttpContent should have an async API
  + 9778 Jetty 12 - Remove WriteFlusher.Listener
  + 9980 Add format option to CustomRequestLog for request authority and request
@@ -22,10 +68,10 @@ jetty-12.1.0.alpha0 - 05 November 2024
  + 11815 Servlet spec 6.1 issue 300
  + 11934 servlet 6.1 tck cookie test errors
  + 11956 Consider re-introducing `ByteBufferPool.NON_POOLING` constant
- + 12023 [12.1.x] Remove deprecated classes/methods
+ + 12023 12.1.x] Remove deprecated classes/methods
  + 12082 `RetainableByteBuffer.DynamicCapacity` enters a corrupt state when
    released
- + 12184 [12.1.x] Change urls https://eclipse.dev to https://jetty.org
+ + 12184 12.1.x] Change urls https://eclipse.dev to https://jetty.org
  + 12195 Integrate Eclipse Dash License Tool to our build
  + 12214 ThreadStarvation Testing
  + 12268 `IteratingCallback` may iterate too much when `process()` returns
@@ -102,7 +148,7 @@ jetty-12.0.14 - 30 September 2024
    is enabled.
  + 12268 `IteratingCallback` may iterate too much when `process()` returns
    Action.IDLE
- + 12279 org.eclipse.jetty.maven.ServerSupport.configureHandlers(Server,
+ + 12279 org.eclipse.jetty.maven.ServerSupport.configureHandlers(Server
    List<ContextHandler>, RequestLog)  removes handlers
  + 12284 Excessive heap consumption by SSLSessionImpl by Jetty Server with TLS
    1.3 and long-lived client
