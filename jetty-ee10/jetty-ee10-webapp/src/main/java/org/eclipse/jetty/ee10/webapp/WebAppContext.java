@@ -988,14 +988,15 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
         name = String.format("%s@%x", name, hashCode());
 
         dumpObjects(out, indent,
-            Dumpable.named("maxFormKeys ", getMaxFormKeys()),
-            Dumpable.named("maxFormContentSize ", getMaxFormContentSize()),
+            Dumpable.named("environment", ServletContextHandler.ENVIRONMENT.getName()),
             new ClassLoaderDump(getClassLoader()),
             new DumpableCollection("Systemclasses " + name, systemClasses),
             new DumpableCollection("Serverclasses " + name, serverClasses),
             new DumpableCollection("Configurations " + name, _configurations),
             new DumpableCollection("Handler attributes " + name, asAttributeMap().entrySet()),
             new DumpableCollection("Context attributes " + name, getContext().asAttributeMap().entrySet()),
+            Dumpable.named("maxFormKeys ", getMaxFormKeys()),
+            Dumpable.named("maxFormContentSize ", getMaxFormContentSize()),
             new DumpableCollection("EventListeners " + this, getEventListeners()),
             new DumpableCollection("Initparams " + name, getInitParams().entrySet())
         );

@@ -319,11 +319,11 @@ public class ServletContextHandler extends ContextHandler
     public void dump(Appendable out, String indent) throws IOException
     {
         dumpObjects(out, indent,
-            Dumpable.named("maxFormKeys ", getMaxFormKeys()),
-            Dumpable.named("maxFormContentSize ", getMaxFormContentSize()),
             new ClassLoaderDump(getClassLoader()),
             Dumpable.named("context " + this, getContext()),
             Dumpable.named("handler attributes " + this, getContext().getPersistentAttributes()),
+            Dumpable.named("maxFormKeys ", getMaxFormKeys()),
+            Dumpable.named("maxFormContentSize ", getMaxFormContentSize()),
             new DumpableCollection("initparams " + this, getInitParams().entrySet()));
     }
 

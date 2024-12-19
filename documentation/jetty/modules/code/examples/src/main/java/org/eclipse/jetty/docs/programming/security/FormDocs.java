@@ -15,16 +15,16 @@ package org.eclipse.jetty.docs.programming.security;
 
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 
-public class FormSizeDocs
+public class FormDocs
 {
-    public void example()
+    public void limitFormContent()
     {
         ServletContextHandler servletContextHandler = new ServletContextHandler();
-        int maxSizeInBytes = 1024;
-        int formKeys = 100;
-        // tag::formSizeConfig[]
-        servletContextHandler.setMaxFormContentSize(maxSizeInBytes);
-        servletContextHandler.setMaxFormKeys(formKeys);
-        // end::formSizeConfig[]
+        // tag::limitFormContent[]
+        int maxFormKeys = 100;
+        int maxFormSizeInBytes = 1024;
+        servletContextHandler.setMaxFormContentSize(maxFormSizeInBytes);
+        servletContextHandler.setMaxFormKeys(maxFormKeys);
+        // end::limitFormContent[]
     }
 }
