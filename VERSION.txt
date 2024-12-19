@@ -1,3 +1,5 @@
+jetty-9.4.58-SNAPSHOT
+
 jetty-9.4.57.v20241219 - 19 December 2024
  + 12268 `IteratingCallback` may iterate too much when `process()` returns
    Action.IDLE
