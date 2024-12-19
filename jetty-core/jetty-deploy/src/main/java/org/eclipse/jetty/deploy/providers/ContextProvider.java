@@ -250,10 +250,7 @@ public class ContextProvider extends ScanningAppProvider
         {
             throw new IllegalStateException("Unknown ContextHandler class " + contextHandlerClassName + " for " + app + " in environment " + app.getEnvironmentName());
         }
-        else
-        {
-            return contextClass.getConstructor().newInstance();
-        }
+        return contextClass.getConstructor().newInstance();
     }
 
     /**
