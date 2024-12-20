@@ -589,12 +589,16 @@ public class ContextProvider extends ScanningAppProvider
 
         String contextPath = (String)attributes.getAttribute(Deployable.CONTEXT_PATH);
         if (StringUtil.isNotBlank(contextPath))
+        {
+            if (LOG.isDebugEnabled())
+                LOG.debug("Context {} initialized with contextPath: {}", contextHandler, contextPath);
             contextHandler.setContextPath(contextPath);
+        }
     }
 
-    protected void initializeContextPath(ContextHandler context, Path path)
+    protected void initializeContextPath(ContextHandler contextHandler, Path path)
     {
-        if (context == null)
+        if (contextHandler == null)
             return;
 
         // Strip any 3 char extension from non directories
@@ -611,7 +615,7 @@ public class ContextProvider extends ScanningAppProvider
         {
             int dash = contextPath.indexOf('-');
             String virtual = contextPath.substring(dash + 1);
-            context.setVirtualHosts(Arrays.asList(virtual.split(",")));
+            contextHandler.setVirtualHosts(Arrays.asList(virtual.split(",")));
             contextPath = "/";
         }
 
@@ -619,8 +623,12 @@ public class ContextProvider extends ScanningAppProvider
         if (contextPath.charAt(0) != '/')
             contextPath = "/" + contextPath;
 
-        context.setDisplayName(basename);
-        context.setContextPath(contextPath);
+        if (LOG.isDebugEnabled())
+            LOG.debug("ContextHandler {} initialized with displayName: {}", contextHandler, basename);
+        contextHandler.setDisplayName(basename);
+        if (LOG.isDebugEnabled())
+            LOG.debug("ContextHandler {} initialized with contextPath: {}", contextHandler, contextPath);
+        contextHandler.setContextPath(contextPath);
     }
 
     protected boolean isDeployable(Path path)

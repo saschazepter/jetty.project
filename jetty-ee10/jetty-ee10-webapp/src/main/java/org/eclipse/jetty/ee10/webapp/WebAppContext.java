@@ -236,11 +236,10 @@ public class WebAppContext extends ServletContextHandler implements WebAppClassL
                 default ->
                 {
                     if (LOG.isDebugEnabled())
-                        LOG.debug("unknown property {}={}", keyName, value);
+                        LOG.debug("skipped init property {}={}", keyName, value);
                 }
             }
         }
-        _defaultContextPath = true;
     }
 
     public boolean isContextPathDefault()
