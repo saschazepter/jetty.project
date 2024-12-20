@@ -15,6 +15,7 @@ package org.eclipse.jetty.http3.client.transport.internal;
 
 import java.io.EOFException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.Executor;
 
 import org.eclipse.jetty.client.transport.HttpExchange;
 import org.eclipse.jetty.client.transport.HttpReceiver;
@@ -28,6 +29,7 @@ import org.eclipse.jetty.http3.frames.HeadersFrame;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.thread.Invocable;
+import org.eclipse.jetty.util.thread.SerializedInvoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +37,13 @@ public class HttpReceiverOverHTTP3 extends HttpReceiver
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpReceiverOverHTTP3.class);
 
+    private final SerializedInvoker invoker;
+
     protected HttpReceiverOverHTTP3(HttpChannelOverHTTP3 channel)
     {
         super(channel);
+        Executor executor = channel.getHttpDestination().getHttpClient().getExecutor();
+        invoker = new SerializedInvoker(getClass().getSimpleName(), executor);
     }
 
     @Override
@@ -99,7 +105,7 @@ public class HttpReceiverOverHTTP3 extends HttpReceiver
         if (exchange == null)
             return null;
 
-        return new Invocable.ReadyTask(getHttpConnection().getInvocationType(), () ->
+        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), () ->
         {
             HttpResponse httpResponse = exchange.getResponse();
             MetaData.Response response = (MetaData.Response)frame.getMetaData();
@@ -116,7 +122,7 @@ public class HttpReceiverOverHTTP3 extends HttpReceiver
             // TODO: add support for HttpMethod.CONNECT.
 
             responseHeaders(exchange);
-        });
+        }));
     }
 
     Runnable onDataAvailable()
@@ -128,7 +134,7 @@ public class HttpReceiverOverHTTP3 extends HttpReceiver
         if (exchange == null)
             return null;
 
-        return new Invocable.ReadyTask(getInvocationType(), () -> responseContentAvailable(exchange));
+        return invoker.offer(new Invocable.ReadyTask(getInvocationType(), () -> responseContentAvailable(exchange)));
     }
 
     Runnable onTrailer(HeadersFrame frame)
@@ -140,7 +146,7 @@ public class HttpReceiverOverHTTP3 extends HttpReceiver
         HttpFields trailers = frame.getMetaData().getHttpFields();
         trailers.forEach(exchange.getResponse()::trailer);
 
-        return new Invocable.ReadyTask(getInvocationType(), () -> responseSuccess(exchange, null));
+        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), () -> responseSuccess(exchange, null)));
     }
 
     Runnable onIdleTimeout(Throwable failure, Promise<Boolean> promise)
@@ -151,11 +157,13 @@ public class HttpReceiverOverHTTP3 extends HttpReceiver
             promise.succeeded(false);
             return null;
         }
-        return () -> exchange.abort(failure, Promise.from(aborted -> promise.succeeded(!aborted), promise::failed));
+        Runnable task = () -> promise.completeWith(exchange.getRequest().abort(failure));
+        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task));
     }
 
     Runnable onFailure(Throwable failure)
     {
-        return () -> responseFailure(failure, Promise.noop());
+        Runnable task = () -> responseFailure(failure, Promise.noop());
+        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task));
     }
 }

@@ -259,12 +259,10 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
             return null;
         }
 
-        return invoker.offer(() ->
-        {
-            int error = frame.getError();
-            IOException failure = new IOException(ErrorCode.toString(error, "reset_code_" + error));
-            callback.completeWith(exchange.getRequest().abort(failure));
-        });
+        int error = frame.getError();
+        IOException failure = new IOException(ErrorCode.toString(error, "reset_code_" + error));
+        Runnable task = () -> callback.completeWith(exchange.getRequest().abort(failure));
+        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task));
     }
 
     @Override
@@ -276,12 +274,14 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
             promise.succeeded(false);
             return null;
         }
-        return invoker.offer(() -> promise.completeWith(exchange.getRequest().abort(failure)));
+        Runnable task = () -> promise.completeWith(exchange.getRequest().abort(failure));
+        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task));
     }
 
     @Override
     public Runnable onFailure(Throwable failure, Callback callback)
     {
-        return invoker.offer(() -> responseFailure(failure, Promise.from(failed -> callback.succeeded(), callback::failed)));
+        Runnable task = () -> responseFailure(failure, Promise.from(failed -> callback.succeeded(), callback::failed));
+        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task));
     }
 }
