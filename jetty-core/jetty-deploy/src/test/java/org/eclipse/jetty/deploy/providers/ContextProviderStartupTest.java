@@ -35,6 +35,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -112,7 +113,7 @@ public class ContextProviderStartupTest
         ContextHandler context = jetty.getContextHandler("/bar");
         assertNotNull(context);
         assertThat(context.getAttribute("core-context-0"), equalTo("core-context-0"));
-        assertTrue(context instanceof BarContextHandler);
+        assertThat(context, instanceOf(BarContextHandler.class));
         //check core-context-other.xml was applied to the produced context
         assertThat(context.getAttribute("other"), equalTo("othervalue"));
         //check core-context-other.xml was applied AFTER core-context.xml
@@ -138,7 +139,7 @@ public class ContextProviderStartupTest
         ContextHandler context = jetty.getContextHandler("/bar");
         assertNotNull(context);
         assertThat(context.getAttribute("core-context-0"), equalTo("core-context-0"));
-        assertTrue(context instanceof BarContextHandler);
+        assertThat(context, instanceOf(BarContextHandler.class));
         //check core-context-other.xml was applied to the produced context
         assertThat(context.getAttribute("other"), equalTo("othervalue"));
         //check core-context-other.xml was applied AFTER core-context.xml
@@ -164,7 +165,7 @@ public class ContextProviderStartupTest
         //test that the context was deployed as expected and that the non-applicable properties files were ignored
         ContextHandler context = jetty.getContextHandler("/bar");
         assertNotNull(context);
-        assertTrue(context instanceof BarContextHandler);
+        assertThat(context, instanceOf(BarContextHandler.class));
     }
 
     /**

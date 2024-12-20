@@ -154,85 +154,41 @@ public class ContextProvider extends ScanningAppProvider
             // prepare app attributes to use for app deployment
             Attributes appAttributes = initAttributes(environment, app);
 
-            // check if there is a specific ContextHandler type to create set in the
-            // properties associated with the webapp. If there is, we create it _before_
-            // applying the environment xml file.
-            Object context = newContextInstance((String)appAttributes.getAttribute(Deployable.CONTEXT_HANDLER_CLASS), app);
-            initializeContextPath(getContextHandler(context), path);
-
-            // Collect the optional environment context xml files.
-            // Order them according to the name of their property key names.
-            List<Path> sortedEnvXmlPaths = appAttributes.getAttributeNameSet()
-                .stream()
-                .filter(k -> k.startsWith(Deployable.ENVIRONMENT_XML))
-                .map(k ->
-                {
-                    Path envXmlPath = Paths.get((String)appAttributes.getAttribute(k));
-                    if (!envXmlPath.isAbsolute())
-                    {
-                        Path monitoredPath = getMonitoredDirResource().getPath();
-                        // not all Resource implementations support java.nio.file.Path.
-                        if (monitoredPath != null)
-                        {
-                            envXmlPath = monitoredPath.getParent().resolve(envXmlPath);
-                        }
-                    }
-                    return envXmlPath;
-                })
-                .filter(Files::isRegularFile)
-                .sorted(PathCollators.byName(true))
-                .toList();
-
-            // apply each environment context xml file
-            for (Path envXmlPath : sortedEnvXmlPaths)
-            {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Applying environment specific context file {}", envXmlPath);
-                context = applyXml(context, envXmlPath, environment, appAttributes);
-            }
-
-            // Handle a context XML file
-            if (FileID.isXml(path))
-            {
-                context = applyXml(context, path, environment, appAttributes);
-            }
-            // Otherwise it must be a directory or an archive
-            else if (!Files.isDirectory(path) && !FileID.isWebArchive(path))
+            /*
+             * The process now is to figure out the context object to use.
+             * This can come from a number of places.
+             * 1. If an XML deployable, this is the <Configure class="contextclass"> entry.
+             * 2. If another deployable (like a web archive, or directory), then check attributes.
+             *    a. use the app attributes to figure out the context handler class.
+             *    b. use the environment attributes default context handler class.
+             */
+            Object context = newContextInstance(environment, app, appAttributes, path);
+            if (context == null)
             {
                 throw new IllegalStateException("unable to create ContextHandler for " + app);
             }
-            else
+            if (LOG.isDebugEnabled())
+                LOG.debug("Context {} created from app {}", context.getClass().getName(), app);
+
+            // Apply environment properties and XML to context
+            if (applyEnvironmentXml(context, environment, appAttributes))
             {
-                // If we reach this point, we don't have a Context XML Deployable.
-                // We are either a directory or a web archive (war)
-                // Set the WAR attribute to point to this directory or web-archive.
-                appAttributes.setAttribute(Deployable.WAR, path.toString());
+                // If an XML deployable, apply full XML over environment XML changes
+                if (FileID.isXml(path))
+                    context = applyXml(context, path, environment, appAttributes);
             }
 
-            if (context == null)
-            {
-                context = newContextInstance((String)environment.getAttribute(Deployable.CONTEXT_HANDLER_CLASS_DEFAULT), app);
-                initializeContextPath(getContextHandler(context), path);
-            }
+            // Set a backup value for the path to the war in case it hasn't already been set
+            // via a different means.  This is especially important for a deployable App
+            // that is only a <name>.war file (no XML).  The eventual WebInfConfiguration
+            // will use this attribute.
+            appAttributes.setAttribute(Deployable.WAR, path.toString());
 
-            if (context == null)
-            {
-                throw new IllegalStateException("ContextHandler class is null for app " + app);
-            }
-
-            // Look for the contextHandler itself
-            ContextHandler contextHandler = getContextHandler(context);
-            if (contextHandler == null)
-                throw new IllegalStateException("Unknown context type of " + context);
-
-            // Allow raw ContextHandler to be initialized properly
-            initializeContextHandler(contextHandler, path, appAttributes);
-
-            // Initialize deployable
-            if (contextHandler instanceof Deployable deployable)
+            // Initialize any deployable
+            if (context instanceof Deployable deployable)
                 deployable.initializeDefaults(appAttributes);
 
-            return contextHandler;
+            return getContextHandler(context);
         }
         finally
         {
@@ -240,17 +196,123 @@ public class ContextProvider extends ScanningAppProvider
         }
     }
 
-    private Object newContextInstance(String contextHandlerClassName, App app) throws Exception
+    /**
+     * Initialize a new Context object instance.
+     *
+     * <p>
+     * The search order is:
+     * </p>
+     * <ol>
+     * <li>If app attribute {@link Deployable#CONTEXT_HANDLER_CLASS} is specified, use it, and initialize context</li>
+     * <li>If App deployable path is XML, apply XML {@code <Configuration>}</li>
+     * <li>Fallback to environment attribute {@link Deployable#CONTEXT_HANDLER_CLASS_DEFAULT}, and initialize context.</li>
+     * </ol>
+     *
+     * @param environment the environment context applies to
+     * @param app the App for the context
+     * @param appAttributes the Attributes for the App
+     * @param path the path of the deployable
+     * @return the Context Object.
+     * @throws Exception if unable to create Object instance.
+     */
+    private Object newContextInstance(Environment environment, App app, Attributes appAttributes, Path path) throws Exception
     {
-        if (StringUtil.isBlank(contextHandlerClassName))
-            return null;
-
-        Class<?> contextClass = Loader.loadClass(contextHandlerClassName);
-        if (contextClass == null)
+        Object context = newInstance((String)appAttributes.getAttribute(Deployable.CONTEXT_HANDLER_CLASS));
+        if (context != null)
         {
-            throw new IllegalStateException("Unknown ContextHandler class " + contextHandlerClassName + " for " + app + " in environment " + app.getEnvironmentName());
+            ContextHandler contextHandler = getContextHandler(context);
+            if (contextHandler == null)
+                throw new IllegalStateException("Unknown context type of " + context);
+
+            initializeContextPath(contextHandler, path);
+            initializeContextHandler(contextHandler, path, appAttributes);
+            return context;
         }
-        return contextClass.getConstructor().newInstance();
+
+        if (FileID.isXml(path))
+        {
+            context = applyXml(null, path, environment, appAttributes);
+            ContextHandler contextHandler = getContextHandler(context);
+            if (contextHandler == null)
+                throw new IllegalStateException("Unknown context type of " + context);
+            return context;
+        }
+
+        // fallback to default from environment.
+        context = newInstance((String)environment.getAttribute(Deployable.CONTEXT_HANDLER_CLASS_DEFAULT));
+
+        if (context != null)
+        {
+            ContextHandler contextHandler = getContextHandler(context);
+            if (contextHandler == null)
+                throw new IllegalStateException("Unknown context type of " + context);
+
+            initializeContextPath(contextHandler, path);
+            initializeContextHandler(contextHandler, path, appAttributes);
+            return context;
+        }
+
+        return null;
+    }
+
+    private Object newInstance(String className) throws Exception
+    {
+        if (StringUtil.isBlank(className))
+            return null;
+        if (LOG.isDebugEnabled())
+            LOG.debug("Attempting to load class {}", className);
+        Class<?> clazz = Loader.loadClass(className);
+        if (clazz == null)
+            return null;
+        return clazz.getConstructor().newInstance();
+    }
+
+    /**
+     * Apply optional environment specific XML to context.
+     *
+     * @param context the context to apply environment specific behavior to
+     * @param environment the environment to use
+     * @param appAttributes the attributes of the app
+     * @return true it environment specific XML was applied.
+     * @throws Exception if unable to apply environment configuration.
+     */
+    private boolean applyEnvironmentXml(Object context, Environment environment, Attributes appAttributes) throws Exception
+    {
+        // Collect the optional environment context xml files.
+        // Order them according to the name of their property key names.
+        List<Path> sortedEnvXmlPaths = appAttributes.getAttributeNameSet()
+            .stream()
+            .filter(k -> k.startsWith(Deployable.ENVIRONMENT_XML))
+            .map(k ->
+            {
+                Path envXmlPath = Paths.get((String)appAttributes.getAttribute(k));
+                if (!envXmlPath.isAbsolute())
+                {
+                    Path monitoredPath = getMonitoredDirResource().getPath();
+                    // not all Resource implementations support java.nio.file.Path.
+                    if (monitoredPath != null)
+                    {
+                        envXmlPath = monitoredPath.getParent().resolve(envXmlPath);
+                    }
+                }
+                return envXmlPath;
+            })
+            .filter(Files::isRegularFile)
+            .sorted(PathCollators.byName(true))
+            .toList();
+
+        boolean xmlApplied = false;
+
+        // apply each environment context xml file
+        for (Path envXmlPath : sortedEnvXmlPaths)
+        {
+            if (LOG.isDebugEnabled())
+                LOG.debug("Applying environment specific context file {}", envXmlPath);
+            context = applyXml(context, envXmlPath, environment, appAttributes);
+            xmlApplied = true;
+        }
+
+        return xmlApplied;
     }
 
     /**
@@ -474,29 +536,30 @@ public class ContextProvider extends ScanningAppProvider
         return new URLClassLoader(urls.toArray(new URL[0]), Environment.CORE.getClassLoader());
     }
 
+    /**
+     * Find the {@link ContextHandler} for the provided {@link Object}
+     *
+     * @param context the raw context object
+     * @return the {@link ContextHandler} for the context, or null if no ContextHandler associated with context.
+     */
     private ContextHandler getContextHandler(Object context)
     {
         if (context == null)
             return null;
 
-        // find the ContextHandler
-        ContextHandler contextHandler;
         if (context instanceof ContextHandler handler)
-            contextHandler = handler;
-        else if (Supplier.class.isAssignableFrom(context.getClass()))
+            return handler;
+
+        if (Supplier.class.isAssignableFrom(context.getClass()))
         {
             @SuppressWarnings("unchecked")
             Supplier<ContextHandler> provider = (Supplier<ContextHandler>)context;
-            contextHandler = provider.get();
-        }
-        else
-        {
-            if (LOG.isDebugEnabled())
-                LOG.debug("Not a context {}", context);
-            return null;
+            return provider.get();
         }
 
-        return contextHandler;
+        if (LOG.isDebugEnabled())
+            LOG.debug("Not a context {}", context);
+        return null;
     }
 
     protected void initializeContextHandler(ContextHandler contextHandler, Path path, Attributes attributes)
@@ -506,13 +569,10 @@ public class ContextProvider extends ScanningAppProvider
 
         assert contextHandler != null;
 
-        if (contextHandler.getBaseResource() == null)
+        if (contextHandler.getBaseResource() == null && Files.isDirectory(path))
         {
-            if (Files.isDirectory(path))
-            {
-                ResourceFactory resourceFactory = ResourceFactory.of(contextHandler);
-                contextHandler.setBaseResource(resourceFactory.newResource(path));
-            }
+            ResourceFactory resourceFactory = ResourceFactory.of(contextHandler);
+            contextHandler.setBaseResource(resourceFactory.newResource(path));
         }
 
         // pass through properties as attributes directly

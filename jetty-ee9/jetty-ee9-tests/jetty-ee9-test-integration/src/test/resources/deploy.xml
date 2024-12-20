@@ -29,7 +29,7 @@
               <Set name="extractWars">true</Set>
               <Set name="containerScanJarPattern">
                 <Property name="jetty.deploy.containerScanJarPattern">
-                  <Default>.*/jakarta.servlet-api-[^/]*\.jar$|.*jakarta.servlet.jsp.jstl-.*\.jar$</Default>
+                  <Default>.*/jetty-jakarta-servlet-api-[^/]*\.jar$|.*jakarta.servlet.jsp.jstl-.*\.jar$</Default>
                 </Property>
               </Set>
               <Set name="webInfScanJarPattern" property="jetty.deploy.webInfScanJarPattern" />

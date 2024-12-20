@@ -153,7 +153,8 @@ public class DeploymentManager extends ContainerLifeCycle
      */
     public void addApp(App app)
     {
-        LOG.info("addApp: {}", app);
+        if (LOG.isDebugEnabled())
+            LOG.debug("addApp: {}", app);
         AppEntry entry = new AppEntry();
         entry.app = app;
         entry.setLifeCycleNode(_lifecycle.getNodeByName("undeployed"));
