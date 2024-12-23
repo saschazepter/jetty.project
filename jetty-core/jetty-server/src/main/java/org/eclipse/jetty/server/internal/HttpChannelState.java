@@ -1202,6 +1202,8 @@ public class HttpChannelState implements HttpChannel, Components
         @Override
         public void setStatus(int code)
         {
+            if (code < 100 || code > 999)
+                throw new IllegalArgumentException();
             if (!isCommitted())
                 _status = code;
         }
@@ -1333,6 +1335,7 @@ public class HttpChannelState implements HttpChannel, Components
                 httpChannel = _request.lockedGetHttpChannelState();
                 httpChannel.lockedStreamSendCompleted(true);
             }
+
             if (callback != null)
                 httpChannel._writeInvoker.run(callback::succeeded);
         }
@@ -1362,6 +1365,7 @@ public class HttpChannelState implements HttpChannel, Components
                 httpChannel = _request.lockedGetHttpChannelState();
                 httpChannel.lockedStreamSendCompleted(false);
             }
+
             if (callback != null)
                 httpChannel._writeInvoker.run(() -> HttpChannelState.failed(callback, x));
         }
