@@ -361,12 +361,13 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
                             if (LOG.isDebugEnabled())
                                 LOG.debug("Discarding unexpected content after response {}: {} in {}", status, BufferUtil.toDetailString(byteBuffer), this);
                             BufferUtil.clear(byteBuffer);
-                            return false;
+                            return true;
                         }
                     }
 
-                    // Continue to read from the network.
-                    return false;
+                    // Reading the next response will
+                    // be performed by receivedNext().
+                    return true;
                 }
                 default -> throw new IllegalStateException("Invalid state " + state);
             }
