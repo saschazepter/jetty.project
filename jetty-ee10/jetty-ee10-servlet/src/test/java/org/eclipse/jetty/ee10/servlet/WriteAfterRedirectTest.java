@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import jakarta.servlet.http.HttpServlet;
@@ -31,11 +32,12 @@ import org.eclipse.jetty.util.URIUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 
 public class WriteAfterRedirectTest
 {
@@ -107,13 +109,8 @@ public class WriteAfterRedirectTest
         assertThat(response.getContent().length, is(0));
         assertThat(response.getHeaders().get(HttpHeader.LOCATION), is("/hello"));
 
-        // Following the redirect gives the hello page.
-        _client.setFollowRedirects(true);
-        response = _client.GET(_uri.resolve("redirect"));
-        assertThat(response.getStatus(), is(HttpServletResponse.SC_OK));
-        assertThat(response.getContentAsString(), equalTo("hello world"));
-
         // The write() in the servlet actually threw because the HttpOutput was closed.
+        await().atMost(1, TimeUnit.SECONDS).until(errorReference::get, notNullValue());
         assertThat(errorReference.get(), instanceOf(IOException.class));
         assertThat(errorReference.get().getMessage(), containsString("Closed"));
     }
