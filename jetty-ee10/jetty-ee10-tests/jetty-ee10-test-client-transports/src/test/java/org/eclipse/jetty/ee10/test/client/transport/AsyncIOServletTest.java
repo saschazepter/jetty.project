@@ -1377,11 +1377,12 @@ public class AsyncIOServletTest extends AbstractTest
         client.newRequest(newURI(transportType))
             .method(HttpMethod.POST)
             .body(content)
-            .send(result ->
+            .onResponseHeaders(response ->
             {
-                Assertions.assertEquals(HttpStatus.REQUEST_TIMEOUT_408, result.getResponse().getStatus());
+                Assertions.assertEquals(HttpStatus.REQUEST_TIMEOUT_408, response.getStatus());
                 latch.countDown();
-            });
+            })
+            .send(null);
 
         // Wait for the server to idle timeout.
         Thread.sleep(2 * idleTimeout);
@@ -1389,6 +1390,7 @@ public class AsyncIOServletTest extends AbstractTest
         assertTrue(errorLatch.await(5, TimeUnit.SECONDS));
 
         // Do not send the content to the server.
+        // The exchange is not completed because the request is not completed.
 
         assertFalse(dataLatch.await(1, TimeUnit.SECONDS));
         assertTrue(latch.await(5, TimeUnit.SECONDS));
