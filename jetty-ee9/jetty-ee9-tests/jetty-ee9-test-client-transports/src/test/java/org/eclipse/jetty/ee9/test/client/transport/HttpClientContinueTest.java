@@ -265,25 +265,17 @@ public class HttpClientContinueTest extends AbstractTest
     @MethodSource("transportsNoFCGI")
     public void testRedirectWithExpect100ContinueWithContent(TransportType transportType) throws Exception
     {
-        // A request with Expect: 100-Continue cannot receive non-final responses like 3xx
+        // A request with Expect: 100-Continue cannot receive non-final responses like 3xx.
 
-        String data = "success";
         start(transportType, new HttpServlet()
         {
             @Override
             protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException
             {
                 if (request.getRequestURI().endsWith("/done"))
-                {
-                    // Send 100-Continue and consume the content
-                    IO.copy(request.getInputStream(), new ByteArrayOutputStream());
-                    response.getOutputStream().print(data);
-                }
-                else
-                {
-                    // Send a redirect
-                    response.sendRedirect("/done");
-                }
+                    throw new IOException("Redirect should not have been followed");
+                // Send a redirect.
+                response.sendRedirect("/done");
             }
         });
 
@@ -301,8 +293,7 @@ public class HttpClientContinueTest extends AbstractTest
                 {
                     assertTrue(result.isFailed());
                     assertNotNull(result.getRequestFailure());
-                    assertNull(result.getResponseFailure());
-                    assertEquals(302, result.getResponse().getStatus());
+                    assertEquals(HttpStatus.MOVED_TEMPORARILY_302, result.getResponse().getStatus());
                     latch.countDown();
                 }
             });
