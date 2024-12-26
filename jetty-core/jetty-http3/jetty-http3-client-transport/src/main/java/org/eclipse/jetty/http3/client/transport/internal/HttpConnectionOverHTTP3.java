@@ -43,12 +43,13 @@ public class HttpConnectionOverHTTP3 extends HttpConnection implements Connectio
     private final Set<HttpChannel> activeChannels = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final HTTP3SessionClient session;
-    private InvocationType invocationType = InvocationType.BLOCKING;
+    private final InvocationType invocationType;
 
     public HttpConnectionOverHTTP3(Destination destination, HTTP3SessionClient session)
     {
         super((HttpDestination)destination);
         this.session = session;
+        this.invocationType = destination.getHttpClient().getHttpClientTransport().getInvocationType();
     }
 
     public HTTP3SessionClient getSession()
@@ -93,11 +94,6 @@ public class HttpConnectionOverHTTP3 extends HttpConnection implements Connectio
     public InvocationType getInvocationType()
     {
         return invocationType;
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        this.invocationType = invocationType;
     }
 
     @Override

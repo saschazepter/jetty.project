@@ -16,7 +16,6 @@ package org.eclipse.jetty.client.transport;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.transport.internal.HttpConnectionOverHTTP;
 import org.eclipse.jetty.io.ClientConnectionFactory;
 import org.eclipse.jetty.io.EndPoint;
@@ -50,10 +49,8 @@ public class HttpClientConnectionFactory implements ClientConnectionFactory
     @Override
     public org.eclipse.jetty.io.Connection newConnection(EndPoint endPoint, Map<String, Object> context)
     {
-        HttpClient httpClient = (HttpClient)context.get(ClientConnectionFactory.CLIENT_CONTEXT_KEY);
         HttpConnectionOverHTTP connection = new HttpConnectionOverHTTP(endPoint, context);
         connection.setInitialize(isInitializeConnections());
-        connection.setInvocationType(httpClient.getHttpClientTransport().getInvocationType());
         return customize(connection, context);
     }
 

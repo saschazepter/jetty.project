@@ -128,9 +128,7 @@ public class HttpClientTransportOverHTTP3 extends AbstractHttpClientTransport im
 
     protected Connection newConnection(Destination destination, HTTP3SessionClient session)
     {
-        HttpConnectionOverHTTP3 connection = new HttpConnectionOverHTTP3(destination, session);
-        connection.setInvocationType(getInvocationType());
-        return connection;
+        return new HttpConnectionOverHTTP3(destination, session);
     }
 
     private class TransportSessionClientListener extends SessionClientListener

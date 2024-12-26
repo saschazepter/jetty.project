@@ -67,7 +67,7 @@ public class ProtocolHttpUpgrader implements HttpUpgrader
         {
             HttpClient httpClient = destination.getHttpClient();
             HttpClientTransport transport = httpClient.getHttpClientTransport();
-            if (transport instanceof HttpClientTransportDynamic dynamic)
+            if (transport instanceof HttpClientTransportDynamic dynamicTransport)
             {
                 Origin origin = destination.getOrigin();
                 Origin newOrigin = new Origin(origin.getScheme(), origin.getAddress(), origin.getTag(), new Origin.Protocol(List.of(protocol), false));
@@ -82,7 +82,7 @@ public class ProtocolHttpUpgrader implements HttpUpgrader
                 if (LOG.isDebugEnabled())
                     LOG.debug("Upgrading {} on {}", response.getRequest(), endPoint);
 
-                dynamic.upgrade(endPoint, context);
+                dynamicTransport.upgrade(endPoint, context);
             }
             else
             {

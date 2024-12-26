@@ -65,9 +65,9 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements IConne
     private final HttpChannelOverHTTP channel;
     private final LongAdder bytesIn = new LongAdder();
     private final LongAdder bytesOut = new LongAdder();
+    private final InvocationType invocationType;
     private long idleTimeout;
     private boolean initialize;
-    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpConnectionOverHTTP(EndPoint endPoint, Map<String, Object> context)
     {
@@ -91,6 +91,7 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements IConne
         this.promise = promise;
         this.delegate = new Delegate(destination);
         this.channel = newHttpChannel();
+        this.invocationType = destination.getHttpClient().getHttpClientTransport().getInvocationType();
     }
 
     protected HttpChannelOverHTTP newHttpChannel()
@@ -192,11 +193,6 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements IConne
     public InvocationType getInvocationType()
     {
         return invocationType;
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        this.invocationType = invocationType;
     }
 
     @Override

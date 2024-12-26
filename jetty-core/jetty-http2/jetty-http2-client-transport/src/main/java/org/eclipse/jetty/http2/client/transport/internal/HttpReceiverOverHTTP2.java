@@ -15,7 +15,6 @@ package org.eclipse.jetty.http2.client.transport.internal;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 
@@ -44,7 +43,6 @@ import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.thread.Invocable;
-import org.eclipse.jetty.util.thread.SerializedInvoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,13 +50,9 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
 {
     private static final Logger LOG = LoggerFactory.getLogger(HttpReceiverOverHTTP2.class);
 
-    private final SerializedInvoker invoker;
-
     public HttpReceiverOverHTTP2(HttpChannel channel)
     {
         super(channel);
-        Executor executor = channel.getHttpDestination().getHttpClient().getExecutor();
-        invoker = new SerializedInvoker(HttpReceiverOverHTTP2.class.getName(), executor);
     }
 
     @Override
@@ -146,7 +140,7 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
             return null;
         }
 
-        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), () ->
+        return new Invocable.ReadyTask(getHttpConnection().getInvocationType(), () ->
         {
             MetaData.Response response = (MetaData.Response)frame.getMetaData();
             HttpResponse httpResponse = exchange.getResponse();
@@ -180,7 +174,7 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
             responseHeaders(exchange);
 
             callback.succeeded();
-        }));
+        });
     }
 
     private Runnable onTrailer(HeadersFrame frame, Callback callback)
@@ -246,7 +240,7 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
         HttpExchange exchange = getHttpExchange();
         if (exchange == null)
             return null;
-        return invoker.offer(new Invocable.ReadyTask(getInvocationType(), () -> responseContentAvailable(exchange)));
+        return new Invocable.ReadyTask(getInvocationType(), () -> responseContentAvailable(exchange));
     }
 
     @Override
@@ -262,7 +256,7 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
         int error = frame.getError();
         IOException failure = new IOException(ErrorCode.toString(error, "reset_code_" + error));
         Runnable task = () -> callback.completeWith(exchange.getRequest().abort(failure));
-        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task));
+        return new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task);
     }
 
     @Override
@@ -275,13 +269,13 @@ public class HttpReceiverOverHTTP2 extends HttpReceiver implements HTTP2Channel.
             return null;
         }
         Runnable task = () -> promise.completeWith(exchange.getRequest().abort(failure));
-        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task));
+        return new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task);
     }
 
     @Override
     public Runnable onFailure(Throwable failure, Callback callback)
     {
         Runnable task = () -> responseFailure(failure, Promise.from(failed -> callback.succeeded(), callback::failed));
-        return invoker.offer(new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task));
+        return new Invocable.ReadyTask(getHttpConnection().getInvocationType(), task);
     }
 }

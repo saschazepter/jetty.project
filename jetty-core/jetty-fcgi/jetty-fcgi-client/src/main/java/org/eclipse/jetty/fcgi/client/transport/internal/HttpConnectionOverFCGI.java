@@ -68,12 +68,12 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
     private final Delegate delegate;
     private final ClientParser parser;
     private final HttpChannelOverFCGI channel;
+    private final InvocationType invocationType;
     private RetainableByteBuffer networkBuffer;
     private Object attachment;
     private State state = State.STATUS;
     private long idleTimeout;
     private boolean shutdown;
-    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpConnectionOverFCGI(EndPoint endPoint, Destination destination, Promise<Connection> promise)
     {
@@ -86,6 +86,7 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
         this.channel = newHttpChannel();
         HttpClient client = destination.getHttpClient();
         this.networkByteBufferPool = client.getByteBufferPool();
+        this.invocationType = client.getHttpClientTransport().getInvocationType();
     }
 
     public HttpDestination getHttpDestination()
@@ -97,11 +98,6 @@ public class HttpConnectionOverFCGI extends AbstractConnection implements IConne
     public InvocationType getInvocationType()
     {
         return invocationType;
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        this.invocationType = invocationType;
     }
 
     @Override

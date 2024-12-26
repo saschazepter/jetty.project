@@ -156,9 +156,7 @@ public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport im
 
     protected Connection newConnection(Destination destination, Session session, HTTP2Connection connection)
     {
-        HttpConnectionOverHTTP2 result = new HttpConnectionOverHTTP2(destination, session, connection);
-        result.setInvocationType(getInvocationType());
-        return result;
+        return new HttpConnectionOverHTTP2(destination, session, connection);
     }
 
     protected void onClose(Connection connection, GoAwayFrame frame)

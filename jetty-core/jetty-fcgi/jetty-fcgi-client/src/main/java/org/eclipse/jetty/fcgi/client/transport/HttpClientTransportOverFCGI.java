@@ -98,9 +98,7 @@ public class HttpClientTransportOverFCGI extends AbstractConnectorHttpClientTran
 
     protected org.eclipse.jetty.io.Connection newConnection(EndPoint endPoint, Destination destination, Promise<Connection> promise)
     {
-        HttpConnectionOverFCGI connection = new HttpConnectionOverFCGI(endPoint, destination, promise);
-        connection.setInvocationType(getInvocationType());
-        return connection;
+        return new HttpConnectionOverFCGI(endPoint, destination, promise);
     }
 
     public void customize(Request request, HttpFields.Mutable fastCGIHeaders)

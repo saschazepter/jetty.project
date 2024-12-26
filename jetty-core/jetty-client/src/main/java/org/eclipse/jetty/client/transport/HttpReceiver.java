@@ -300,7 +300,7 @@ public abstract class HttpReceiver implements Invocable
             {
                 if (LOG.isDebugEnabled())
                     LOG.debug("Interim response status {}, succeeding", response.getStatus());
-                // TODO: explain it's queued.
+                // The response success event will be serialized and run after this event completes.
                 responseSuccess(exchange, this::onInterim);
                 return;
             }

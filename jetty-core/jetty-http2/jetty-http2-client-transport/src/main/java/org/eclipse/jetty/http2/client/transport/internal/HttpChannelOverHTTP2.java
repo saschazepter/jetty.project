@@ -31,6 +31,7 @@ import org.eclipse.jetty.http2.frames.PushPromiseFrame;
 import org.eclipse.jetty.http2.frames.ResetFrame;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Promise;
+import org.eclipse.jetty.util.thread.SerializedInvoker;
 import org.eclipse.jetty.util.thread.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,6 +177,13 @@ public class HttpChannelOverHTTP2 extends HttpChannel
 
     private class Listener implements Stream.Listener
     {
+        private final SerializedInvoker invoker;
+
+        private Listener()
+        {
+            invoker = new SerializedInvoker(getClass().getName(), getHttpDestination().getHttpClient().getExecutor());
+        }
+
         @Override
         public void onNewStream(Stream stream)
         {
@@ -186,7 +194,8 @@ public class HttpChannelOverHTTP2 extends HttpChannel
         public void onHeaders(Stream stream, HeadersFrame frame, Callback callback)
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
-            connection.offerTask(channel.onHeaders(stream, frame, callback), false);
+            Runnable task = channel.onHeaders(stream, frame, callback);
+            connection.offerTask(invoker.offer(task), false);
         }
 
         @Override
@@ -199,7 +208,8 @@ public class HttpChannelOverHTTP2 extends HttpChannel
         public void onDataAvailable(Stream stream)
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
-            connection.offerTask(channel.onDataAvailable(), false);
+            Runnable task = channel.onDataAvailable();
+            connection.offerTask(invoker.offer(task), false);
         }
 
         @Override
@@ -207,7 +217,7 @@ public class HttpChannelOverHTTP2 extends HttpChannel
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
             Runnable task = channel.onReset(frame, callback);
-            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), task);
+            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), invoker.offer(task));
         }
 
         @Override
@@ -215,7 +225,7 @@ public class HttpChannelOverHTTP2 extends HttpChannel
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
             Runnable task = channel.onTimeout(x, promise);
-            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), task);
+            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), invoker.offer(task));
         }
 
         @Override
@@ -223,7 +233,7 @@ public class HttpChannelOverHTTP2 extends HttpChannel
         {
             HTTP2Channel.Client channel = (HTTP2Channel.Client)((HTTP2Stream)stream).getAttachment();
             Runnable task = channel.onFailure(failure, callback);
-            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), task);
+            ThreadPool.executeImmediately(connection.getHttpClient().getExecutor(), invoker.offer(task));
         }
     }
 }

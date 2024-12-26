@@ -61,14 +61,15 @@ public class HttpConnectionOverHTTP2 extends HttpConnection implements Sweeper.S
     private final AtomicInteger sweeps = new AtomicInteger();
     private final Session session;
     private final HTTP2Connection connection;
+    private final InvocationType invocationType;
     private boolean recycleHttpChannels = true;
-    private InvocationType invocationType = InvocationType.BLOCKING;
 
     public HttpConnectionOverHTTP2(Destination destination, Session session, HTTP2Connection connection)
     {
         super((HttpDestination)destination);
         this.session = session;
         this.connection = connection;
+        this.invocationType = destination.getHttpClient().getHttpClientTransport().getInvocationType();
     }
 
     public Session getSession()
@@ -125,11 +126,6 @@ public class HttpConnectionOverHTTP2 extends HttpConnection implements Sweeper.S
     public InvocationType getInvocationType()
     {
         return invocationType;
-    }
-
-    public void setInvocationType(InvocationType invocationType)
-    {
-        this.invocationType = invocationType;
     }
 
     @Override
