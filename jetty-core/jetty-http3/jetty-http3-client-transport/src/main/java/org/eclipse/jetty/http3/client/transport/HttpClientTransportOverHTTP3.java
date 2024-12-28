@@ -39,9 +39,8 @@ import org.eclipse.jetty.io.Transport;
 import org.eclipse.jetty.quic.client.QuicTransport;
 import org.eclipse.jetty.quic.common.ProtocolSession;
 import org.eclipse.jetty.quic.common.QuicSession;
-import org.eclipse.jetty.util.thread.Invocable;
 
-public class HttpClientTransportOverHTTP3 extends AbstractHttpClientTransport implements ProtocolSession.Factory, Invocable
+public class HttpClientTransportOverHTTP3 extends AbstractHttpClientTransport implements ProtocolSession.Factory
 {
     private final HTTP3ClientConnectionFactory factory = new HTTP3ClientConnectionFactory();
     private final HTTP3Client http3Client;

@@ -42,10 +42,9 @@ import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
-import org.eclipse.jetty.util.thread.Invocable;
 
 @ManagedObject("The HTTP/2 client transport")
-public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport implements Invocable
+public class HttpClientTransportOverHTTP2 extends AbstractHttpClientTransport
 {
     private final ClientConnectionFactory connectionFactory = new HTTP2ClientConnectionFactory();
     private final HTTP2Client http2Client;

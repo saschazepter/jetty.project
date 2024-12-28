@@ -88,6 +88,7 @@ public interface HttpClientTransport extends ClientConnectionFactory, HttpClient
 
     /**
      * @return the {@link InvocationType} associated with this {@code HttpClientTransport}.
+     * @see #setInvocationType(InvocationType)
      */
     @Override
     default InvocationType getInvocationType()
@@ -96,7 +97,38 @@ public interface HttpClientTransport extends ClientConnectionFactory, HttpClient
     }
 
     /**
+     * <p>Sets the {@link InvocationType} associated with this {@code HttpClientTransport}.</p>
+     * <p>The values are typically either:
+     * <ul>
+     *   <li>{@link InvocationType#BLOCKING}, to indicate that response listeners are
+     *   executing blocking code, for example blocking network I/O, JDBC, etc.</li>
+     *   <li>{@link InvocationType#NON_BLOCKING}, to indicate that response listeners
+     *   are executing non-blocking code.</li>
+     * </ul>
+     * <p>By default, the value is {@link InvocationType#BLOCKING}.</p>
+     * <p>A response listener declared to be {@link InvocationType#BLOCKING} incurs
+     * in one additional context switch, where the NIO processing thread delegates
+     * the response processing to another thread.
+     * This ensures that the NIO processing thread can immediately continue with
+     * other NIO processing activities, if any (for example, processing another
+     * connection).
+     * This also means that processing of different connections is parallelized.</p>
+     * <p>{@link InvocationType#BLOCKING} must be used when you want response
+     * listeners to be invoked by virtual threads.</p>
+     * <p>On the other hand, a response listener declared to be
+     * {@link InvocationType#NON_BLOCKING} does not incur in the additional
+     * context switch, and therefore it is potentially more efficient.
+     * However, the processing of different connections is serialized, which
+     * means that the last connection will be processed only after the previous
+     * connections (and their respective response listeners) have been processed.</p>
+     * <p>A response listener declared to be {@link InvocationType#NON_BLOCKING},
+     * but then executing blocking code, will block the NIO processing performed
+     * by {@link HttpClient}'s implementation: the current connection and possibly
+     * other connections will not be further processed, until the blocking response
+     * listener returns.</p>
+     *
      * @param invocationType the {@link InvocationType} associated with this {@code HttpClientTransport}.
+     * @see #getInvocationType()
      */
     void setInvocationType(InvocationType invocationType);
 }
