@@ -17,6 +17,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.eclipse.jetty.client.BytesRequestContent;
 import org.eclipse.jetty.client.ContentResponse;
@@ -28,7 +29,6 @@ import org.eclipse.jetty.compression.server.CompressionHandler;
 import org.eclipse.jetty.compression.zstandard.ZstandardCompression;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
-import org.eclipse.jetty.http.QuotedQualityCSV;
 import org.eclipse.jetty.io.ArrayByteBufferPool;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.server.Handler;
@@ -52,6 +52,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class CompressionHandlerTest extends AbstractCompressionTest
@@ -104,18 +105,18 @@ public class CompressionHandlerTest extends AbstractCompressionTest
         byte[] resourceBody = Files.readAllBytes(resourcePath);
 
         CompressionHandler compressionHandler = new CompressionHandler();
-        compressionHandler.addCompression(compression);
+        compressionHandler.putCompression(compression);
         CompressionConfig config = CompressionConfig.builder()
-            .compressEncodingInclude("br")
-            .compressEncodingInclude("gzip")
-            .compressEncodingExclude("zstd")
+            .compressIncludeEncoding("br")
+            .compressIncludeEncoding("gzip")
+            .compressExcludeEncoding("zstd")
             .build();
 
         compressionHandler.putConfiguration("/", config);
         compressionHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response, Callback callback) throws Exception
+            public boolean handle(Request request, Response response, Callback callback)
             {
                 response.setStatus(200);
                 response.getHeaders().put(HttpHeader.CONTENT_TYPE, resourceContentType);
@@ -155,7 +156,8 @@ public class CompressionHandlerTest extends AbstractCompressionTest
 
     /**
      * Testing how CompressionHandler acts with a single compression implementation added.
-     * Configuration is only using {@code compressPath} excluding {@code *.png} paths, and including {@code /path/*}
+     * Configuration is only using {@code compressMimeTypes} excluding {@code image/png}, and including both
+     * {@code text/plain} and {@code image/svg+xml}
      */
     @ParameterizedTest
     @CsvSource(textBlock = """
@@ -176,28 +178,29 @@ public class CompressionHandlerTest extends AbstractCompressionTest
         gzip,      images/logo.png,  image/png,                /images/logo.png,           false
         gzip,      images/logo.png,  image/png,                /path/deep/images/logo.png, false
         """)
-    public void testCompressPathConfig(String compressionType,
-                                       String resourceName,
-                                       String resourceContentType,
-                                       String requestedPath,
-                                       boolean expectedIsCompressed) throws Exception
+    public void testCompressMimeTypesConfig(String compressionType,
+                                            String resourceName,
+                                            String resourceContentType,
+                                            String requestedPath,
+                                            boolean expectedIsCompressed) throws Exception
     {
         newCompression(compressionType);
         Path resourcePath = MavenPaths.findTestResourceFile(resourceName);
         byte[] resourceBody = Files.readAllBytes(resourcePath);
 
         CompressionHandler compressionHandler = new CompressionHandler();
-        compressionHandler.addCompression(compression);
+        compressionHandler.putCompression(compression);
         CompressionConfig config = CompressionConfig.builder()
-            .compressPathInclude("/path/*")
-            .compressPathExclude("*.png")
+            .compressIncludeMimeType("text/plain")
+            .compressIncludeMimeType("image/svg+xml")
+            .compressExcludeMimeType("image/png")
             .build();
 
         compressionHandler.putConfiguration("/", config);
         compressionHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response, Callback callback) throws Exception
+            public boolean handle(Request request, Response response, Callback callback)
             {
                 response.setStatus(200);
                 response.getHeaders().put(HttpHeader.CONTENT_TYPE, resourceContentType);
@@ -244,14 +247,14 @@ public class CompressionHandlerTest extends AbstractCompressionTest
     public void testDefaultCompressionConfiguration(Class<Compression> compressionClass) throws Exception
     {
         newCompression(compressionClass);
-        String message = "Hello Jetty!";
+        String message = "Hello Jetty!\n".repeat(10);
 
         CompressionHandler compressionHandler = new CompressionHandler();
-        compressionHandler.addCompression(compression);
+        compressionHandler.putCompression(compression);
         compressionHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response, Callback callback) throws Exception
+            public boolean handle(Request request, Response response, Callback callback)
             {
                 response.setStatus(200);
                 response.getHeaders().put(HttpHeader.CONTENT_TYPE, "text/plain;charset=utf-8");
@@ -293,11 +296,11 @@ public class CompressionHandlerTest extends AbstractCompressionTest
         String resourceBody = Files.readString(resourcePath, UTF_8);
 
         CompressionHandler compressionHandler = new CompressionHandler();
-        compressionHandler.addCompression(compression);
+        compressionHandler.putCompression(compression);
         compressionHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response, Callback callback) throws Exception
+            public boolean handle(Request request, Response response, Callback callback)
             {
                 response.setStatus(200);
                 response.getHeaders().put(HttpHeader.CONTENT_TYPE, "text/plain;charset=utf-8");
@@ -326,14 +329,20 @@ public class CompressionHandlerTest extends AbstractCompressionTest
         assertThat(content, is(resourceBody));
     }
 
+    /**
+     * Test Default configuration, where all Compression implementations are discovered
+     * via the ServiceLoader.
+     */
     @Test
     public void testDefaultConfiguration() throws Exception
     {
         CompressionHandler compressionHandler = new CompressionHandler();
+        // Do not configure the compressions here, we want default behavior.
+
         compressionHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response, Callback callback) throws Exception
+            public boolean handle(Request request, Response response, Callback callback)
             {
                 response.setStatus(200);
                 response.getHeaders().put(HttpHeader.CONTENT_TYPE, "text/plain;charset=utf-8");
@@ -356,8 +365,7 @@ public class CompressionHandlerTest extends AbstractCompressionTest
 
     /**
      * Testing how CompressionHandler acts with a single compression implementation added.
-     * Configuration is only using {@code compressMimeTypes} excluding {@code image/png}, and including both
-     * {@code text/plain} and {@code image/svg+xml}
+     * Configuration is only using {@code compressPath} excluding {@code *.png} paths, and including {@code /path/*}
      */
     @ParameterizedTest
     @CsvSource(textBlock = """
@@ -378,29 +386,28 @@ public class CompressionHandlerTest extends AbstractCompressionTest
         gzip,      images/logo.png,  image/png,                /images/logo.png,           false
         gzip,      images/logo.png,  image/png,                /path/deep/images/logo.png, false
         """)
-    public void testCompressMimeTypesConfig(String compressionType,
-                                            String resourceName,
-                                            String resourceContentType,
-                                            String requestedPath,
-                                            boolean expectedIsCompressed) throws Exception
+    public void testCompressPathConfig(String compressionType,
+                                       String resourceName,
+                                       String resourceContentType,
+                                       String requestedPath,
+                                       boolean expectedIsCompressed) throws Exception
     {
         newCompression(compressionType);
         Path resourcePath = MavenPaths.findTestResourceFile(resourceName);
         byte[] resourceBody = Files.readAllBytes(resourcePath);
 
         CompressionHandler compressionHandler = new CompressionHandler();
-        compressionHandler.addCompression(compression);
+        compressionHandler.putCompression(compression);
         CompressionConfig config = CompressionConfig.builder()
-            .compressMimeTypeInclude("text/plain")
-            .compressMimeTypeInclude("image/svg+xml")
-            .compressMimeTypeExclude("image/png")
+            .compressIncludePath("/path/*")
+            .compressExcludePath("*.png")
             .build();
 
         compressionHandler.putConfiguration("/", config);
         compressionHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response, Callback callback) throws Exception
+            public boolean handle(Request request, Response response, Callback callback)
             {
                 response.setStatus(200);
                 response.getHeaders().put(HttpHeader.CONTENT_TYPE, resourceContentType);
@@ -467,12 +474,12 @@ public class CompressionHandlerTest extends AbstractCompressionTest
         byte[] resourceBody = Files.readAllBytes(resourcePath);
 
         CompressionHandler compressionHandler = new CompressionHandler();
-        compressionHandler.addCompression(compression);
+        compressionHandler.putCompression(compression);
         CompressionConfig config = CompressionConfig.builder()
-            .decompressMethodInclude("GET")
-            .decompressMethodInclude("POST")
-            .decompressMethodExclude("PUT")
-            .compressEncodingExclude(compression.getEncodingName()) // don't compress the responses
+            .decompressIncludeMethod("GET")
+            .decompressIncludeMethod("POST")
+            .decompressExcludeMethod("PUT")
+            .compressExcludeEncoding(compression.getEncodingName()) // don't compress the responses
             .build();
 
         compressionHandler.putConfiguration("/", config);
@@ -570,24 +577,31 @@ public class CompressionHandlerTest extends AbstractCompressionTest
     }
 
     /**
-     * Testing how CompressionHandler acts with multiple compression implementation added
-     * (brotli, gzip, and zstandard are all added enabled),
-     * and the {@link CompressionConfig#getCompressPreferredEncoderOrder()} configuration.
-     * Also tests the handling of {@code Accept-Encoding: *} request headers.
+     * Testing how CompressionHandler acts with all compression implementations
+     * and the {@link CompressionConfig#getCompressPreferredEncodings()} configuration,
+     * with different values for {@code Accept-Encoding}, including {@code *}.
      */
     @ParameterizedTest
     @CsvSource(useHeadersInDisplayName = true, delimiterString = "|", textBlock = """
-        acceptEncoding | preferredEncoding | expectedContentEncoding
+        acceptEncoding | preferredEncoding | expectedEncoding
+                       |                   |
+                       | zstd              |
+                       | br, gzip          |
+        gzip           |                   | gzip
+        zstd, gzip     |                   | zstd
+        br             | zstd              | br
         br             | gzip, br          | br
         br, gzip       | gzip, br          | gzip
-                       | br, zstd          |
-        *              | zstd, br, gzip    | zstd
-        *              |                   | 
+        br, zstd       | gzip, br          | br
+        gzip           | zstd, br          | gzip
+        *              |                   | <any>
+        *              | zstd, gzip        | zstd
+        foo, *         |                   | <any>
+        foo, *         | br                | br
+        identity,*;q=0 |                   |
+        identity,*;q=0 | br, gzip          |
         """)
-    public void testCompressPreferredEncoders(
-        String acceptEncodingHeader,
-        String preferredEncodingCsv,
-        String expectedContentEncoding) throws Exception
+    public void testPreferredCompressEncodings(String acceptEncodings, String preferredEncodings, String expectedEncoding) throws Exception
     {
         pool = new ArrayByteBufferPool.Tracking();
         GzipCompression gzipCompression = new GzipCompression();
@@ -605,21 +619,20 @@ public class CompressionHandlerTest extends AbstractCompressionTest
         byte[] resourceBody = Files.readAllBytes(resourcePath);
 
         CompressionHandler compressionHandler = new CompressionHandler();
-        compressionHandler.addCompression(gzipCompression);
-        compressionHandler.addCompression(brotliCompression);
-        compressionHandler.addCompression(zstdCompression);
+        compressionHandler.putCompression(gzipCompression);
+        compressionHandler.putCompression(brotliCompression);
+        compressionHandler.putCompression(zstdCompression);
 
-        QuotedQualityCSV qcsv = new QuotedQualityCSV();
-        qcsv.addValue(preferredEncodingCsv);
+        preferredEncodings = preferredEncodings == null ? "" : preferredEncodings;
         CompressionConfig config = CompressionConfig.builder()
-            .compressPreferredEncoderOrder(qcsv.getValues())
+            .compressPreferredEncodings(List.of(StringUtil.csvSplit(preferredEncodings)))
             .build();
 
         compressionHandler.putConfiguration("/", config);
         compressionHandler.setHandler(new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, Response response, Callback callback) throws Exception
+            public boolean handle(Request request, Response response, Callback callback)
             {
                 response.setStatus(200);
                 response.getHeaders().put(HttpHeader.CONTENT_TYPE, resourceContentType);
@@ -630,27 +643,19 @@ public class CompressionHandlerTest extends AbstractCompressionTest
 
         startServer(compressionHandler);
 
-        URI serverURI = server.getURI();
         client.getContentDecoderFactories().clear();
 
-        ContentResponse response = client.newRequest(serverURI.getHost(), serverURI.getPort())
-            .method(HttpMethod.GET)
-            .headers((headers) ->
-            {
-                headers.put(HttpHeader.ACCEPT_ENCODING, acceptEncodingHeader);
-            })
+        ContentResponse response = client.newRequest(server.getURI())
+            .headers(h -> h.put(HttpHeader.ACCEPT_ENCODING, acceptEncodings))
             .path(requestedPath)
             .send();
-        dumpResponse(response);
         assertThat(response.getStatus(), is(200));
-        if (StringUtil.isNotBlank(expectedContentEncoding))
-        {
-            assertThat(response.getHeaders().get(HttpHeader.CONTENT_ENCODING), is(expectedContentEncoding));
-        }
-        else
-        {
+        if (StringUtil.isBlank(expectedEncoding))
             assertFalse(response.getHeaders().contains(HttpHeader.CONTENT_ENCODING));
-        }
+        else if ("<any>".equals(expectedEncoding))
+            assertNotNull(response.getHeaders().get(HttpHeader.CONTENT_ENCODING));
+        else
+            assertThat(response.getHeaders().get(HttpHeader.CONTENT_ENCODING), is(expectedEncoding));
     }
 
     private void dumpResponse(org.eclipse.jetty.client.Response response)

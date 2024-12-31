@@ -20,10 +20,13 @@ import java.io.OutputStream;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
@@ -421,6 +424,20 @@ public class HTTPClientDocs
         }
         // End of try-with-resource, output.close() called automatically to signal end of content.
         // end::outputStreamRequestContent[]
+    }
+
+    public void removeDecoders() throws Exception
+    {
+        // tag::removeDecoders[]
+        HttpClient httpClient = new HttpClient();
+
+        // Starting HttpClient will discover response content decoders
+        // implementations from the module-path or class-path via ServiceLoader.
+        httpClient.start();
+
+        // Remove all response content decoders.
+        httpClient.getContentDecoderFactories().clear();
+        // end::removeDecoders[]
     }
 
     public void futureResponseListener() throws Exception
@@ -1067,7 +1084,7 @@ public class HTTPClientDocs
         // the transport supports multiplexing requests on the same connection.
         int maxRequestsPerConnection = 1;
 
-        HttpClientTransport transport = httpClient.getTransport();
+        HttpClientTransport transport = httpClient.getHttpClientTransport();
 
         // Set the ConnectionPool.Factory using a lambda.
         transport.setConnectionPoolFactory(destination ->
@@ -1084,7 +1101,7 @@ public class HTTPClientDocs
         httpClient.start();
 
         // For HTTP/1.1, you need to explicitly configure to initialize connections.
-        if (httpClient.getTransport() instanceof HttpClientTransportOverHTTP http1)
+        if (httpClient.getHttpClientTransport() instanceof HttpClientTransportOverHTTP http1)
             http1.setInitializeConnections(true);
 
         // Create a dummy request to the server you want to pre-create connections to.
@@ -1232,5 +1249,39 @@ public class HTTPClientDocs
             })
             .send();
         // end::connectionInformation[]
+    }
+
+    public void connectListener() throws Exception
+    {
+        // tag::connectListener[]
+        ClientConnector clientConnector = new ClientConnector();
+        clientConnector.addEventListener(new ClientConnector.ConnectListener()
+        {
+            private final ConcurrentMap<SocketChannel, Long> times = new ConcurrentHashMap<>();
+
+            @Override
+            public void onConnectBegin(SocketChannel socketChannel, SocketAddress socketAddress)
+            {
+                times.put(socketChannel, System.nanoTime());
+            }
+
+            @Override
+            public void onConnectSuccess(SocketChannel socketChannel)
+            {
+                Long begin = times.remove(socketChannel);
+                System.getLogger("connection").log(INFO, "established in %d ns", System.nanoTime() - begin);
+            }
+
+            @Override
+            public void onConnectFailure(SocketChannel socketChannel, SocketAddress socketAddress, Throwable failure)
+            {
+                Long begin = times.remove(socketChannel);
+                System.getLogger("connection").log(INFO, "failed in %d ns", System.nanoTime() - begin);
+            }
+        });
+
+        HttpClient httpClient = new HttpClient(new HttpClientTransportOverHTTP(clientConnector));
+        httpClient.start();
+        // end::connectListener[]
     }
 }

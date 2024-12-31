@@ -533,7 +533,7 @@ public class ResourceServlet extends HttpServlet
                     (contentLength < 0 || contentLength > coreRequest.getConnectionMetaData().getHttpConfiguration().getOutputBufferSize()))
                 {
                     // send the content asynchronously
-                    AsyncContext asyncContext = httpServletRequest.startAsync();
+                    AsyncContext asyncContext = httpServletRequest.isAsyncStarted() ? httpServletRequest.getAsyncContext() : httpServletRequest.startAsync();
                     Callback callback = new AsyncContextCallback(asyncContext, httpServletResponse);
                     _resourceService.doGet(coreRequest, coreResponse, callback, content);
                 }
@@ -780,7 +780,7 @@ public class ResourceServlet extends HttpServlet
                 if (isIncluded(request))
                     return;
                 if (cause != null)
-                    request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, cause);
+                    request.setAttribute(org.eclipse.jetty.server.handler.ErrorHandler.ERROR_EXCEPTION, cause);
                 response.sendError(statusCode, reason);
             }
             catch (IOException e)

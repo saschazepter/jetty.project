@@ -61,7 +61,7 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
         super(channel);
         HttpClient httpClient = channel.getHttpDestination().getHttpClient();
         parser = new HttpParser(this, httpClient.getMaxResponseHeadersSize(), httpClient.getHttpCompliance());
-        HttpClientTransport transport = httpClient.getTransport();
+        HttpClientTransport transport = httpClient.getHttpClientTransport();
         if (transport instanceof HttpClientTransportOverHTTP httpTransport)
         {
             parser.setHeaderCacheSize(httpTransport.getHeaderCacheSize());
@@ -524,7 +524,7 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
             throw new IllegalStateException();
 
         if (LOG.isDebugEnabled())
-            LOG.debug("Receiving next request in {}", this);
+            LOG.debug("Receiving next response in {}", this);
         boolean setFillInterest = parseAndFill(true);
         if (!hasContent() && setFillInterest)
             fillInterested();

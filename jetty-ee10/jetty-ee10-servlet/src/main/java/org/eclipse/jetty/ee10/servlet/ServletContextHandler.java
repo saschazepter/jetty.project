@@ -73,6 +73,7 @@ import org.eclipse.jetty.ee10.servlet.ServletContextResponse.OutputType;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintAware;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.pathmap.MatchedResource;
 import org.eclipse.jetty.io.IOResources;
@@ -1147,7 +1148,6 @@ public class ServletContextHandler extends ContextHandler
         decodedPathInContext = URIUtil.decodePath(getContext().getPathInContext(request.getHttpURI().getCanonicalPath()));
         matchedResource = _servletHandler.getMatchedServlet(decodedPathInContext);
 
-
         if (matchedResource == null)
             return wrapNoServlet(request, response);
         ServletHandler.MappedServlet mappedServlet = matchedResource.getResource();
@@ -1196,7 +1196,17 @@ public class ServletContextHandler extends ContextHandler
         boolean initialDispatch = request instanceof ServletContextRequest;
         if (!initialDispatch)
             return false;
-        return super.handleByContextHandler(pathInContext, request, response, callback);
+
+        if (isProtectedTarget(pathInContext))
+        {
+            // At this point we have not entered the state machine of the ServletChannelState, so we do nothing here
+            // other than to set the error status attribute (and also status). When execution proceeds normally into the
+            // state machine the request will be treated as an error. Note that we set both the error status and request
+            // status because the request status is cheaper to check than the error status attribute.
+            request.setAttribute(org.eclipse.jetty.server.handler.ErrorHandler.ERROR_STATUS, 404);
+            response.setStatus(HttpStatus.NOT_FOUND_404);
+        }
+        return false;
     }
 
     @Override
