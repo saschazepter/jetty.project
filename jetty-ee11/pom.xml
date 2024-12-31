@@ -672,13 +672,13 @@
                         </ignoreVersions>
                       </rule>
                       <rule>
-                        <!-- for ee11, we need to stay on 3.2.x of jsp-jstl impl -->
+                        <!-- for ee11, we need to be on 4.0.x of jsp-jstl impl -->
                         <groupId>org.glassfish.wasp</groupId>
                         <artifactId>wasp</artifactId>
                         <ignoreVersions>
                           <ignoreVersion>
                             <type>regex</type>
-                            <version>^(?!3.2.).+</version>
+                            <version>^(?!4.0.).+</version>
                           </ignoreVersion>
                         </ignoreVersions>
                       </rule>
