@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -223,7 +224,7 @@ public class UrlEncoded
 
         if (StandardCharsets.UTF_8.equals(charset))
         {
-            decodeUtf8To(content, 0, content.length(), adder);
+            decodeUtf8To(content, 0, content.length(), adder, false);
             return;
         }
 
@@ -318,7 +319,7 @@ public class UrlEncoded
     @Deprecated
     public static void decodeUtf8To(String query, int offset, int length, MultiMap<String> map)
     {
-        decodeUtf8To(query, offset, length, map::add);
+        decodeUtf8To(query, offset, length, map::add, false);
     }
 
     /**
@@ -331,15 +332,16 @@ public class UrlEncoded
      */
     public static void decodeUtf8To(String uri, int offset, int length, Fields fields)
     {
-        decodeUtf8To(uri, offset, length, fields::add);
+        decodeUtf8To(uri, offset, length, fields::add, false);
     }
 
-    private static void decodeUtf8To(String query, int offset, int length, BiConsumer<String, String> adder)
+    public static void decodeUtf8To(String query, int offset, int length, BiConsumer<String, String> adder, boolean allowBadUtf8)
     {
         Utf8StringBuilder buffer = new Utf8StringBuilder();
         String key = null;
         String value;
 
+        Supplier<Utf8StringBuilder.Utf8IllegalArgumentException> onCodingError = allowBadUtf8 ? null : Utf8StringBuilder.Utf8IllegalArgumentException::new;
         int end = offset + length;
         for (int i = offset; i < end; i++)
         {
@@ -347,12 +349,12 @@ public class UrlEncoded
             switch (c)
             {
                 case '&':
-                    value = buffer.takeCompleteString(Utf8StringBuilder.Utf8IllegalArgumentException::new);
+                    value = buffer.takeCompleteString(onCodingError);
                     if (key != null)
                     {
                         adder.accept(key, value);
                     }
-                    else if (value != null && value.length() > 0)
+                    else if (value != null && !value.isEmpty())
                     {
                         adder.accept(value, "");
                     }
@@ -365,7 +367,7 @@ public class UrlEncoded
                         buffer.append(c);
                         break;
                     }
-                    key = buffer.takeCompleteString(Utf8StringBuilder.Utf8IllegalArgumentException::new);
+                    key = buffer.takeCompleteString(onCodingError);
                     break;
 
                 case '+':
@@ -378,6 +380,11 @@ public class UrlEncoded
                         char hi = query.charAt(++i);
                         char lo = query.charAt(++i);
                         buffer.append(decodeHexByte(hi, lo));
+                    }
+                    else if (allowBadUtf8)
+                    {
+                        buffer.append(Utf8StringBuilder.REPLACEMENT);
+                        i = end;
                     }
                     else
                     {
@@ -393,7 +400,7 @@ public class UrlEncoded
 
         if (key != null)
         {
-            value = buffer.takeCompleteString(Utf8StringBuilder.Utf8IllegalArgumentException::new);
+            value = buffer.takeCompleteString(onCodingError);
             adder.accept(key, value);
         }
         else if (buffer.length() > 0)

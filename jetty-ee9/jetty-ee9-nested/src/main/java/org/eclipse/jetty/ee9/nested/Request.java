@@ -77,6 +77,7 @@ import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.MultiPartCompliance;
 import org.eclipse.jetty.http.SetCookieParser;
+import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.RuntimeIOException;
 import org.eclipse.jetty.security.UserIdentity;
@@ -421,7 +422,16 @@ public class Request implements HttpServletRequest
             try
             {
                 _queryParameters = new Fields(true);
-                UrlEncoded.decodeTo(query, _queryParameters::add, _queryEncoding);
+
+                if (StandardCharsets.UTF_8.equals(_queryEncoding) || _queryEncoding == null && UrlEncoded.ENCODING.equals(StandardCharsets.UTF_8))
+                {
+                    boolean allowBadUtf8 = getHttpChannel().getHttpConfiguration().getUriCompliance().allows(UriCompliance.Violation.BAD_UTF8_ENCODING);
+                    UrlEncoded.decodeUtf8To(query, 0, query.length(), _queryParameters::add, allowBadUtf8);
+                }
+                else
+                {
+                    UrlEncoded.decodeTo(query, _queryParameters::add, _queryEncoding);
+                }
             }
             catch (IllegalStateException | IllegalArgumentException e)
             {
