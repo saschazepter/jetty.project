@@ -20,6 +20,7 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Path;
 import java.security.Principal;
@@ -46,6 +47,7 @@ import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.MultiPartCompliance;
 import org.eclipse.jetty.http.MultiPartConfig;
 import org.eclipse.jetty.http.Trailers;
+import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.internal.CompletionStreamWrapper;
@@ -552,21 +554,25 @@ public interface Request extends Attributes, Content.Source
 
     static Fields extractQueryParameters(Request request)
     {
-        String query = request.getHttpURI().getQuery();
-        if (StringUtil.isBlank(query))
-            return Fields.EMPTY;
-        Fields fields = new Fields(true);
-        if (StringUtil.isNotBlank(query))
-            UrlEncoded.decodeUtf8To(query, fields);
-        return fields;
+        return extractQueryParameters(request, null);
     }
 
     static Fields extractQueryParameters(Request request, Charset charset)
     {
-        Fields fields = new Fields(true);
         String query = request.getHttpURI().getQuery();
-        if (StringUtil.isNotBlank(query))
+        if (StringUtil.isBlank(query))
+            return Fields.EMPTY;
+        Fields fields = new Fields(true);
+
+        if (charset == null || StandardCharsets.UTF_8.equals(charset))
+        {
+            boolean allowBadUtf8 = request.getConnectionMetaData().getHttpConfiguration().getUriCompliance().allows(UriCompliance.Violation.BAD_UTF8_ENCODING);
+            UrlEncoded.decodeUtf8To(query, 0, query.length(), fields::add, allowBadUtf8);
+        }
+        else
+        {
             UrlEncoded.decodeTo(query, fields::add, charset);
+        }
         return fields;
     }
 
