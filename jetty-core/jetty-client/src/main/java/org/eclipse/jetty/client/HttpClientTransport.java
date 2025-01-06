@@ -91,10 +91,7 @@ public interface HttpClientTransport extends ClientConnectionFactory, HttpClient
      * @see #setInvocationType(InvocationType)
      */
     @Override
-    default InvocationType getInvocationType()
-    {
-        return Invocable.super.getInvocationType();
-    }
+    InvocationType getInvocationType();
 
     /**
      * <p>Sets the {@link InvocationType} associated with this {@code HttpClientTransport}.</p>

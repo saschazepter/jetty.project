@@ -73,6 +73,7 @@ public class ProtocolHttpUpgrader implements HttpUpgrader
                 Origin newOrigin = new Origin(origin.getScheme(), origin.getAddress(), origin.getTag(), new Origin.Protocol(List.of(protocol), false));
                 Destination newDestination = httpClient.resolveDestination(newOrigin);
 
+                // Multiple threads may access the map, especially with DEBUG logging enabled.
                 Map<String, Object> context = new ConcurrentHashMap<>();
                 context.put(ClientConnectionFactory.CLIENT_CONTEXT_KEY, httpClient);
                 context.put(HttpClientTransport.HTTP_DESTINATION_CONTEXT_KEY, newDestination);
