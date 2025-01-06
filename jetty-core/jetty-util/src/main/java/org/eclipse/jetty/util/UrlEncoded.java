@@ -22,6 +22,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -335,13 +336,42 @@ public class UrlEncoded
         decodeUtf8To(uri, offset, length, fields::add, false);
     }
 
-    public static void decodeUtf8To(String query, int offset, int length, BiConsumer<String, String> adder, boolean allowBadUtf8)
+    /**
+     * <p>Decodes URI query parameters as UTF8 string</p>
+     *
+     * @param query the URI string.
+     * @param offset the offset at which query parameters start.
+     * @param length the length of query parameters string to parse.
+     * @param adder the method to call to add decoded parameters.
+     * @param allowBadUtf8 if {@code true} allow bad UTF-8 and insert the replacement character.
+     * @return {@code true} if the string was decoded without any bad UTF-8
+     * @throws org.eclipse.jetty.util.Utf8StringBuilder.Utf8IllegalArgumentException if there is illegal UTF-8 and `allowsBadUtf8` is {@code false}
+     */
+    public static boolean decodeUtf8To(String query, int offset, int length, BiConsumer<String, String> adder, boolean allowBadUtf8)
+        throws Utf8StringBuilder.Utf8IllegalArgumentException
     {
         Utf8StringBuilder buffer = new Utf8StringBuilder();
         String key = null;
         String value;
 
-        Supplier<Utf8StringBuilder.Utf8IllegalArgumentException> onCodingError = allowBadUtf8 ? null : Utf8StringBuilder.Utf8IllegalArgumentException::new;
+        AtomicBoolean badUtf8;
+        Supplier<Utf8StringBuilder.Utf8IllegalArgumentException> onCodingError;
+
+        if (allowBadUtf8)
+        {
+            badUtf8 = new AtomicBoolean(false);
+            onCodingError = () ->
+            {
+                badUtf8.set(true);
+                return null;
+            };
+        }
+        else
+        {
+            badUtf8 = null;
+            onCodingError = Utf8StringBuilder.Utf8IllegalArgumentException::new;
+        }
+
         int end = offset + length;
         for (int i = offset; i < end; i++)
         {
@@ -407,6 +437,8 @@ public class UrlEncoded
         {
             adder.accept(buffer.toCompleteString(), "");
         }
+
+        return badUtf8 == null || !badUtf8.get();
     }
 
     /**

@@ -566,8 +566,14 @@ public interface Request extends Attributes, Content.Source
 
         if (charset == null || StandardCharsets.UTF_8.equals(charset))
         {
-            boolean allowBadUtf8 = request.getConnectionMetaData().getHttpConfiguration().getUriCompliance().allows(UriCompliance.Violation.BAD_UTF8_ENCODING);
-            UrlEncoded.decodeUtf8To(query, 0, query.length(), fields::add, allowBadUtf8);
+            UriCompliance uriCompliance = request.getConnectionMetaData().getHttpConfiguration().getUriCompliance();
+            boolean allowBadUtf8 = uriCompliance.allows(UriCompliance.Violation.BAD_UTF8_ENCODING);
+            if (!UrlEncoded.decodeUtf8To(query, 0, query.length(), fields::add, allowBadUtf8))
+            {
+                HttpChannel httpChannel = HttpChannel.from(request);
+                if (httpChannel != null && httpChannel.getComplianceViolationListener() != null)
+                    httpChannel.getComplianceViolationListener().onComplianceViolation(new ComplianceViolation.Event(uriCompliance, UriCompliance.Violation.BAD_UTF8_ENCODING, "query=" + query));
+            }
         }
         else
         {

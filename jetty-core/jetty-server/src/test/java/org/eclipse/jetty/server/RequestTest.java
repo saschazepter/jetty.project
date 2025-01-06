@@ -19,9 +19,11 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import org.eclipse.jetty.http.ComplianceViolation;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.HttpHeader;
@@ -553,6 +555,15 @@ public class RequestTest
     public void testBadUtf8Query(boolean allowBadUtf8) throws Exception
     {
         server.stop();
+        List<ComplianceViolation.Event> events = new CopyOnWriteArrayList<>();
+        ComplianceViolation.Listener listener = new ComplianceViolation.Listener()
+        {
+            @Override
+            public void onComplianceViolation(ComplianceViolation.Event event)
+            {
+                events.add(event);
+            }
+        };
 
         if (allowBadUtf8)
         {
@@ -563,6 +574,7 @@ public class RequestTest
                 {
                     HttpConfiguration httpConfiguration = httpConnectionFactory.getHttpConfiguration();
                     httpConfiguration.setUriCompliance(UriCompliance.DEFAULT.with("test", UriCompliance.Violation.BAD_UTF8_ENCODING));
+                    httpConfiguration.addComplianceViolationListener(listener);
                 }
             }
         }
@@ -595,5 +607,14 @@ public class RequestTest
             """;
         HttpTester.Response response = HttpTester.parseResponse(connector.getResponse(request));
         assertEquals(HttpStatus.OK_200, response.getStatus());
+        if (allowBadUtf8)
+        {
+            assertThat(events.size(), is(1));
+            assertThat(events.get(0).violation(), is(UriCompliance.Violation.BAD_UTF8_ENCODING));
+        }
+        else
+        {
+            assertThat(events.size(), is(0));
+        }
     }
 }
