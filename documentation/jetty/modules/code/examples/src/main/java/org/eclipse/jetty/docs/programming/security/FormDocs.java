@@ -14,6 +14,9 @@
 package org.eclipse.jetty.docs.programming.security;
 
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.server.FormFields;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.util.Fields;
 
 public class FormDocs
 {
@@ -26,5 +29,15 @@ public class FormDocs
         servletContextHandler.setMaxFormContentSize(maxFormSizeInBytes);
         servletContextHandler.setMaxFormKeys(maxFormKeys);
         // end::limitFormContent[]
+    }
+
+    public void jettyCoreAPI()
+    {
+        Request request = null;
+        // tag::jettyCoreAPI[]
+        int maxFormKeys = 100;
+        int maxFormSizeInBytes = 1024;
+        Fields fields = FormFields.getFields(request, maxFormKeys, maxFormSizeInBytes);
+        // end::jettyCoreAPI[]
     }
 }

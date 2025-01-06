@@ -27,7 +27,7 @@ To configure the form limits for a single web application, the `ServletContextHa
 
 [,java,indent=0]
 ----
-include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/FormDocs.java.java[tags=limitFormContent]
+include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/FormDocs.java[tags=limitFormContent]
 ----
 
 These settings can also be set via the following `ServletContext` attributes.
@@ -43,3 +43,14 @@ However, the following system properties can be set to change the default values
 
 - `org.eclipse.jetty.server.Request.maxFormKeys`
 - `org.eclipse.jetty.server.Request.maxFormContentSize`.
+
+== Limiting Form Content with Jetty Core API
+
+The class `FormFields` is used to parse forms with the Jetty Core API, which provides `onFields` and `getFields` static methods to provide both async & blocking ways to parse a form.
+
+These methods take parameters for `maxFields` and `maxLength` which can be used to limit the form content.
+
+[,java,indent=0]
+----
+include::code:example$src/main/java/org/eclipse/jetty/docs/programming/security/FormDocs.java[tags=jettyCoreAPI]
+----
