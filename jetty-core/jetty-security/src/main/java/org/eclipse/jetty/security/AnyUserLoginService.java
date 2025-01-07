@@ -21,10 +21,14 @@ import org.eclipse.jetty.server.Session;
 
 /**
  * A {@link LoginService} which allows unknown users to be authenticated.
+ * <p>This is useful for authentication protocols like OpenID Connect and Sign in With Ethereum, where Jetty doesn't store
+ * a collection of user credentials and passwords. Once the user proves authenticates themselves through the respective
+ * protocol, Jetty does not have to validate any credential.</p>
  * <p>
- * This can delegate to a nested {@link LoginService} if it is supplied to the constructor, it will first attempt to log in
+ * This can delegate to a nested {@link LoginService} which can supply roles for known users.
+ * This nested {@link LoginService} is supplied to the constructor, and this will first attempt to log in
  * with the nested {@link LoginService} and only create a new {@link UserIdentity} if none was found with
- * {@link LoginService#login(String, Object, Request, Function)}.
+ * {@link LoginService#login(String, Object, Request, Function)}
  * </p>
  * <p>This {@link LoginService} does not check credentials, a {@link UserIdentity} will be produced for any
  * username provided in {@link #login(String, Object, Request, Function)}.</p>
