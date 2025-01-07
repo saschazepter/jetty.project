@@ -2085,6 +2085,15 @@ public class ServletContextHandler extends ContextHandler
                 default -> super.setAttribute(name, attribute);
             };
         }
+
+        @Override
+        public Set<String> getAttributeNameSet()
+        {
+            Set<String> names = new HashSet<>(super.getAttributeNameSet());
+            names.add(FormFields.MAX_FIELDS_ATTRIBUTE);
+            names.add(FormFields.MAX_LENGTH_ATTRIBUTE);
+            return Collections.unmodifiableSet(names);
+        }
     }
 
     public class ServletContextApi implements jakarta.servlet.ServletContext

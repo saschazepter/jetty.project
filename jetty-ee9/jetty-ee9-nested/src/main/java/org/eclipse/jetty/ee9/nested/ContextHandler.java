@@ -2905,6 +2905,15 @@ public class ContextHandler extends ScopedHandler implements Attributes, Supplie
             }
         }
 
+        @Override
+        public Set<String> getAttributeNameSet()
+        {
+            Set<String> names = new HashSet<>(super.getAttributeNameSet());
+            names.add(FormFields.MAX_FIELDS_ATTRIBUTE);
+            names.add(FormFields.MAX_LENGTH_ATTRIBUTE);
+            return Collections.unmodifiableSet(names);
+        }
+
         private class CoreToNestedHandler extends Abstract
         {
             @Override
