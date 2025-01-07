@@ -37,18 +37,18 @@ These settings can also be set via the following `ServletContext` attributes.
 
 == Configuring Default Form Limits for the Server
 
-The default `maxFormKeys` is 1000 and the default `maxFormContentSize` is 200000.
-
-However, the following system properties can be set to change the default values of this across every context:
+The following system properties can be used to configure form limits for the entire server, including all contexts without explicit configuration:
 
 - `org.eclipse.jetty.server.Request.maxFormKeys`
 - `org.eclipse.jetty.server.Request.maxFormContentSize`.
+
+If not configured for either the server or a specific context, then the default  `maxFormKeys` is 1000 and the default `maxFormContentSize` is 200000.
 
 == Limiting Form Content with Jetty Core API
 
 The class `FormFields` is used to parse forms with the Jetty Core API, which provides `onFields` and `getFields` static methods to provide both async & blocking ways to parse a form.
 
-These methods take parameters for `maxFields` and `maxLength` which can be used to limit the form content.
+These methods can take parameters for `maxFields` and `maxLength` which can be used to limit the form content.
 
 [,java,indent=0]
 ----

@@ -37,7 +37,13 @@ public class FormDocs
         // tag::jettyCoreAPI[]
         int maxFormKeys = 100;
         int maxFormSizeInBytes = 1024;
-        Fields fields = FormFields.getFields(request, maxFormKeys, maxFormSizeInBytes);
+        Fields fields;
+
+        // Explicit set the form limits.
+        fields = FormFields.getFields(request, maxFormKeys, maxFormSizeInBytes);
+
+        // Rely on default form limits.
+        fields = FormFields.getFields(request);
         // end::jettyCoreAPI[]
     }
 }
