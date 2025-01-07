@@ -565,7 +565,7 @@ public class ResponseListeners
                 LOG.debug("Registered demand on {}; {}", contentSource, counters);
         }
 
-        private class ContentSource implements Content.Source
+        private class ContentSource implements Content.Source, Invocable
         {
             private static final Content.Chunk ALREADY_READ_CHUNK = new Content.Chunk.Empty()
             {
@@ -653,9 +653,11 @@ public class ResponseListeners
                 }
             }
 
-            private Invocable.InvocationType getInvocationType()
+            @Override
+            public InvocationType getInvocationType()
             {
-                return Invocable.getInvocationType(demandCallbackRef.get());
+                Runnable demandCallback = demandCallbackRef.get();
+                return demandCallback == null ? InvocationType.NON_BLOCKING : Invocable.getInvocationType(demandCallback);
             }
 
             @Override

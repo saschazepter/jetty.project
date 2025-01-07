@@ -166,11 +166,16 @@ public class ThreadStarvationTest extends AbstractTest
             .timeout(2 * idleTimeout, TimeUnit.MILLISECONDS)
             .send(result ->
             {
-                // The response should arrive correctly,
-                // it is the request that failed.
+                // The response frames arrive for all protocols (on the network).
+                // It is the request that is failed because the request content was not sent.
+                // For HTTP/2 a RST_STREAM arrives to fail the request, but it likely fails
+                // the response too, by draining the queued DATA frames before they are read
+                // by the content listener.
+                // For the other protocols the request is failed by the total timeout.
                 assertTrue(result.isFailed());
-                assertNull(result.getResponseFailure());
                 assertEquals(HttpStatus.INTERNAL_SERVER_ERROR_500, result.getResponse().getStatus());
+                if (transportType != TransportType.H2C && transportType != TransportType.H2)
+                    assertNull(result.getResponseFailure());
                 responseLatch.countDown();
             });
 
