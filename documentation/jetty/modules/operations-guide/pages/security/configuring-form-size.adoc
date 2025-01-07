@@ -14,12 +14,7 @@
 [[limit-form-content]]
 = Limiting Form Content
 
-Form content sent to the server is processed by Jetty into a map of parameters to be used by the web application.
-Forms can be a vector for denial-of-service attacks, since significant memory and CPU can be consumed if a malicious client sends very large form content or a large number of form keys.
-Thus, Jetty limits the amount of data and keys that can be in a form posted to Jetty.
-
-The default maximum size Jetty permits is 200000 bytes and 1000 keys.
-You can change this default for a particular web application or for all web applications on a particular `Server` instance.
+Forms can be a vector for denial-of-service attacks, like explained in xref:programming-guide:security/configuring-form-size.adoc[this section] of the Programming Guide.
 
 == Configuring Form Limits for a Web Application
 
@@ -41,12 +36,3 @@ These settings can also be set via the following `ServletContext` attributes.
 
 - `org.eclipse.jetty.server.Request.maxFormKeys`
 - `org.eclipse.jetty.server.Request.maxFormContentSize`
-
-== Configuring Default Form Limits for the Server
-
-The following system properties can be used to configure form limits for the entire server, including all contexts without explicit configuration:
-
-- `org.eclipse.jetty.server.Request.maxFormKeys`
-- `org.eclipse.jetty.server.Request.maxFormContentSize`.
-
-If not configured for either the server or a specific context, then the default  `maxFormKeys` is 1000 and the default `maxFormContentSize` is 200000.
