@@ -136,13 +136,6 @@ public abstract class AuthenticationProtocolHandler implements ProtocolHandler
         {
             HttpRequest request = (HttpRequest)result.getRequest();
             ContentResponse response = new HttpContentResponse(result.getResponse(), getContent(), getMediaType(), getEncoding());
-            if (result.getResponseFailure() != null)
-            {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Authentication challenge failed", result.getFailure());
-                forwardFailureComplete(request, result.getRequestFailure(), response, result.getResponseFailure());
-                return;
-            }
 
             String authenticationAttribute = getAuthenticationAttribute();
             HttpConversation conversation = request.getConversation();

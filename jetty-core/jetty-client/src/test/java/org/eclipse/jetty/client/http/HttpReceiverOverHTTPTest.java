@@ -258,7 +258,7 @@ public class HttpReceiverOverHTTPTest
                                     // Verify that the buffer has been released
                                     // before fillInterested() is called.
                                     assertNull(getResponseBuffer());
-                                    // Fill the endpoint so receive is called again.
+                                    // Fill the endpoint so receive() is called again.
                                     endPoint.addInput("X");
                                 }
                                 super.fillInterested();
