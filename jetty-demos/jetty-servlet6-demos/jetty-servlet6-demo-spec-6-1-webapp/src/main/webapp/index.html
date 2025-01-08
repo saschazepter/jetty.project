@@ -1,0 +1,128 @@
+<html>
+<head>
+    <title>Demo Specification WebApp</title>
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Cache-Control" content="no-cache,no-store">
+    <link rel="stylesheet" type="text/css" href="demo.css"/>
+    <style>
+        .result {
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .passed {
+            color: green;
+        }
+        .failed {
+            color: red;
+        }
+    </style>
+    <script>
+        function sendDurableDispatchTest(event) {
+            event.preventDefault();
+            fetch("./durable/test", {
+                method: "GET"
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.text();
+            }).then(data => {
+                const resultSpan = document.createElement("span");
+                resultSpan.classList.add("result");
+
+                if (data.startsWith("OK")) {
+                    resultSpan.textContent = "PASSED!";
+                    resultSpan.classList.add("passed");
+                } else {
+                    resultSpan.textContent = "FAILED!!";
+                    resultSpan.classList.add("failed");
+                }
+
+                // Append the result after the link
+                document.getElementById("durable-test").after(resultSpan);
+            }).catch(error => {
+                console.error("Error:", error);
+                alert(`Failed to send GET request.\nError: ${error.message}`);
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const link = document.getElementById("durable-test");
+            link.addEventListener("click", sendDurableDispatchTest);
+        });
+
+        function sendByteBufferIoTest(event) {
+            event.preventDefault();
+
+            const jsonData = {
+                test: "data",
+                result: "ok"
+            };
+
+            fetch("echo/test", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(jsonData),
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            }).then(data => {
+                console.log("Response:", data);
+
+                const resultSpan = document.createElement("span");
+                resultSpan.classList.add("result");
+
+                if (data.result === "ok") {
+                    resultSpan.textContent = "PASSED";
+                    resultSpan.classList.add("passed");
+                } else {
+                    resultSpan.textContent = "FAILED";
+                    resultSpan.classList.add("failed");
+                }
+
+                document.getElementById("bytebuffer-test").after(resultSpan);
+            }).catch(error => {
+                console.error("Error:", error);
+                alert(`Failed to send POST request.\nError: ${error.message}`);
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const link = document.getElementById("bytebuffer-test");
+            link.addEventListener("click", sendByteBufferIoTest);
+        });
+
+    </script>
+</head>
+<body>
+    <div class="topnav">
+      <a class="menu" href="http://localhost:8080/">Demo Home</a>
+      <a class="menu" href="https://github.com/jetty/jetty.project/tree/jetty-12.0.x/jetty-demos/jetty-servlet6-demos/jetty-servlet6-demo-spec-6-1-webapp/">Source</a>
+      <a class="menu" href="https://jetty.org/">Jetty Project Home</a>
+      <a class="menu" href="https://jetty.org/docs/">Documentation</a>
+      <a class="menu" href="https://webtide.com">Commercial Support</a>
+    </div>
+
+    <div class="content">
+      <div style="text-align: center;">
+          <span style="color:red; font-style:italic; font-weight:bold">Demo Web Application Only - Do NOT Deploy in Production</span>
+      </div>
+
+     <h1>Servlet 6.x WebApp</h1>
+     <p>This example tests some aspects of the servlet 6.x specification:</p>
+     <ul>
+      <li><a href="#" id="durable-test">Durable dispatched request wrappers</a></li>
+      <li><a href="#" id="bytebuffer-test">ByteBuffer IO echo</a></li>
+    </ul>
+
+  </div>
+
+  <div class="footer">
+    <div style="text-align: center;"><a href="https://jetty.org"><img src="small_powered_by.gif" alt="powered by jetty"/></a></div>
+  </div>
+</body>
+</html>
