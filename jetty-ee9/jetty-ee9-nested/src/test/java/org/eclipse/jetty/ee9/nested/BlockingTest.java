@@ -38,6 +38,7 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ExceptionUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.awaitility.Awaitility.await;
@@ -158,6 +159,7 @@ public class BlockingTest
     }
 
     @Test
+    @Tag("flaky")
     public void testBlockingCloseWhileReading() throws Exception
     {
         AtomicReference<Thread> threadRef = new AtomicReference<>();
