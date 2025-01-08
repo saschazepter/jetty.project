@@ -33,6 +33,8 @@ import org.conscrypt.OpenSSLProvider;
 import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.compression.server.CompressionConfig;
+import org.eclipse.jetty.compression.server.CompressionHandler;
 import org.eclipse.jetty.ee11.servlet.DefaultServlet;
 import org.eclipse.jetty.ee11.servlet.ResourceServlet;
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
@@ -83,7 +85,9 @@ import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.CrossOriginHandler;
 import org.eclipse.jetty.server.handler.DefaultHandler;
+import org.eclipse.jetty.server.handler.DoSHandler;
 import org.eclipse.jetty.server.handler.EventsHandler;
+import org.eclipse.jetty.server.handler.GracefulHandler;
 import org.eclipse.jetty.server.handler.QoSHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.SecuredRedirectHandler;
@@ -1398,6 +1402,85 @@ public class HTTPServerDocs
         // end::contextGzipHandler[]
     }
 
+    public void serverCompressionHandler() throws Exception
+    {
+        // tag::serverCompressionHandler[]
+        Server server = new Server();
+        Connector connector = new ServerConnector(server);
+        server.addConnector(connector);
+
+        // Create and configure CompressionHandler.
+        CompressionHandler compressionHandler = new CompressionHandler();
+        server.setHandler(compressionHandler);
+
+        CompressionConfig compressionConfig = CompressionConfig.builder()
+            // Do not compress these URI paths.
+            .compressExcludePath("/uncompressed")
+            // Also compress POST responses.
+            .compressIncludeMethod("POST")
+            // Do not compress these mime types.
+            .compressExcludeMimeType("font/ttf")
+            .build();
+        // Map the request URI path spec '/*' with the compression configuration.
+        // You can map different path specs with different compression configurations.
+        compressionHandler.putConfiguration("/*", compressionConfig);
+
+        // Create a ContextHandlerCollection to manage contexts.
+        ContextHandlerCollection contexts = new ContextHandlerCollection();
+        compressionHandler.setHandler(contexts);
+
+        server.start();
+        // end::serverCompressionHandler[]
+    }
+
+    public void contextCompressionHandler() throws Exception
+    {
+        class ShopHandler extends Handler.Abstract
+        {
+            @Override
+            public boolean handle(Request request, Response response, Callback callback)
+            {
+                // Implement the shop, remembering to complete the callback.
+                return true;
+            }
+        }
+
+        class RESTHandler extends Handler.Abstract
+        {
+            @Override
+            public boolean handle(Request request, Response response, Callback callback)
+            {
+                // Implement the REST APIs, remembering to complete the callback.
+                return true;
+            }
+        }
+
+        // tag::contextCompressionHandler[]
+        Server server = new Server();
+        ServerConnector connector = new ServerConnector(server);
+        server.addConnector(connector);
+
+        // Create a ContextHandlerCollection to hold contexts.
+        ContextHandlerCollection contextCollection = new ContextHandlerCollection();
+        // Link the ContextHandlerCollection to the Server.
+        server.setHandler(contextCollection);
+
+        // Create the context for the shop web application wrapped with CompressionHandler so only the shop will do compression.
+        CompressionHandler shopCompressionHandler = new CompressionHandler(new ContextHandler(new ShopHandler(), "/shop"));
+
+        // Add it to ContextHandlerCollection.
+        contextCollection.addHandler(shopCompressionHandler);
+
+        // Create the context for the API web application.
+        ContextHandler apiContext = new ContextHandler(new RESTHandler(), "/api");
+
+        // Add it to ContextHandlerCollection.
+        contextCollection.addHandler(apiContext);
+
+        server.start();
+        // end::contextCompressionHandler[]
+    }
+
     public void rewriteHandler() throws Exception
     {
         // tag::rewriteHandler[]
@@ -1532,8 +1615,8 @@ public class HTTPServerDocs
         // Set the max number of concurrent requests,
         // for example in relation to the thread pool.
         qosHandler.setMaxRequestCount(maxThreads / 2);
-        // A suspended request may stay suspended for at most 15 seconds.
-        qosHandler.setMaxSuspend(Duration.ofSeconds(15));
+        // A suspended request may stay suspended for at most 5 seconds.
+        qosHandler.setMaxSuspend(Duration.ofSeconds(5));
         server.setHandler(qosHandler);
 
         // Provide quality of service to the shop
@@ -1680,6 +1763,38 @@ public class HTTPServerDocs
         // end::defaultHandler[]
     }
 
+    public void gracefulHandler() throws Exception
+    {
+        // tag::gracefulHandler[]
+        Server server = new Server();
+
+        // Install the GracefulHandler.
+        GracefulHandler gracefulHandler = new GracefulHandler();
+        server.setHandler(gracefulHandler);
+
+        // Set the Server stopTimeout to wait at most
+        // 10 seconds for existing requests to complete.
+        server.setStopTimeout(10_000);
+
+        // Add one web application.
+        class MyWebApp extends Handler.Abstract
+        {
+            @Override
+            public boolean handle(Request request, Response response, Callback callback) throws Exception
+            {
+                // Implement your web application.
+                callback.succeeded();
+                return true;
+            }
+        }
+
+        ContextHandler contextHandler = new ContextHandler(new MyWebApp(), "/app");
+        gracefulHandler.setHandler(contextHandler);
+
+        server.start();
+        // end::gracefulHandler[]
+    }
+
     public void continue100()
     {
         // tag::continue100[]
@@ -1746,5 +1861,43 @@ public class HTTPServerDocs
 
         server.start();
         // end::requestCustomizer[]
+    }
+
+    public void dosHandler() throws Exception
+    {
+        // tag::dosHandler[]
+        class CatalogHandler extends Handler.Abstract
+        {
+            @Override
+            public boolean handle(Request request, Response response, Callback callback)
+            {
+                // Implement the catalog application.
+                callback.succeeded();
+                return true;
+            }
+        }
+
+        Server server = new Server();
+        ServerConnector connector = new ServerConnector(server);
+        server.addConnector(connector);
+
+        // Create and configure DoSHandler.
+        DoSHandler dosHandler = new DoSHandler(
+            // Identify remote clients by IP address.
+            DoSHandler.ID_FROM_REMOTE_ADDRESS,
+            // Allow 50 requests/s per remote client.
+            new DoSHandler.LeakingBucketTrackerFactory(50),
+            // When the request rate is exceeded, delay for 10s and then respond with 429.
+            new DoSHandler.DelayedRejectHandler(10000, -1, new DoSHandler.StatusRejectHandler()),
+            // Limit the number of remote clients.
+            5000
+        );
+        server.setHandler(dosHandler);
+
+        // Protect the catalog application by wrapping CatalogHandler with DoSHandler.
+        dosHandler.setHandler(new CatalogHandler());
+
+        server.start();
+        // end::dosHandler[]
     }
 }

@@ -363,6 +363,10 @@ public class HttpChannelState implements HttpChannel, Components
             if (LOG.isDebugEnabled())
                 LOG.debug("onIdleTimeout {}", this, t);
 
+            // too late?
+            if (_stream == null)
+                return null;
+
             Runnable invokeOnContentAvailable = null;
             if (_readFailure == null)
             {
@@ -441,10 +445,16 @@ public class HttpChannelState implements HttpChannel, Components
             // If not handled, then we just fail the request callback
             if (!_handled && _handling == null)
             {
-                task = () -> _request._callback.failed(x);
+                if (LOG.isDebugEnabled())
+                    LOG.debug("failing request not yet handled {} {}", _request, this);
+                Callback callback = _request._callback;
+                task = () -> callback.failed(x);
             }
             else
             {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("failing request {} {}", _request, this);
+
                 // Set the failure to arrange for any subsequent reads or demands to fail.
                 if (_readFailure == null)
                     _readFailure = Content.Chunk.from(x, true);
@@ -591,15 +601,16 @@ public class HttpChannelState implements HttpChannel, Components
     {
         try (AutoLock lock = _lock.tryLock())
         {
-            boolean held = lock.isHeldByCurrentThread();
-            return String.format("%s@%x{handling=%s, handled=%s, send=%s, completed=%s, request=%s}",
+            String held = lock.isHeldByCurrentThread() ? "" : "?";
+            return String.format("%s@%x[%s:handling=%s,handled=%s,send=%s,completed=%s,request=%s]",
                 this.getClass().getSimpleName(),
                 hashCode(),
-                held ? _handling : "?",
-                held ? _handled : "?",
-                held ? _streamSendState : "?",
-                held ? _callbackCompleted : "?",
-                held ? _request : "?"
+                held,
+                _handling,
+                _handled,
+                _streamSendState,
+                _callbackCompleted,
+                _request
             );
         }
     }
@@ -709,6 +720,7 @@ public class HttpChannelState implements HttpChannel, Components
             try (AutoLock ignored = _lock.lock())
             {
                 assert _callbackCompleted;
+                assert _callbackFailure == null;
                 _streamSendState = StreamSendState.LAST_COMPLETE;
                 completeStream = _handling == null;
                 stream = _stream;
@@ -1190,6 +1202,8 @@ public class HttpChannelState implements HttpChannel, Components
         @Override
         public void setStatus(int code)
         {
+            if (code < 100 || code > 999)
+                throw new IllegalArgumentException();
             if (!isCommitted())
                 _status = code;
         }
@@ -1321,6 +1335,7 @@ public class HttpChannelState implements HttpChannel, Components
                 httpChannel = _request.lockedGetHttpChannelState();
                 httpChannel.lockedStreamSendCompleted(true);
             }
+
             if (callback != null)
                 httpChannel._writeInvoker.run(callback::succeeded);
         }
@@ -1350,6 +1365,7 @@ public class HttpChannelState implements HttpChannel, Components
                 httpChannel = _request.lockedGetHttpChannelState();
                 httpChannel.lockedStreamSendCompleted(false);
             }
+
             if (callback != null)
                 httpChannel._writeInvoker.run(() -> HttpChannelState.failed(callback, x));
         }

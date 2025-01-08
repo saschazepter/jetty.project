@@ -1202,7 +1202,7 @@ public abstract class HTTP2Session extends ContainerLifeCycle implements Session
         }
         catch (Throwable x)
         {
-            LOG.info("Failure while notifying listener " + listener, x);
+            LOG.info("Failure while notifying listener {}", listener, x);
         }
     }
 

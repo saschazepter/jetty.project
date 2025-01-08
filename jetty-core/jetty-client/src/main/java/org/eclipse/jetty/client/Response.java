@@ -188,7 +188,10 @@ public interface Response
         @Override
         default void onContentSource(Response response, Content.Source contentSource)
         {
-            Runnable demandCallback = Invocable.from(Invocable.InvocationType.NON_BLOCKING, () -> onContentSource(response, contentSource));
+            // Ask the InvocationType to the Content.Source, where applications
+            // have set it there using Content.Source.demand(Runnable).
+            Invocable.InvocationType invocationType = Invocable.getInvocationType(contentSource);
+            Runnable demandCallback = Invocable.from(invocationType, () -> onContentSource(response, contentSource));
             Content.Chunk chunk = contentSource.read();
             if (chunk == null)
             {

@@ -34,7 +34,7 @@ import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class HTTP2StreamEndPoint implements EndPoint
+public abstract class HTTP2StreamEndPoint implements EndPoint, Invocable
 {
     private static final Logger LOG = LoggerFactory.getLogger(HTTP2StreamEndPoint.class);
 
@@ -478,10 +478,11 @@ public abstract class HTTP2StreamEndPoint implements EndPoint
             callback.succeeded();
     }
 
-    protected Invocable.InvocationType getInvocationType()
+    @Override
+    public InvocationType getInvocationType()
     {
         Callback callback = readCallback.get();
-        return callback == null ? Invocable.InvocationType.NON_BLOCKING : callback.getInvocationType();
+        return callback == null ? InvocationType.NON_BLOCKING : callback.getInvocationType();
     }
 
     @Override

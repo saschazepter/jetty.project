@@ -20,8 +20,8 @@ public class BrotliDecoderConfig implements DecoderConfig
     /**
      * Default Buffer Size as found in Brotli4j.
      */
-    public static final int DEFAULT_BUFFER_SIZE = 16384;
-    public static final int MIN_BUFFER_SIZE = 32;
+    private static final int DEFAULT_BUFFER_SIZE = 16384;
+    private static final int MIN_BUFFER_SIZE = 32;
     private int bufferSize = DEFAULT_BUFFER_SIZE;
 
     @Override
@@ -33,6 +33,6 @@ public class BrotliDecoderConfig implements DecoderConfig
     @Override
     public void setBufferSize(int size)
     {
-        this.bufferSize = this.bufferSize = Math.max(MIN_BUFFER_SIZE, size);
+        this.bufferSize = Math.max(MIN_BUFFER_SIZE, size);
     }
 }

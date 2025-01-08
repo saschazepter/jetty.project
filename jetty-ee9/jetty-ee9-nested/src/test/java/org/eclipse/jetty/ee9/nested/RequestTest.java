@@ -130,7 +130,6 @@ public class RequestTest
         _server = new Server();
         _context = new ContextHandler(_server);
         HttpConnectionFactory http = new HttpConnectionFactory();
-        http.setRecordHttpComplianceViolations(true);
         http.setInputBufferSize(1024);
         http.getHttpConfiguration().setRequestHeaderSize(512);
         http.getHttpConfiguration().setResponseHeaderSize(512);
@@ -210,6 +209,34 @@ public class RequestTest
         response = _connector.getResponse(request);
         assertTrue(response.startsWith("HTTP/1.1 200"));
         assertEquals("utf-8", result.get());
+    }
+
+    @Test
+    public void testBadUtf8Query() throws Exception
+    {
+        _server.stop();
+        _connector.getConnectionFactory(HttpConnectionFactory.class)
+            .getHttpConfiguration().setUriCompliance(UriCompliance.DEFAULT.with("test", UriCompliance.Violation.BAD_UTF8_ENCODING));
+        _server.start();
+
+        _handler._checker = (request, response) ->
+        {
+            String param = request.getParameter("param");
+            String other = request.getParameter("other");
+            return param != null && param.equals("bad_�") && other != null && other.equals("short�");
+        };
+
+        //Send a request with query string with illegal hex code to cause
+        //an exception parsing the params
+        String request = """
+            GET /?param=bad_%e0%b8&other=short%a HTTP/1.1\r
+            Host: whatever\r
+            Connection: close
+            
+            """;
+
+        String responses = _connector.getResponse(request);
+        assertThat(responses, startsWith("HTTP/1.1 200"));
     }
 
     @Test
