@@ -30,7 +30,6 @@ public class EchoServlet extends HttpServlet
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException
     {
-        System.err.println("ECHO " + request);
         response.setContentType(request.getContentType());
         ServletInputStream input = request.getInputStream();
         ServletOutputStream output = response.getOutputStream();
