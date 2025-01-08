@@ -17,6 +17,20 @@
         }
     </style>
     <script>
+        function result(id, result) {
+            console.error("Result:", id, " = ", result);
+            const resultSpan = document.createElement("span");
+            resultSpan.classList.add("result");
+            if (result){
+                resultSpan.textContent = "PASSED!";
+                resultSpan.classList.add("passed");
+            } else {
+                resultSpan.textContent = "FAILED!!";
+                resultSpan.classList.add("failed");
+            }
+            document.getElementById(id).after(resultSpan);
+        }
+
         function sendDurableDispatchTest(event) {
             event.preventDefault();
             fetch("./durable/test", {
@@ -27,19 +41,7 @@
                 }
                 return response.text();
             }).then(data => {
-                const resultSpan = document.createElement("span");
-                resultSpan.classList.add("result");
-
-                if (data.startsWith("OK")) {
-                    resultSpan.textContent = "PASSED!";
-                    resultSpan.classList.add("passed");
-                } else {
-                    resultSpan.textContent = "FAILED!!";
-                    resultSpan.classList.add("failed");
-                }
-
-                // Append the result after the link
-                document.getElementById("durable-test").after(resultSpan);
+                result("durable-test", data.startsWith("OK"));
             }).catch(error => {
                 console.error("Error:", error);
                 alert(`Failed to send GET request.\nError: ${error.message}`);
@@ -72,19 +74,7 @@
                 return response.json();
             }).then(data => {
                 console.log("Response:", data);
-
-                const resultSpan = document.createElement("span");
-                resultSpan.classList.add("result");
-
-                if (data.result === "ok") {
-                    resultSpan.textContent = "PASSED";
-                    resultSpan.classList.add("passed");
-                } else {
-                    resultSpan.textContent = "FAILED";
-                    resultSpan.classList.add("failed");
-                }
-
-                document.getElementById("bytebuffer-test").after(resultSpan);
+                result("bytebuffer-test", data.result === "ok")
             }).catch(error => {
                 console.error("Error:", error);
                 alert(`Failed to send POST request.\nError: ${error.message}`);
@@ -94,6 +84,33 @@
         document.addEventListener("DOMContentLoaded", () => {
             const link = document.getElementById("bytebuffer-test");
             link.addEventListener("click", sendByteBufferIoTest);
+        });
+
+        function ambiguousUriTest(event) {
+            event.preventDefault();
+
+            const urls = ["/foo%2Fbar", "/foo//bar", "/foo/..;/bar", "/foo/%2e%2e;param/bar"];
+
+            const fetchStatuses = urls.map(url =>
+                fetch(url)
+                    .then(response => response.status === 400)
+                    .catch(() => false) // Treat any error as a failure
+            );
+
+            Promise.all(fetchStatuses)
+                .then(results => {
+                    result("ambiguous-uri-test", results.every(status => status));
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert(`An error occurred during the requests.`);
+                });
+        }
+
+        // Attach the event listener in JavaScript
+        document.addEventListener("DOMContentLoaded", () => {
+            const link = document.getElementById("ambiguous-uri-test");
+            link.addEventListener("click", ambiguousUriTest);
         });
 
     </script>
@@ -116,7 +133,8 @@
      <p>This example tests some aspects of the servlet 6.x specification:</p>
      <ul>
       <li><a href="#" id="durable-test">Durable dispatched request wrappers</a></li>
-      <li><a href="#" id="bytebuffer-test">ByteBuffer IO echo</a></li>
+      <li><a href="#" id="bytebuffer-test">Echo with ByteBuffer IO API </a></li>
+      <li><a href="#" id="ambiguous-uri-test">Deny ambiguous URIs</a></li>
     </ul>
 
   </div>
