@@ -32,9 +32,9 @@ import org.slf4j.LoggerFactory;
  */
 public class JettyDemos
 {
-    private static final Logger LOG = LoggerFactory.getLogger(JettyDemos.class);
-    private static final Path JETTY_DEMOS_DIR;
-    private static String VERSION = System.getProperty("jettyVersion", "unknown");
+    public static final Logger LOG = LoggerFactory.getLogger(JettyDemos.class);
+    public static final Path JETTY_DEMOS_DIR;
+    public static String VERSION = System.getProperty("jettyVersion", "unknown");
 
     static
     {
@@ -55,10 +55,10 @@ public class JettyDemos
                 LOG.debug("JettyDemos(prop(user.dir)) = {}", working);
                 while (dir == null && working != null)
                 {
-                    dir = asDirectory(working.resolve("jetty-demos/jetty-servlet6-demos/jetty-servlet6-demo-simple-webapp").toString());
+                    dir = asDirectory(working.resolve("jetty-demos/jetty-servlet6-demos").toString());
                     if (dir != null && Files.exists(dir.resolve("pom.xml")))
                     {
-                        demosDir = dir;
+                        demosDir = dir.getParent();
                     }
                     // try one parent up
                     working = working.getParent();

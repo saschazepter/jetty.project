@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.EnumSet;
@@ -70,7 +69,9 @@ public class Http2Server
         server.addBean(LoggerFactory.getILoggerFactory());
 
         ServletContextHandler context = new ServletContextHandler("/", ServletContextHandler.SESSIONS);
-        Path docroot = Paths.get("src/main/resources/docroot");
+
+        Path embeddedDir = JettyDemos.JETTY_DEMOS_DIR.resolve("jetty-servlet6-demos/jetty-servlet6-demo-embedded");
+        Path docroot = embeddedDir.resolve("src/main/resources/docroot");
         if (!Files.exists(docroot))
             throw new FileNotFoundException(docroot.toString());
 
@@ -93,7 +94,7 @@ public class Http2Server
         server.addConnector(http);
 
         // SSL Context Factory for HTTPS and HTTP/2
-        Path keystorePath = Paths.get("src/main/resources/etc/keystore.p12").toAbsolutePath();
+        Path keystorePath = embeddedDir.resolve("src/main/resources/etc/keystore.p12").toAbsolutePath();
         if (!Files.exists(keystorePath))
             throw new FileNotFoundException(keystorePath.toString());
         SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
@@ -135,17 +136,16 @@ public class Http2Server
         @Override
         public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException
         {
-            /* TODO
-            Request baseRequest = Request.getBaseRequest(request);
+            HttpServletRequest req = (HttpServletRequest)request;
 
-            if (baseRequest.isPush() && baseRequest.getRequestURI().contains("tiles"))
+            boolean push = false; // TODO
+
+            if (push && req.getRequestURI().contains("tiles"))
             {
-                String uri = baseRequest.getRequestURI().replace("tiles", "pushed").substring(baseRequest.getContextPath().length());
+                String uri = req.getRequestURI().replace("tiles", "pushed").substring(req.getContextPath().length());
                 request.getRequestDispatcher(uri).forward(request, response);
                 return;
             }
-
-             */
 
             chain.doFilter(request, response);
         }
