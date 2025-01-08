@@ -722,16 +722,7 @@ public class HttpOutput extends ServletOutputStream
                     {
                         case BLOCKING:
                             _apiState = ApiState.BLOCKED;
-                            RetainableByteBuffer aggregate = _aggregate;
-                            if (aggregate != null && aggregate.hasRemaining())
-                            {
-                                aggregate.retain();
-                                content = aggregate.getByteBuffer();
-                            }
-                            else
-                            {
-                                content = BufferUtil.EMPTY_BUFFER;
-                            }
+                            content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
                             break;
 
                         case ASYNC:
