@@ -18,6 +18,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -59,6 +61,7 @@ import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.LocalConnector;
 import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.TrailingSlashAliasChecker;
 import org.eclipse.jetty.toolchain.test.FS;
 import org.eclipse.jetty.toolchain.test.MavenPaths;
@@ -772,22 +775,23 @@ public class ResourceHandlerTest
     @Test
     public void testOver2GBFile() throws Exception
     {
+        _server.stop();
+        ServerConnector connector = new ServerConnector(_server);
+        connector.setPort(0);
+        _server.addConnector(connector);
+        _server.start();
+
         long hugeLength = (long)Integer.MAX_VALUE + 10L;
 
         generateFile(docRoot.resolve("huge.mkv"), hugeLength);
 
-        HttpTester.Response response = HttpTester.parseResponse(
-            _local.getResponse("""
-                GET /context/huge.mkv HTTP/1.1\r
-                Host: local\r
-                Connection: close\r
-                \r
-                """));
+        URI uri = URI.create("http://localhost:%d/context/huge.mkv".formatted(connector.getLocalPort()));
 
-        System.err.println(response);
+        HttpURLConnection http = (HttpURLConnection)uri.toURL().openConnection();
+        http.setRequestProperty("Connection", "close");
 
-        assertThat(response.getStatus(), is(HttpStatus.OK_200));
-        long responseContentLength = response.getLongField(CONTENT_LENGTH);
+        assertThat(http.getResponseCode(), is(HttpStatus.OK_200));
+        long responseContentLength = http.getContentLengthLong();
         assertThat(responseContentLength, is(hugeLength));
     }
 
