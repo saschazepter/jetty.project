@@ -566,7 +566,7 @@ public class HttpOutput extends ServletOutputStream
                             _state = State.CLOSING;
                             blocker = _writeBlocker.callback();
                             aggregate = _aggregate;
-                            if (aggregate != null && _aggregate.hasRemaining())
+                            if (aggregate != null && aggregate.hasRemaining())
                             {
                                 aggregate.retain();
                                 content = aggregate.getByteBuffer();
@@ -593,7 +593,7 @@ public class HttpOutput extends ServletOutputStream
                             _apiState = ApiState.PENDING;
                             _state = State.CLOSING;
                             aggregate = _aggregate;
-                            if (aggregate != null && _aggregate.hasRemaining())
+                            if (aggregate != null && aggregate.hasRemaining())
                             {
                                 aggregate.retain();
                                 content = aggregate.getByteBuffer();
@@ -735,7 +735,16 @@ public class HttpOutput extends ServletOutputStream
                     {
                         case BLOCKING:
                             _apiState = ApiState.BLOCKED;
-                            content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
+                            RetainableByteBuffer aggregate = _aggregate;
+                            if (aggregate != null && aggregate.hasRemaining())
+                            {
+                                aggregate.retain();
+                                content = aggregate.getByteBuffer();
+                            }
+                            else
+                            {
+                                content = BufferUtil.EMPTY_BUFFER;
+                            }
                             break;
 
                         case ASYNC:

@@ -467,13 +467,23 @@ public class HttpOutput extends ServletOutputStream implements Runnable
 
                         _closedCallback = Callback.combine(_closedCallback, callback);
 
+                        RetainableByteBuffer aggregate;
                         switch (_apiState)
                         {
                             case BLOCKING:
                                 // Output is idle blocking state, but we still do an async close
                                 _apiState = ApiState.BLOCKED;
                                 _state = State.CLOSING;
-                                content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
+                                aggregate = _aggregate;
+                                if (aggregate != null && _aggregate.hasRemaining())
+                                {
+                                    aggregate.retain();
+                                    content = aggregate.getByteBuffer();
+                                }
+                                else
+                                {
+                                    content = BufferUtil.EMPTY_BUFFER;
+                                }
                                 break;
 
                             case ASYNC:
@@ -481,7 +491,16 @@ public class HttpOutput extends ServletOutputStream implements Runnable
                                 // Output is idle in async state, so we can do an async close
                                 _apiState = ApiState.PENDING;
                                 _state = State.CLOSING;
-                                content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
+                                aggregate = _aggregate;
+                                if (aggregate != null && aggregate.hasRemaining())
+                                {
+                                    aggregate.retain();
+                                    content = aggregate.getByteBuffer();
+                                }
+                                else
+                                {
+                                    content = BufferUtil.EMPTY_BUFFER;
+                                }
                                 break;
 
                             case UNREADY:
@@ -549,6 +568,7 @@ public class HttpOutput extends ServletOutputStream implements Runnable
                 throw new IOException(_onError);
             }
 
+            RetainableByteBuffer aggregate;
             switch (_state)
             {
                 case CLOSED:
@@ -579,7 +599,16 @@ public class HttpOutput extends ServletOutputStream implements Runnable
                             _apiState = ApiState.BLOCKED;
                             _state = State.CLOSING;
                             blocker = _writeBlocker.acquire();
-                            content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
+                            aggregate = _aggregate;
+                            if (aggregate != null && aggregate.hasRemaining())
+                            {
+                                aggregate.retain();
+                                content = aggregate.getByteBuffer();
+                            }
+                            else
+                            {
+                                content = BufferUtil.EMPTY_BUFFER;
+                            }
                             break;
 
                         case BLOCKED:
@@ -597,7 +626,16 @@ public class HttpOutput extends ServletOutputStream implements Runnable
                             // Output is idle in async state, so we can do an async close
                             _apiState = ApiState.PENDING;
                             _state = State.CLOSING;
-                            content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
+                            aggregate = _aggregate;
+                            if (aggregate != null && aggregate.hasRemaining())
+                            {
+                                aggregate.retain();
+                                content = aggregate.getByteBuffer();
+                            }
+                            else
+                            {
+                                content = BufferUtil.EMPTY_BUFFER;
+                            }
                             break;
 
                         case UNREADY:
@@ -733,7 +771,16 @@ public class HttpOutput extends ServletOutputStream implements Runnable
                     {
                         case BLOCKING:
                             _apiState = ApiState.BLOCKED;
-                            content = _aggregate != null && _aggregate.hasRemaining() ? _aggregate.getByteBuffer() : BufferUtil.EMPTY_BUFFER;
+                            RetainableByteBuffer aggregate = _aggregate;
+                            if (aggregate != null && aggregate.hasRemaining())
+                            {
+                                aggregate.retain();
+                                content = aggregate.getByteBuffer();
+                            }
+                            else
+                            {
+                                content = BufferUtil.EMPTY_BUFFER;
+                            }
                             break;
 
                         case ASYNC:
