@@ -395,6 +395,12 @@ class AsyncContentProducer implements ContentProducer
             _condition.signal();
         }
 
+        void fail()
+        {
+            _permits = Integer.MAX_VALUE;
+            _condition.signal();
+        }
+
         @Override
         public String toString()
         {

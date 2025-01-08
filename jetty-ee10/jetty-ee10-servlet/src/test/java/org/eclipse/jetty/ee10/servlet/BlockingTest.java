@@ -161,7 +161,7 @@ public class BlockingTest
                 StackTraceElement[] stackTrace = threadRef.get().getStackTrace();
                 for (StackTraceElement stackTraceElement : stackTrace)
                 {
-                    System.out.println(stackTraceElement);
+                    System.err.println(stackTraceElement);
                 }
             }
             assertTrue(await);
