@@ -13,6 +13,8 @@
   <name>Servlet 6 :: Demos</name>
 
   <modules>
+    <module>jetty-servlet6-demo-mock-resources</module>
+    <module>jetty-servlet6-demo-embedded</module>
     <module>jetty-servlet6-demo-simple-webapp</module>
     <module>jetty-servlet6-demo-spec-6-1-webapp</module>
   </modules>
