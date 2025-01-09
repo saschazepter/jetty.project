@@ -208,6 +208,8 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
                     long len = Math.min(MAX_MAPPED_BUFFER_SIZE, fileLength - _pos);
                     _last = (_pos + len == fileLength);
                     ByteBuffer buffer = BufferUtil.toMappedBuffer(_filePath, _pos, len);
+                    if (buffer == null)
+                        throw new IOException("Cannot memory map file (not supported by underlying FileSystem): " + _filePath.toUri());
                     getNextInterceptor().write(buffer, _last, this);
                     _pos += len;
                     return Action.SCHEDULED;
