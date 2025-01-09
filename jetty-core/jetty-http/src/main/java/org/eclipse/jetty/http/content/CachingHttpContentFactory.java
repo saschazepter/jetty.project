@@ -15,6 +15,7 @@ package org.eclipse.jetty.http.content;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -22,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpField;
@@ -290,7 +292,7 @@ public class CachingHttpContentFactory implements HttpContent.Factory
 
     protected class CachedHttpContent extends HttpContent.Wrapper implements CachingHttpContent
     {
-        private final RetainableByteBuffer _buffer;
+        private final AtomicReference<RetainableByteBuffer> _buffer = new AtomicReference<>();
         private final String _cacheKey;
         private final HttpField _etagField;
         private volatile long _lastAccessed;
@@ -323,7 +325,7 @@ public class CachingHttpContentFactory implements HttpContent.Factory
                 throw new IllegalArgumentException("Resource is too large: length " + contentLengthValue + " > " + _maxCachedFileSize);
 
             // Read the content into memory
-            _buffer = IOResources.toRetainableByteBuffer(httpContent.getResource(), _bufferPool);
+            _buffer.set(Objects.requireNonNull(IOResources.toRetainableByteBuffer(httpContent.getResource(), _bufferPool)));
 
             _characterEncoding = httpContent.getCharacterEncoding();
             _compressedFormats = httpContent.getPreCompressedContentFormats();
@@ -354,23 +356,40 @@ public class CachingHttpContentFactory implements HttpContent.Factory
         @Override
         public void writeTo(Content.Sink sink, long offset, long length, Callback callback)
         {
-            try
+            RetainableByteBuffer buffer = _buffer.get();
+            if (buffer != null)
             {
-                _buffer.retain();
-                sink.write(true, BufferUtil.slice(_buffer.getByteBuffer(), (int)offset, (int)length), Callback.from(_buffer::release, callback));
+                try
+                {
+                    buffer.retain();
+                    try
+                    {
+                        sink.write(true, BufferUtil.slice(buffer.getByteBuffer(), (int)offset, (int)length), Callback.from(buffer::release, callback));
+                    }
+                    catch (Throwable x)
+                    {
+                        // BufferUtil.slice() may fail if offset and/or length are out of bounds.
+                        if (buffer.release())
+                            _buffer.set(null);
+                        callback.failed(x);
+                    }
+                    return;
+                }
+                catch (Throwable ignored)
+                {
+                    LOG.trace("ignored", ignored);
+                }
             }
-            catch (Throwable x)
-            {
-                // BufferUtil.slice() may fail if offset and/or length are out of bounds.
-                _buffer.release();
-                callback.failed(x);
-            }
+
+            getWrapped().writeTo(sink, offset, length, callback);
         }
 
         @Override
         public void release()
         {
-            _buffer.release();
+            RetainableByteBuffer buffer = _buffer.get();
+            if (buffer != null && buffer.release())
+                _buffer.set(null);
         }
 
         @Override
@@ -406,7 +425,8 @@ public class CachingHttpContentFactory implements HttpContent.Factory
         @Override
         public long getContentLengthValue()
         {
-            return _buffer.remaining();
+            RetainableByteBuffer buffer = _buffer.get();
+            return buffer == null ? getWrapped().getContentLengthValue() : buffer.remaining();
         }
 
         @Override
