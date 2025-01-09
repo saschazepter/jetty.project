@@ -466,12 +466,18 @@ public class HTTP2Flusher extends IteratingCallback implements Dumpable
     @Override
     public String toString()
     {
-        return String.format("%s[window_queue=%d,frame_queue=%d,processed/pending=%d/%d]",
-            super.toString(),
-            getWindowQueueSize(),
-            getFrameQueueSize(),
-            processedEntries.size(),
-            pendingEntries.size());
+        try (AutoLock ignored = lock.tryLock())
+        {
+            String held = lock.isHeldByCurrentThread() ? "" : "?";
+            return String.format("%s[%s:windowQueue=%d,frameQueue=%d,processed/pending=%d/%d]",
+                super.toString(),
+                held,
+                windows.size(),
+                entries.size(),
+                processedEntries.size(),
+                pendingEntries.size()
+            );
+        }
     }
 
     private class WindowEntry

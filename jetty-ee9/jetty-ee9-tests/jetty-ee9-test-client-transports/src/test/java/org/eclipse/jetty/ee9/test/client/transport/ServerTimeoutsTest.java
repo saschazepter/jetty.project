@@ -161,17 +161,21 @@ public class ServerTimeoutsTest extends AbstractTest
         long idleTimeout = 1000;
         setStreamIdleTimeout(idleTimeout);
 
-        CountDownLatch resultLatch = new CountDownLatch(2);
+        CountDownLatch resultLatch = new CountDownLatch(1);
         AsyncRequestContent content = new AsyncRequestContent();
         client.POST(newURI(transportType))
             .body(content)
-            .onResponseSuccess(response ->
+            .onResponseHeaders(r ->
             {
-                if (response.getStatus() == HttpStatus.INTERNAL_SERVER_ERROR_500)
-                    resultLatch.countDown();
+                // For the cases where the response is not failed,
+                // complete the request to complete the exchange.
                 content.close();
             })
-            .send(result -> resultLatch.countDown());
+            .send(result ->
+            {
+                assertEquals(HttpStatus.INTERNAL_SERVER_ERROR_500, result.getResponse().getStatus());
+                resultLatch.countDown();
+            });
 
         // The client did not send the content, the request was
         // dispatched, the server should have idle timed it out.
@@ -340,7 +344,7 @@ public class ServerTimeoutsTest extends AbstractTest
         CountDownLatch resultLatch = new CountDownLatch(1);
         client.newRequest(newURI(transportType))
             .body(content)
-            .onResponseSuccess(response ->
+            .onResponseHeaders(response ->
             {
                 responseRef.set(response);
                 responseLatch.countDown();
