@@ -778,8 +778,6 @@ public class ResourceHandlerTest
                 \r
                 """));
 
-        System.err.println(response);
-
         assertThat(response.getStatus(), is(HttpStatus.OK_200));
         long responseContentLength = response.getLongField(CONTENT_LENGTH);
         assertThat(responseContentLength, is(hugeLength));
@@ -3973,11 +3971,9 @@ public class ResourceHandlerTest
         if (Files.exists(staticFile) && Files.size(staticFile) == size)
         {
             // all done, nothing left to do.
-            System.err.printf("File Exists Already: %s (%,d bytes)%n", staticFile, Files.size(staticFile));
             return;
         }
 
-        System.err.printf("Creating %,d byte file: %s ...%n", size, staticFile);
         try (SeekableByteChannel channel = Files.newByteChannel(staticFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING))
         {
             long remaining = size;
@@ -3995,7 +3991,6 @@ public class ResourceHandlerTest
                 remaining -= len;
             }
         }
-        System.err.println(" Done");
     }
 
     private void setupQuestionMarkDir(Path base) throws IOException
