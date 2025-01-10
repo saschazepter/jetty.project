@@ -47,9 +47,17 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
     @Override
     public boolean writeError(Request request, Response response, Callback callback, int code)
     {
-        response.setStatus(code);
-        request.setAttribute(ERROR_STATUS, code);
-        return false;
+        // If we have not entered the servlet channel we should trigger a sendError for when we do enter the servlet channel.
+        ServletContextRequest servletContextRequest = Request.as(request, ServletContextRequest.class);
+        boolean enteredServletChannel = servletContextRequest.getServletChannel().getCallback() != null;
+        if (!enteredServletChannel)
+        {
+            response.setStatus(code);
+            request.setAttribute(ERROR_STATUS, code);
+            return false;
+        }
+
+        return super.writeError(request, response, callback, code);
     }
 
     @Override

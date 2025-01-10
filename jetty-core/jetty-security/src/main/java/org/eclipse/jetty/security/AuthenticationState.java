@@ -23,6 +23,7 @@ import org.eclipse.jetty.security.authentication.LoginAuthenticator;
 import org.eclipse.jetty.security.internal.DeferredAuthenticationState;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.util.Callback;
 
 /**
@@ -177,6 +178,20 @@ public interface AuthenticationState extends Request.AuthenticationState
         }
 
         return false;
+    }
+
+    static AuthenticationState writeError(Request request, Response response, Callback callback, int code)
+    {
+        if (request.getContext().getErrorHandler() instanceof ErrorHandler errorHandler)
+        {
+            if (errorHandler.writeError(request, response, callback, HttpStatus.FORBIDDEN_403))
+                return AuthenticationState.SEND_FAILURE;
+            else
+                return new AuthenticationState.ServeAs(request.getHttpURI());
+        }
+
+        Response.writeError(request, response, callback, HttpStatus.FORBIDDEN_403);
+        return AuthenticationState.SEND_FAILURE;
     }
 
     /**
