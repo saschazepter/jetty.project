@@ -92,6 +92,25 @@ public class ErrorHandler implements Request.Handler
         return ERROR_METHODS.contains(method);
     }
 
+    /**
+     * Write an error response.
+     * <p>
+     * In Servlet implementations of the {@link ErrorHandler}, this method is overridden to signal that
+     * a sendError should be triggered a when it enters the servlet channel.
+     * <p>
+     *
+     * @param request  The request.
+     * @param response The response.
+     * @param callback The callback to call when the response is written.
+     * @param code     The error status code.
+     * @return True if the error response was written.
+     */
+    public boolean writeError(Request request, Response response, Callback callback, int code)
+    {
+        Response.writeError(request, response, callback, code);
+        return true;
+    }
+
     @Override
     public boolean handle(Request request, Response response, Callback callback) throws Exception
     {

@@ -36,13 +36,20 @@ import org.slf4j.LoggerFactory;
 public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
 {
     private static final Logger LOG = LoggerFactory.getLogger(ErrorHandler.class);
-    public static final String ERROR_CHARSET = "org.eclipse.jetty.server.error_charset";
 
     public ErrorHandler()
     {
         setShowOrigin(true);
         setShowStacks(true);
         setShowMessageInTitle(true);
+    }
+
+    @Override
+    public boolean writeError(Request request, Response response, Callback callback, int code)
+    {
+        response.setStatus(code);
+        request.setAttribute(ERROR_STATUS, code);
+        return false;
     }
 
     @Override
@@ -70,7 +77,8 @@ public class ErrorHandler extends org.eclipse.jetty.server.handler.ErrorHandler
         ServletContextHandler.ServletScopedContext context = servletContextRequest.getErrorContext();
         Integer errorStatus = (Integer)request.getAttribute(ERROR_STATUS);
         Throwable errorCause = (Throwable)request.getAttribute(ERROR_EXCEPTION);
-        if (this instanceof ErrorPageMapper mapper)
+        boolean enteredServletChannel = servletContextRequest.getServletChannel().getCallback() != null;
+        if (this instanceof ErrorPageMapper mapper && enteredServletChannel)
         {
             ErrorPageMapper.ErrorPage errorPage = mapper.getErrorPage(errorStatus, errorCause);
             if (LOG.isDebugEnabled())
