@@ -69,8 +69,8 @@ public class ArrayByteBufferPool implements ByteBufferPool, Dumpable
     private final IntUnaryOperator _bucketIndexFor;
     private final IntUnaryOperator _bucketCapacity;
     private final AtomicBoolean _evictor = new AtomicBoolean(false);
-    private final ConcurrentMap<Integer, Long> _noBucketDirectSizes = new ConcurrentHashMap<>();
-    private final ConcurrentMap<Integer, Long> _noBucketIndirectSizes = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Integer, Long> _noBucketDirectAcquires = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Integer, Long> _noBucketIndirectAcquires = new ConcurrentHashMap<>();
     private boolean _statisticsEnabled;
 
     /**
@@ -236,7 +236,7 @@ public class ArrayByteBufferPool implements ByteBufferPool, Dumpable
     {
         if (isStatisticsEnabled())
         {
-            ConcurrentMap<Integer, Long> map = direct ? _noBucketDirectSizes : _noBucketIndirectSizes;
+            ConcurrentMap<Integer, Long> map = direct ? _noBucketDirectAcquires : _noBucketIndirectAcquires;
             int idx = _bucketIndexFor.applyAsInt(size);
             int key = _bucketCapacity.applyAsInt(idx);
             map.compute(key, (k, v) ->
@@ -452,9 +452,9 @@ public class ArrayByteBufferPool implements ByteBufferPool, Dumpable
     public void clear()
     {
         clearBuckets(_direct);
-        _noBucketDirectSizes.clear();
+        _noBucketDirectAcquires.clear();
         clearBuckets(_indirect);
-        _noBucketIndirectSizes.clear();
+        _noBucketIndirectAcquires.clear();
     }
 
     private void clearBuckets(RetainedBucket[] buckets)
@@ -473,9 +473,9 @@ public class ArrayByteBufferPool implements ByteBufferPool, Dumpable
             indent,
             this,
             DumpableCollection.fromArray("direct", _direct),
-            new DumpableMap("direct non-pooled acquisitions", _noBucketDirectSizes),
+            new DumpableMap("direct non-pooled acquisitions", _noBucketDirectAcquires),
             DumpableCollection.fromArray("indirect", _indirect),
-            new DumpableMap("indirect non-pooled acquisitions", _noBucketIndirectSizes)
+            new DumpableMap("indirect non-pooled acquisitions", _noBucketIndirectAcquires)
         );
     }
 
