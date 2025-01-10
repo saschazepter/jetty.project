@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -72,7 +73,7 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
 
     class FileBufferedInterceptor implements BufferedResponseHandler.BufferedInterceptor
     {
-        private static final int MAX_MAPPED_BUFFER_SIZE = Integer.MAX_VALUE / 2;
+        private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE / 2;
 
         private final Interceptor _next;
         private final HttpChannel _channel;
@@ -205,11 +206,9 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
                     if (_last)
                         return Action.SUCCEEDED;
 
-                    long len = Math.min(MAX_MAPPED_BUFFER_SIZE, fileLength - _pos);
+                    long len = Math.min(MAX_BUFFER_SIZE, fileLength - _pos);
                     _last = (_pos + len == fileLength);
-                    ByteBuffer buffer = BufferUtil.toMappedBuffer(_filePath, _pos, len);
-                    if (buffer == null)
-                        throw new IOException("Cannot memory map file (not supported by underlying FileSystem): " + _filePath.toUri());
+                    ByteBuffer buffer = readByteBuffer(_filePath, _pos, len);
                     getNextInterceptor().write(buffer, _last, this);
                     _pos += len;
                     return Action.SCHEDULED;
@@ -230,6 +229,24 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
                 }
             };
             icb.iterate();
+        }
+
+        private ByteBuffer readByteBuffer(Path path, long pos, long len) throws IOException
+        {
+            ByteBuffer buffer = BufferUtil.toMappedBuffer(path, pos, len);
+            if (buffer != null)
+                return buffer;
+
+            // if we reached here, then file mapped byte buffers is not supported.
+            // we fall back to using traditional I/O instead.
+            try (SeekableByteChannel channel = Files.newByteChannel(path))
+            {
+                channel.position(pos);
+                buffer = ByteBuffer.allocate((int)len);
+                channel.read(buffer);
+                buffer.flip();
+                return buffer;
+            }
         }
     }
 }
