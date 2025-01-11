@@ -19,6 +19,9 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
@@ -50,6 +53,9 @@ import org.slf4j.LoggerFactory;
 
 public class EarlyHintServer
 {
+    private static final Random random = new Random();
+    private static final Set<String> thinking = new ConcurrentSkipListSet<>();
+
     public static void main(String... args) throws Exception
     {
         int port = ExampleUtil.getPort(args, "jetty.http.port", 8080);
@@ -126,21 +132,17 @@ public class EarlyHintServer
         public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException
         {
             // delay to make any sequential loads visible
-            try
-            {
-                Thread.sleep(100);
-            }
-            catch (InterruptedException e)
-            {
-                throw new RuntimeException(e);
-            }
+            delay(100);
 
             HttpServletRequest request = (HttpServletRequest)req;
             HttpServletResponse response = (HttpServletResponse)res;
             response.setHeader("Cache-Control", "max-age=5");
 
             String uri = request.getRequestURI();
-            if (true) // TODO how to determine if this is a prefetch?
+
+            int param = uri.indexOf(';');
+            boolean prefetch = param > 0 && thinking.contains(uri.substring(param + 1));
+            if (prefetch)
             {
                 // If we are still generating the HTML, this must be an early hint, so send the color tile
                 chain.doFilter(req, res);
@@ -153,6 +155,18 @@ public class EarlyHintServer
         }
     }
 
+    private static void delay(int millis)
+    {
+        try
+        {
+            Thread.sleep(millis);
+        }
+        catch (InterruptedException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
     static Servlet servlet = new HttpServlet()
     {
         private static final long serialVersionUID = 1L;
@@ -160,25 +174,27 @@ public class EarlyHintServer
         @Override
         protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException
         {
-            for (int row = 0; row < 4; row++)
-            {
-                for (int col = 0; col < 4; col++)
-                    response.addHeader("Link", "<tiles/tile_%d_%d.png>; rel=preload; as=image".formatted(row, col));
-            }
-            response.sendError(103); // Jetty API until Servlet 6.2
 
-            // delay to simulate computation
+            String tag = Integer.toHexString(random.nextInt());
+            thinking.add(tag);
             try
             {
-                Thread.sleep(200);
+                for (int row = 0; row < 4; row++)
+                {
+                    for (int col = 0; col < 4; col++)
+                        response.addHeader("Link", "<tiles/tile_%d_%d.png;%s>; rel=preload; as=image".formatted(row, col, tag));
+                }
+                response.sendError(103); // Jetty API until Servlet 6.2
+
+                // delay to simulate computation
+                delay(200);
             }
-            catch (InterruptedException e)
+            finally
             {
-                throw new RuntimeException(e);
+                thinking.remove(tag);
             }
 
             // Write the response
-            response.reset();
             response.setStatus(200);
             response.setContentType("text/html");
             response.flushBuffer();
@@ -223,7 +239,7 @@ public class EarlyHintServer
             {
                 out.println("<tr>");
                 for (int col = 0; col < 4; col++)
-                    out.println("<td><img src=\"tiles/tile_%d_%d.png\" alt=\"\" /></td>".formatted(row, col));
+                    out.println("<td><img src=\"tiles/tile_%d_%d.png;%s\" alt=\"\" /></td>".formatted(row, col, tag));
                 out.println("</tr>");
             }
 
