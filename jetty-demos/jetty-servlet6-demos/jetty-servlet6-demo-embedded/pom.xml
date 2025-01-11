@@ -21,12 +21,12 @@
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-alpn-java-server</artifactId>
+      <artifactId>jetty-alpn-java-client</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-alpn-java-client</artifactId>
+      <artifactId>jetty-alpn-java-server</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
