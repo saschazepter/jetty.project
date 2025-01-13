@@ -375,7 +375,11 @@ public class CachingHttpContentFactory implements HttpContent.Factory
                     buffer.retain();
                     try
                     {
-                        sink.write(true, BufferUtil.slice(buffer.getByteBuffer(), (int)offset, (int)length), Callback.from(buffer::release, callback));
+                        sink.write(true, BufferUtil.slice(buffer.getByteBuffer(), (int)offset, (int)length), Callback.from(() ->
+                        {
+                            if (buffer.release())
+                                _buffer.set(null);
+                        }, callback));
                     }
                     catch (Throwable x)
                     {
