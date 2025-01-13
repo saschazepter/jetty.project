@@ -44,8 +44,8 @@ public class OpenIdRealmNameTest
     {
         // Add some OpenID configurations.
         OpenIdConfiguration config1 = new OpenIdConfiguration.Builder("provider1", "", "")
-            .authorizationEndpoint("")
-            .tokenEndpoint("")
+            .authorizationEndpoint("test")
+            .tokenEndpoint("test")
             .build();
         server.addBean(config1);
 
@@ -77,8 +77,8 @@ public class OpenIdRealmNameTest
     {
         // Add some OpenID configurations.
         OpenIdConfiguration config1 = new OpenIdConfiguration.Builder("provider1", "", "")
-            .authorizationEndpoint("")
-            .tokenEndpoint("")
+            .authorizationEndpoint("test")
+            .tokenEndpoint("test")
             .build();
         server.addBean(config1);
 
@@ -110,12 +110,12 @@ public class OpenIdRealmNameTest
     {
         // Add some OpenID configurations.
         OpenIdConfiguration config1 = new OpenIdConfiguration.Builder("provider1", "", "")
-            .authorizationEndpoint("")
-            .tokenEndpoint("")
+            .authorizationEndpoint("test")
+            .tokenEndpoint("test")
             .build();
         OpenIdConfiguration config2 = new OpenIdConfiguration.Builder("provider2", "", "")
-            .authorizationEndpoint("")
-            .tokenEndpoint("")
+            .authorizationEndpoint("test")
+            .tokenEndpoint("test")
             .build();
         server.addBean(config1);
         server.addBean(config2);
