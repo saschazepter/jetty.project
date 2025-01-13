@@ -73,6 +73,7 @@ public class CachingHttpContentFactory implements HttpContent.Factory
     private final AtomicLong _cachedSize = new AtomicLong();
     private final AtomicBoolean _shrinking = new AtomicBoolean();
     private final ByteBufferPool.Sized _bufferPool;
+    private final AtomicBoolean _shrinking = new AtomicBoolean();
     private int _maxCachedFileSize = DEFAULT_MAX_CACHED_FILE_SIZE;
     private int _maxCachedFiles = DEFAULT_MAX_CACHED_FILES;
     private long _maxCacheSize = DEFAULT_MAX_CACHE_SIZE;
