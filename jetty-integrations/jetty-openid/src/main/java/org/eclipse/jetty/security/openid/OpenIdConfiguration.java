@@ -75,6 +75,7 @@ public class OpenIdConfiguration extends ContainerLifeCycle
          */
         public Builder(@Name("issuer") String issuer, @Name("clientId") String clientId, @Name("clientSecret") String clientSecret)
         {
+            this();
             issuer(issuer);
             clientId(clientId);
             clientSecret(clientSecret);
@@ -308,17 +309,17 @@ public class OpenIdConfiguration extends ContainerLifeCycle
      * @param logoutWhenIdTokenIsExpired Whether to logout when the ID token is expired.
      * @param scopes The scopes to request.
      */
-    private OpenIdConfiguration(@Name("issuer") String issuer,
-                                @Name("clientId") String clientId,
-                                @Name("clientSecret") String clientSecret,
-                                @Name("authorizationEndpoint") String authorizationEndpoint,
-                                @Name("tokenEndpoint") String tokenEndpoint,
-                                @Name("endSessionEndpoint") String endSessionEndpoint,
-                                @Name("authenticationMethod") String authenticationMethod,
-                                @Name("httpClient") HttpClient httpClient,
-                                @Name("authenticateNewUsers") boolean authenticateNewUsers,
-                                @Name("logoutWhenIdTokenIsExpired") boolean logoutWhenIdTokenIsExpired,
-                                @Name("scopes") List<String> scopes)
+    private OpenIdConfiguration(String issuer,
+                                String clientId,
+                                String clientSecret,
+                                String authorizationEndpoint,
+                                String tokenEndpoint,
+                                String endSessionEndpoint,
+                                String authenticationMethod,
+                                HttpClient httpClient,
+                                boolean authenticateNewUsers,
+                                boolean logoutWhenIdTokenIsExpired,
+                                List<String> scopes)
     {
         this.issuer = issuer;
         this.clientId = clientId;
