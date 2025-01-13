@@ -43,6 +43,7 @@ import org.eclipse.jetty.server.LocalConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.toolchain.test.FS;
+import org.eclipse.jetty.toolchain.test.Hex;
 import org.eclipse.jetty.toolchain.test.MavenPaths;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
@@ -53,6 +54,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -254,9 +257,11 @@ public class FileBufferedResponseHandlerTest
         assertThat(getNumFiles(), is(0));
     }
 
-    @Test
-    public void testFlushed() throws Exception
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testFlushed(boolean useFileMapping) throws Exception
     {
+        bufferedHandler.setUseFileMapping(useFileMapping);
         bufferedHandler.setHandler(new AbstractHandler()
         {
             @Override
@@ -330,11 +335,13 @@ public class FileBufferedResponseHandlerTest
         }
     }
 
-    @Test
-    public void testBufferSizeBig() throws Exception
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testBufferSizeBig(boolean useFileMapping) throws Exception
     {
         int bufferSize = 4096;
         String largeContent = generateContent(bufferSize - 64);
+        bufferedHandler.setUseFileMapping(useFileMapping);
         bufferedHandler.setHandler(new AbstractHandler()
         {
             @Override
@@ -444,12 +451,14 @@ public class FileBufferedResponseHandlerTest
         }
     }
 
-    @Test
-    public void testFileLargerThanMaxInteger() throws Exception
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testFileLargerThanMaxInteger(boolean useFileMapping) throws Exception
     {
         long fileSize = Integer.MAX_VALUE + 1234L;
         byte[] bytes = randomBytes(1024 * 1024);
 
+        bufferedHandler.setUseFileMapping(useFileMapping);
         bufferedHandler.setHandler(new AbstractHandler()
         {
             @Override
@@ -490,7 +499,10 @@ public class FileBufferedResponseHandlerTest
 
                     if (byteFromBuffer != byteFromArray)
                     {
-                        LOG.warn("Mismatch at index {} received bytes {}, {}!={}", bytesIndex, totalReceived, byteFromBuffer, byteFromArray, new IllegalStateException());
+                        LOG.warn("Mismatch at index {} received bytes {}, {}!={}", bytesIndex, totalReceived,
+                            Hex.asHex(new byte[]{byteFromBuffer}),
+                            Hex.asHex(new byte[]{byteFromArray}),
+                            new IllegalStateException());
                         return true;
                     }
                 }

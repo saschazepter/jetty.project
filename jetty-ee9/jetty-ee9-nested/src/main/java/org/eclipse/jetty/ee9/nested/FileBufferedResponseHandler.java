@@ -55,6 +55,7 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
 
     private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
     private int _bufferSize = DEFAULT_BUFFER_SIZE;
+    private boolean _useFileMapping = true;
     private Path _tempDir = new File(System.getProperty("java.io.tmpdir")).toPath();
 
     public Path getTempDir()
@@ -65,6 +66,16 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
     public void setTempDir(Path tempDir)
     {
         _tempDir = Objects.requireNonNull(tempDir);
+    }
+
+    public boolean isUseFileMapping()
+    {
+        return _useFileMapping;
+    }
+
+    public void setUseFileMapping(boolean useFileMapping)
+    {
+        this._useFileMapping = useFileMapping;
     }
 
     public int getBufferSize()
@@ -207,6 +218,7 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
             try
             {
                 SendFileCallback sfcb = new SendFileCallback(this, _filePath, getBufferSize(), callback);
+                sfcb.setUseFileMapping(isUseFileMapping());
                 sfcb.iterate();
             }
             catch (IOException e)
@@ -227,11 +239,11 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
         private final int _bufferSize;
         private long _pos = 0;
         private boolean _last = false;
-        private Mode _mode = Mode.UNSET;
+        private Mode _mode = Mode.DISCOVER;
 
         enum Mode
         {
-            UNSET,
+            DISCOVER,
             MAPPED,
             READ
         }
@@ -243,6 +255,14 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
             _interceptor = interceptor;
             _callback = callback;
             _bufferSize = bufferSize;
+        }
+
+        public void setUseFileMapping(boolean useFileMapping)
+        {
+            if (!useFileMapping)
+                _mode = Mode.READ; // don't even attempt file mapping
+            else
+                _mode = Mode.DISCOVER; // attempt file mapping first
         }
 
         @Override
@@ -262,8 +282,9 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
             {
                 _last = (_pos + buffer.remaining() == _fileLength);
             }
+            int read = buffer.remaining();
             _interceptor.getNextInterceptor().write(buffer, _last, this);
-            _pos += len;
+            _pos += read;
             return Action.SCHEDULED;
         }
 
@@ -294,7 +315,7 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
         {
             return switch (_mode)
             {
-                case UNSET ->
+                case DISCOVER ->
                 {
                     ByteBuffer buffer = toMapped(path, pos, len);
                     if (buffer == null)
