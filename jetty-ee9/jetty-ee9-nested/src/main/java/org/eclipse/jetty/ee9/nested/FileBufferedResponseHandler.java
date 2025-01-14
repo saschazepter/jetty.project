@@ -17,17 +17,17 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 
 import org.eclipse.jetty.ee9.nested.HttpOutput.Interceptor;
+import org.eclipse.jetty.io.ByteBufferPool;
+import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IO;
-import org.eclipse.jetty.util.IteratingCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +55,6 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
 
     private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
     private int _bufferSize = DEFAULT_BUFFER_SIZE;
-    private boolean _useFileMapping = true;
     private Path _tempDir = new File(System.getProperty("java.io.tmpdir")).toPath();
 
     public Path getTempDir()
@@ -66,16 +65,6 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
     public void setTempDir(Path tempDir)
     {
         _tempDir = Objects.requireNonNull(tempDir);
-    }
-
-    public boolean isUseFileMapping()
-    {
-        return _useFileMapping;
-    }
-
-    public void setUseFileMapping(boolean useFileMapping)
-    {
-        this._useFileMapping = useFileMapping;
     }
 
     public int getBufferSize()
@@ -215,154 +204,27 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
             }
 
             // Create an iterating callback to do the writing
-            try
-            {
-                SendFileCallback sfcb = new SendFileCallback(this, _filePath, getBufferSize(), callback);
-                sfcb.setUseFileMapping(isUseFileMapping());
-                sfcb.iterate();
-            }
-            catch (IOException e)
-            {
-                callback.failed(e);
-            }
+            ByteBufferPool.Sized sizedPool = ByteBufferPool.Sized.as(getServer().getByteBufferPool(), true, getBufferSize());
+            Content.Source source = Content.Source.from(sizedPool, _filePath);
+            Content.Sink sink = new InterceptorSink(getNextInterceptor());
+            Callback disposer = Callback.from(callback, this::dispose);
+            Content.copy(source, sink, disposer);
         }
     }
 
-    // TODO: can this be made generic enough to put into jetty-io somewhere?
-    private static class SendFileCallback extends IteratingCallback
+    private static class InterceptorSink implements Content.Sink
     {
-        private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE / 2;
-        private final Path _filePath;
-        private final long _fileLength;
-        private final FileBufferedInterceptor _interceptor;
-        private final Callback _callback;
-        private final int _bufferSize;
-        private long _pos = 0;
-        private boolean _last = false;
-        private Mode _mode = Mode.DISCOVER;
+        private final HttpOutput.Interceptor _interceptor;
 
-        enum Mode
+        public InterceptorSink(HttpOutput.Interceptor interceptor)
         {
-            DISCOVER,
-            MAPPED,
-            READ
-        }
-
-        public SendFileCallback(FileBufferedInterceptor interceptor, Path filePath, int bufferSize, Callback callback) throws IOException
-        {
-            _filePath = filePath;
-            _fileLength = Files.size(filePath);
-            _interceptor = interceptor;
-            _callback = callback;
-            _bufferSize = bufferSize;
-        }
-
-        public void setUseFileMapping(boolean useFileMapping)
-        {
-            if (!useFileMapping)
-                _mode = Mode.READ; // don't even attempt file mapping
-            else
-                _mode = Mode.DISCOVER; // attempt file mapping first
+            this._interceptor = interceptor;
         }
 
         @Override
-        protected Action process() throws Exception
+        public void write(boolean last, ByteBuffer byteBuffer, Callback callback)
         {
-            if (_last)
-                return Action.SUCCEEDED;
-
-            long len = Math.min(MAX_BUFFER_SIZE, _fileLength - _pos);
-            ByteBuffer buffer = readByteBuffer(_filePath, _pos, len);
-            if (buffer == null)
-            {
-                buffer = BufferUtil.EMPTY_BUFFER;
-                _last = true;
-            }
-            else
-            {
-                _last = (_pos + buffer.remaining() == _fileLength);
-            }
-            int read = buffer.remaining();
-            _interceptor.getNextInterceptor().write(buffer, _last, this);
-            _pos += read;
-            return Action.SCHEDULED;
-        }
-
-        @Override
-        protected void onCompleteSuccess()
-        {
-            _interceptor.dispose();
-            _callback.succeeded();
-        }
-
-        @Override
-        protected void onFailure(Throwable cause)
-        {
-            _interceptor.dispose();
-            _callback.failed(cause);
-        }
-
-        /**
-         * Read the ByteBuffer from the path.
-         *
-         * @param path the path to read from
-         * @param pos the position in the file to start from
-         * @param len the length of the buffer to use for memory mapped mode
-         * @return the buffer read, or null if no buffer has been read (such as being at EOF)
-         * @throws IOException if unable to read from the path
-         */
-        private ByteBuffer readByteBuffer(Path path, long pos, long len) throws IOException
-        {
-            return switch (_mode)
-            {
-                case DISCOVER ->
-                {
-                    ByteBuffer buffer = toMapped(path, pos, len);
-                    if (buffer == null)
-                    {
-                        // if we reached here, then file mapped byte buffers is not supported.
-                        // we fall back to using traditional I/O instead.
-                        buffer = toRead(path, pos);
-                    }
-                    yield buffer;
-                }
-                case MAPPED ->
-                {
-                    yield toMapped(path, pos, len);
-                }
-                case READ ->
-                {
-                    yield toRead(path, pos);
-                }
-            };
-        }
-
-        private ByteBuffer toMapped(Path path, long pos, long len) throws IOException
-        {
-            if (pos > _fileLength)
-            {
-                // attempt to read past end of file, consider this an EOF
-                return null;
-            }
-            ByteBuffer buffer = BufferUtil.toMappedBuffer(path, pos, len);
-            if (buffer != null)
-                _mode = Mode.MAPPED;
-            return buffer;
-        }
-
-        private ByteBuffer toRead(Path path, long pos) throws IOException
-        {
-            try (SeekableByteChannel channel = Files.newByteChannel(path))
-            {
-                _mode = Mode.READ;
-                channel.position(pos);
-                ByteBuffer buffer = ByteBuffer.allocateDirect(_bufferSize);
-                int read = channel.read(buffer);
-                if (read == -1)
-                    return null; // indicating EOF
-                buffer.flip();
-                return buffer;
-            }
+            _interceptor.write(last, byteBuffer, callback);
         }
     }
 }

@@ -54,8 +54,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -257,11 +255,9 @@ public class FileBufferedResponseHandlerTest
         assertThat(getNumFiles(), is(0));
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    public void testFlushed(boolean useFileMapping) throws Exception
+    @Test
+    public void testFlushed() throws Exception
     {
-        bufferedHandler.setUseFileMapping(useFileMapping);
         bufferedHandler.setHandler(new AbstractHandler()
         {
             @Override
@@ -335,13 +331,11 @@ public class FileBufferedResponseHandlerTest
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    public void testBufferSizeBig(boolean useFileMapping) throws Exception
+    @Test
+    public void testBufferSizeBig() throws Exception
     {
         int bufferSize = 4096;
         String largeContent = generateContent(bufferSize - 64);
-        bufferedHandler.setUseFileMapping(useFileMapping);
         bufferedHandler.setHandler(new AbstractHandler()
         {
             @Override
@@ -451,14 +445,12 @@ public class FileBufferedResponseHandlerTest
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    public void testFileLargerThanMaxInteger(boolean useFileMapping) throws Exception
+    @Test
+    public void testFileLargerThanMaxInteger() throws Exception
     {
         long fileSize = Integer.MAX_VALUE + 1234L;
         byte[] bytes = randomBytes(1024 * 1024);
 
-        bufferedHandler.setUseFileMapping(useFileMapping);
         bufferedHandler.setHandler(new AbstractHandler()
         {
             @Override
