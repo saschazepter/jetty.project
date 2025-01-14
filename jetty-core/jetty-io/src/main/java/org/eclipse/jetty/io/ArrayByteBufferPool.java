@@ -629,13 +629,11 @@ public class ArrayByteBufferPool implements ByteBufferPool, Dumpable
 
         private Statistics getStatistics()
         {
-            List<Pool.Entry<RetainableByteBuffer>> entries = getPool().stream().toList();
-            int inUse = (int)entries.stream().filter(Pool.Entry::isInUse).count();
             long pooled = _pooled.longValue();
             long acquires = _acquires.longValue();
             float hitRatio = acquires == 0 ? Float.NaN : pooled * 100F / acquires;
-            return new Statistics(getCapacity(), inUse, entries.size(), pooled, acquires, _releases.longValue(),
-                hitRatio, _nonPooled.longValue(), _evicts.longValue(), _removes.longValue());
+            return new Statistics(getCapacity(), getPool().getInUseCount(), getPool().size(), pooled, acquires,
+                _releases.longValue(), hitRatio, _nonPooled.longValue(), _evicts.longValue(), _removes.longValue());
         }
 
         public void clear()
