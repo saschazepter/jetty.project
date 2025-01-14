@@ -24,16 +24,13 @@ import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
 import org.eclipse.jetty.toolchain.test.PathMatchers;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
-import org.eclipse.jetty.util.resource.FileSystemPool;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,7 +42,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ExtendWith(WorkDirExtension.class)
 public class TempDirTest
 {
-
     private Server _server;
 
     @AfterEach
@@ -153,7 +149,7 @@ public class TempDirTest
     }
 
     @Test
-    public void testTempDirDeleted(WorkDir workDir) throws Exception
+    public void testTempDirDeleted() throws Exception
     {
         // Create war on the fly
         Path testWebappDir = MavenTestingUtils.getProjectDirPath("src/test/webapp");
@@ -195,7 +191,7 @@ public class TempDirTest
     }
 
     @Test
-    public void testFreshTempDir(WorkDir workDir) throws Exception
+    public void testFreshTempDir() throws Exception
     {
         // Create war on the fly
         Path testWebappDir = MavenTestingUtils.getProjectDirPath("src/test/webapp");
@@ -213,6 +209,42 @@ public class TempDirTest
         assertNull(webAppContext.getTempDirectory());
         webAppContext.start();
         assertThat(tempDirectory.toPath(), not(PathMatchers.isSame(webAppContext.getTempDirectory().toPath())));
+    }
+
+    @Test
+    public void testDefaultTempDirViaAttribute() throws Exception
+    {
+        // Create war on the fly
+        Path testWebappDir = MavenTestingUtils.getProjectDirPath("src/test/webapp");
+
+        // Test that temp directory is set by default is accessible via ServletContext.getAttribute
+        _server = new Server();
+        WebAppContext webAppContext = new WebAppContext();
+        webAppContext.setContextPath("/");
+        webAppContext.setWar(testWebappDir.toFile().getAbsolutePath());
+        _server.setHandler(webAppContext);
+        _server.start();
+
+        File tempDirectory = (File)webAppContext.getAttribute(ServletContext.TEMPDIR);
+        assertNotNull(tempDirectory, "Default Temp Directory (from attribute)");
+    }
+
+    @Test
+    public void testDefaultTempDirViaGetter() throws Exception
+    {
+        // Create war on the fly
+        Path testWebappDir = MavenTestingUtils.getProjectDirPath("src/test/webapp");
+
+        // Test that temp directory is set by default is accessible via getter
+        _server = new Server();
+        WebAppContext webAppContext = new WebAppContext();
+        webAppContext.setContextPath("/");
+        webAppContext.setWar(testWebappDir.toFile().getAbsolutePath());
+        _server.setHandler(webAppContext);
+        _server.start();
+
+        File tempDirectory = webAppContext.getTempDirectory();
+        assertNotNull(tempDirectory, "Default Temp Directory (from getter)");
     }
 
     @Test
