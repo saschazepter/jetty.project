@@ -68,7 +68,6 @@ public class CachingHttpContentFactory implements HttpContent.Factory
     private final HttpContent.Factory _authority;
     private final ConcurrentHashMap<String, CachingHttpContent> _cache = new ConcurrentHashMap<>();
     private final AtomicLong _cachedSize = new AtomicLong();
-    private final AtomicBoolean _shrinking = new AtomicBoolean();
     private final ByteBufferPool _bufferPool;
     private int _maxCachedFileSize = DEFAULT_MAX_CACHED_FILE_SIZE;
     private int _maxCachedFiles = DEFAULT_MAX_CACHED_FILES;
@@ -149,46 +148,35 @@ public class CachingHttpContentFactory implements HttpContent.Factory
 
     private void shrinkCache()
     {
-        // Only 1 thread shrinking at once
-        if (_shrinking.compareAndSet(false, true))
+        // While we need to shrink
+        int numCacheEntries = _cache.size();
+        while (numCacheEntries > 0 && (numCacheEntries > _maxCachedFiles || _cachedSize.get() > _maxCacheSize))
         {
-            try
+            // Scan the entire cache and generate an ordered list by last accessed time.
+            SortedSet<CachingHttpContent> sorted = new TreeSet<>((c1, c2) ->
             {
-                // While we need to shrink
-                int numCacheEntries = _cache.size();
-                while (numCacheEntries > 0 && (numCacheEntries > _maxCachedFiles || _cachedSize.get() > _maxCacheSize))
-                {
-                    // Scan the entire cache and generate an ordered list by last accessed time.
-                    SortedSet<CachingHttpContent> sorted = new TreeSet<>((c1, c2) ->
-                    {
-                        long delta = NanoTime.elapsed(c2.getLastAccessedNanos(), c1.getLastAccessedNanos());
-                        if (delta != 0)
-                            return delta < 0 ? -1 : 1;
+                long delta = NanoTime.elapsed(c2.getLastAccessedNanos(), c1.getLastAccessedNanos());
+                if (delta != 0)
+                    return delta < 0 ? -1 : 1;
 
-                        delta = c1.getContentLengthValue() - c2.getContentLengthValue();
-                        if (delta != 0)
-                            return delta < 0 ? -1 : 1;
+                delta = c1.getContentLengthValue() - c2.getContentLengthValue();
+                if (delta != 0)
+                    return delta < 0 ? -1 : 1;
 
-                        return c1.getKey().compareTo(c2.getKey());
-                    });
-                    sorted.addAll(_cache.values());
+                return c1.getKey().compareTo(c2.getKey());
+            });
+            sorted.addAll(_cache.values());
 
-                    // TODO: Can we remove the buffers from the content before evicting.
-                    // Invalidate least recently used first
-                    for (CachingHttpContent content : sorted)
-                    {
-                        if (_cache.size() <= _maxCachedFiles && _cachedSize.get() <= _maxCacheSize)
-                            break;
-                        removeFromCache(content);
-                    }
-
-                    numCacheEntries = _cache.size();
-                }
-            }
-            finally
+            // TODO: Can we remove the buffers from the content before evicting.
+            // Invalidate least recently used first
+            for (CachingHttpContent content : sorted)
             {
-                _shrinking.set(false);
+                if (_cache.size() <= _maxCachedFiles && _cachedSize.get() <= _maxCacheSize)
+                    break;
+                removeFromCache(content);
             }
+
+            numCacheEntries = _cache.size();
         }
     }
 
@@ -253,7 +241,6 @@ public class CachingHttpContentFactory implements HttpContent.Factory
         if (!isCacheable(httpContent))
             return httpContent;
 
-        // The re-mapping function may be run multiple times by compute.
         AtomicBoolean added = new AtomicBoolean();
         cachingHttpContent = _cache.computeIfAbsent(path, key ->
         {
@@ -418,7 +405,12 @@ public class CachingHttpContentFactory implements HttpContent.Factory
         @Override
         public boolean retain()
         {
-            return _referenceCount.tryRetain();
+            // Retain only if the content is still in the cache.
+            return _cache.computeIfPresent(_cacheKey, (s, cachingHttpContent) ->
+            {
+                _referenceCount.retain();
+                return cachingHttpContent;
+            }) != null;
         }
 
         @Override
