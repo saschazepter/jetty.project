@@ -245,7 +245,10 @@ public class CompressionConfig extends AbstractLifeCycle
 
             // The only option left is identity, if acceptable.
             if (identity != null && !identity.isAcceptable())
-                throw new HttpException.RuntimeException(HttpStatus.UNSUPPORTED_MEDIA_TYPE_415);
+            {
+                List<String> accepted = supportedEncodings.stream().filter(compressEncodings).toList();
+                throw new HttpException.RuntimeException(HttpStatus.UNSUPPORTED_MEDIA_TYPE_415, String.join(", ", accepted));
+            }
 
             // Identity is acceptable.
             return null;

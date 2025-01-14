@@ -22,9 +22,11 @@ import org.eclipse.jetty.compression.Compression;
 import org.eclipse.jetty.compression.server.internal.CompressionResponse;
 import org.eclipse.jetty.compression.server.internal.DecompressionRequest;
 import org.eclipse.jetty.http.EtagUtils;
+import org.eclipse.jetty.http.HttpException;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.QuotedQualityCSV;
 import org.eclipse.jetty.http.pathmap.MatchedResource;
@@ -34,6 +36,7 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.TypeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -195,7 +198,7 @@ public class CompressionHandler extends Handler.Wrapper
     }
 
     @Override
-    public boolean handle(final Request request, final Response response, final Callback callback) throws Exception
+    public boolean handle(Request request, Response response, Callback callback) throws Exception
     {
         if (LOG.isDebugEnabled())
             LOG.debug("handling {} {} {}", request, response, this);
@@ -262,7 +265,28 @@ public class CompressionHandler extends Handler.Wrapper
             requestAcceptEncoding = qualityCSV.getQualityValues();
 
         String decompressEncoding = config.getDecompressionEncoding(supportedEncodings.keySet(), request, requestContentEncoding, pathInContext);
-        String compressEncoding = config.getCompressionEncoding(supportedEncodings.keySet(), request, requestAcceptEncoding, pathInContext);
+
+        String compressEncoding;
+        try
+        {
+            compressEncoding = config.getCompressionEncoding(supportedEncodings.keySet(), request, requestAcceptEncoding, pathInContext);
+        }
+        catch (Throwable x)
+        {
+            if (x instanceof HttpException http)
+            {
+                int statusCode = http.getCode();
+                if (statusCode == HttpStatus.UNSUPPORTED_MEDIA_TYPE_415)
+                {
+                    String accepted = http.getReason();
+                    if (StringUtil.isNotBlank(accepted))
+                        response.getHeaders().put(HttpHeader.ACCEPT_ENCODING, accepted);
+                    Response.writeError(request, response, callback, http.getCode(), null, x);
+                    return true;
+                }
+            }
+            throw x;
+        }
 
         if (LOG.isDebugEnabled())
         {

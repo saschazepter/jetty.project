@@ -601,15 +601,16 @@ public class HttpChannelState implements HttpChannel, Components
     {
         try (AutoLock lock = _lock.tryLock())
         {
-            boolean held = lock.isHeldByCurrentThread();
-            return String.format("%s@%x{handling=%s, handled=%s, send=%s, completed=%s, request=%s}",
+            String held = lock.isHeldByCurrentThread() ? "" : "?";
+            return String.format("%s@%x[%s:handling=%s,handled=%s,send=%s,completed=%s,request=%s]",
                 this.getClass().getSimpleName(),
                 hashCode(),
-                held ? _handling : "?",
-                held ? _handled : "?",
-                held ? _streamSendState : "?",
-                held ? _callbackCompleted : "?",
-                held ? _request : "?"
+                held,
+                _handling,
+                _handled,
+                _streamSendState,
+                _callbackCompleted,
+                _request
             );
         }
     }

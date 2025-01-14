@@ -180,14 +180,17 @@ public class HttpClientTest extends AbstractHttpClientServerTest
                 return true;
             }
         });
-
         client.setConnectBlocking(true);
-        ContentResponse response = client.GET(scenario.getScheme() + "://localhost:" + connector.getLocalPort());
 
-        assertNotNull(response);
-        assertEquals(200, response.getStatus());
-        byte[] content = response.getContent();
-        assertArrayEquals(data, content);
+        for (int i = 0; i < 2; ++i)
+        {
+            ContentResponse response = client.GET(scenario.getScheme() + "://localhost:" + connector.getLocalPort());
+
+            assertNotNull(response);
+            assertEquals(200, response.getStatus());
+            byte[] content = response.getContent();
+            assertArrayEquals(data, content);
+        }
     }
 
     @ParameterizedTest

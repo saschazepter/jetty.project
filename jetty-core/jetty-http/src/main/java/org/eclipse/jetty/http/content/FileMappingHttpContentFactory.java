@@ -163,6 +163,12 @@ public class FileMappingHttpContentFactory implements HttpContent.Factory
 
             long contentLength = content.getContentLengthValue();
             int bufferCount = Math.toIntExact(contentLength / maxBufferSize);
+            if (contentLength % maxBufferSize != 0)
+            {
+                if (bufferCount == Integer.MAX_VALUE)
+                    throw new IOException("Cannot memory map Content as that would require over Integer.MAX_VALUE buffers: " + content);
+                bufferCount++;
+            }
             _buffers = new ByteBuffer[bufferCount];
             long currentPos = 0L;
             long total = 0L;
