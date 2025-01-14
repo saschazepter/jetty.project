@@ -204,27 +204,11 @@ public class FileBufferedResponseHandler extends BufferedResponseHandler
             }
 
             // Create an iterating callback to do the writing
-            ByteBufferPool.Sized sizedPool = ByteBufferPool.Sized.as(getServer().getByteBufferPool(), true, getBufferSize());
+            ByteBufferPool.Sized sizedPool = new ByteBufferPool.Sized(getServer().getByteBufferPool(), true, getBufferSize());
             Content.Source source = Content.Source.from(sizedPool, _filePath);
-            Content.Sink sink = new InterceptorSink(getNextInterceptor());
+            Content.Sink sink = (last, bytebuffer, cb) -> getNextInterceptor().write(last, bytebuffer, cb);
             Callback disposer = Callback.from(callback, this::dispose);
             Content.copy(source, sink, disposer);
-        }
-    }
-
-    private static class InterceptorSink implements Content.Sink
-    {
-        private final HttpOutput.Interceptor _interceptor;
-
-        public InterceptorSink(HttpOutput.Interceptor interceptor)
-        {
-            this._interceptor = interceptor;
-        }
-
-        @Override
-        public void write(boolean last, ByteBuffer byteBuffer, Callback callback)
-        {
-            _interceptor.write(last, byteBuffer, callback);
         }
     }
 }

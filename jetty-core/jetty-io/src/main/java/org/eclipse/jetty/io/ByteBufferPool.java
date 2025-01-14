@@ -123,21 +123,6 @@ public interface ByteBufferPool
         private final int _size;
 
         /**
-         * Get a sized pool for any arbitrary ByteBufferPool.
-         *
-         * @param pool the pool
-         * @param direct {@code true} for direct buffers (if wrapping pool)
-         * @param size The specified size in bytes of the buffer, or -1 for a default
-         * @return the pool as a sized pool
-         */
-        public static ByteBufferPool.Sized as(ByteBufferPool pool, boolean direct, int size)
-        {
-            if (pool instanceof Sized sized)
-                return sized;
-            return new Sized(pool, direct, size);
-        }
-
-        /**
          * Create a sized pool for non direct buffers of a default size from a wrapped pool.
          * @param wrapped The actual {@link ByteBufferPool}
          */
