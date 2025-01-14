@@ -368,7 +368,7 @@ public class CachingHttpContentFactory implements HttpContent.Factory
             boolean retained = false;
             try
             {
-                retained = retain();
+                retained = cachedRetain();
                 if (retained)
                     sink.write(true, BufferUtil.slice(_buffer.getByteBuffer(), Math.toIntExact(offset), Math.toIntExact(length)), Callback.from(this::release, callback));
                 else
@@ -389,7 +389,7 @@ public class CachingHttpContentFactory implements HttpContent.Factory
          * its internal buffer if it is.
          * @return true if this content can be used and has been retained, false otherwise.
          */
-        private boolean retain()
+        private boolean cachedRetain()
         {
             return _cache.computeIfPresent(_cacheKey, (s, cachingHttpContent) ->
             {
