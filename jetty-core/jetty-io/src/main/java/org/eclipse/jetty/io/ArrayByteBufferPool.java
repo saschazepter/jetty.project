@@ -37,6 +37,7 @@ import org.eclipse.jetty.io.internal.QueuedPool;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.ConcurrentPool;
 import org.eclipse.jetty.util.Pool;
+import org.eclipse.jetty.util.TypeUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.annotation.ManagedOperation;
@@ -723,15 +724,12 @@ public class ArrayByteBufferPool implements ByteBufferPool, Dumpable
      * A variant of the {@link ArrayByteBufferPool} that
      * uses buckets of buffers that increase in size by a power of
      * 2 (e.g. 1k, 2k, 4k, 8k, etc.).
-     * @deprecated Usage of {@code Quadratic} is often wasteful of additional space and can increase contention on
-     * the larger buffers.
      */
-    @Deprecated(forRemoval = true, since = "12.1.0")
     public static class Quadratic extends ArrayByteBufferPool
     {
         public Quadratic()
         {
-            this(0, -1, Integer.MAX_VALUE);
+            this(4096, 65536, Integer.MAX_VALUE);
         }
 
         public Quadratic(int minCapacity, int maxCapacity, int maxBucketSize)
@@ -742,13 +740,13 @@ public class ArrayByteBufferPool implements ByteBufferPool, Dumpable
         public Quadratic(int minCapacity, int maxCapacity, int maxBucketSize, long maxHeapMemory, long maxDirectMemory)
         {
             super(minCapacity,
-                -1,
+                minCapacity <= 0 ? 1 : minCapacity,
                 maxCapacity,
                 maxBucketSize,
                 maxHeapMemory,
                 maxDirectMemory,
-                c -> 32 - Integer.numberOfLeadingZeros(c - 1),
-                i -> 1 << i
+                c -> 32 - Integer.numberOfLeadingZeros(c - 1) - Integer.numberOfTrailingZeros(Integer.highestOneBit(TypeUtil.ceilToNextPowerOfTwo(minCapacity))),
+                i -> 1 << i + Integer.numberOfTrailingZeros(Integer.highestOneBit(TypeUtil.ceilToNextPowerOfTwo(minCapacity)))
             );
         }
     }
