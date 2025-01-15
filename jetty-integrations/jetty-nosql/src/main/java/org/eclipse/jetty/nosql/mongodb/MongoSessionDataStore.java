@@ -16,20 +16,18 @@ package org.eclipse.jetty.nosql.mongodb;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import com.mongodb.BasicDBObject;
-import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;
 import com.mongodb.MongoException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.IndexModel;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Projections;
@@ -42,7 +40,6 @@ import org.eclipse.jetty.nosql.NoSqlSessionDataStore;
 import org.eclipse.jetty.session.SessionContext;
 import org.eclipse.jetty.session.SessionData;
 import org.eclipse.jetty.session.UnreadableSessionDataException;
-import org.eclipse.jetty.util.SearchPattern;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
@@ -160,7 +157,7 @@ public class MongoSessionDataStore extends NoSqlSessionDataStore
      */
     private DBObject _version1;
 
-    private SearchPattern _workerNamePattern = SearchPattern.compile("[0-9][a-zA-Z]*");
+    private Pattern _workerNamePattern = Pattern.compile("[0-9a-zA-Z]*");
 
     /**
      * Access to MongoDB
@@ -190,8 +187,7 @@ public class MongoSessionDataStore extends NoSqlSessionDataStore
         if (_context == null || StringUtil.isEmpty(_context.getWorkerName()))
             return;
 
-        byte[] bytes = _context.getWorkerName().getBytes();
-        if (_workerNamePattern.match(bytes, 0, bytes.length) < 0)
+        if (!_workerNamePattern.matcher(_context.getWorkerName()).matches())
             throw new IllegalStateException("Invalid worker name: " + _context.getWorkerName());
     }
 
