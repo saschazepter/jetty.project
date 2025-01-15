@@ -33,6 +33,7 @@
 * xref:jsf-taglibs/index.adoc[]
 * xref:jndi/index.adoc[]
 * Jetty Security
+** xref:security/configuring-form-size.adoc[]
 ** xref:security/jaas-support.adoc[]
 ** xref:security/jaspi-support.adoc[]
 ** xref:security/openid-support.adoc[]
