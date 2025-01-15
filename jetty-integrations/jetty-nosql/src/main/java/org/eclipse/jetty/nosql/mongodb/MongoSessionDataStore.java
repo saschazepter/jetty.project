@@ -42,6 +42,7 @@ import org.eclipse.jetty.nosql.NoSqlSessionDataStore;
 import org.eclipse.jetty.session.SessionContext;
 import org.eclipse.jetty.session.SessionData;
 import org.eclipse.jetty.session.UnreadableSessionDataException;
+import org.eclipse.jetty.util.SearchPattern;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
 import org.eclipse.jetty.util.annotation.ManagedObject;
@@ -159,6 +160,8 @@ public class MongoSessionDataStore extends NoSqlSessionDataStore
      */
     private DBObject _version1;
 
+    private SearchPattern _workerNamePattern = SearchPattern.compile("[0-9][a-zA-Z]*");
+
     /**
      * Access to MongoDB
      */
@@ -173,6 +176,23 @@ public class MongoSessionDataStore extends NoSqlSessionDataStore
     public MongoCollection<Document> getDBCollection()
     {
         return _dbSessions;
+    }
+
+    @Override
+    protected void doStart() throws Exception
+    {
+        checkWorkerName();
+        super.doStart();
+    }
+
+    private void checkWorkerName() throws IllegalStateException
+    {
+        if (_context == null || StringUtil.isEmpty(_context.getWorkerName()))
+            return;
+
+        byte[] bytes = _context.getWorkerName().getBytes();
+        if (_workerNamePattern.match(bytes, 0, bytes.length) < 0)
+            throw new IllegalStateException("Invalid worker name: " + _context.getWorkerName());
     }
 
     @Override

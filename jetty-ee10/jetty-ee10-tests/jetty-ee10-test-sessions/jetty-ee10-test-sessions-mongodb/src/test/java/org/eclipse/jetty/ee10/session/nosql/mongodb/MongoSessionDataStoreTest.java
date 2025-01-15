@@ -17,12 +17,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.session.AbstractSessionDataStoreFactory;
 import org.eclipse.jetty.session.AbstractSessionDataStoreTest;
+import org.eclipse.jetty.session.DefaultSessionCache;
+import org.eclipse.jetty.session.DefaultSessionCacheFactory;
 import org.eclipse.jetty.session.DefaultSessionIdManager;
+import org.eclipse.jetty.session.ManagedSession;
 import org.eclipse.jetty.session.SessionContext;
 import org.eclipse.jetty.session.SessionData;
 import org.eclipse.jetty.session.SessionDataStore;
@@ -37,6 +41,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testcontainers.shaded.org.hamcrest.Matchers.not;
 
 /**
  * MongoSessionDataStoreTest
@@ -126,6 +132,89 @@ public class MongoSessionDataStoreTest extends AbstractSessionDataStoreTest
         {
             Thread.currentThread().setContextClassLoader(old);
         }
+    }
+
+    @Test
+    public void testBadWorkerName() throws Exception
+    {
+        Server server = new Server();
+        DefaultSessionIdManager idMgr = new DefaultSessionIdManager(server);
+        idMgr.setWorkerName("b-a-d");
+        server.addBean(idMgr);
+
+        //create the SessionDataStore
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/ctx");
+
+        server.setHandler(context);
+        context.getSessionHandler().setSessionIdManager(idMgr);
+
+        DefaultSessionCacheFactory cacheFactory = new DefaultSessionCacheFactory();
+        cacheFactory.setSaveOnCreate(true);
+        server.addBean(cacheFactory);
+
+        SessionDataStoreFactory factory = createSessionDataStoreFactory();
+        server.addBean(factory);
+
+        assertThrows(IllegalStateException.class, () ->
+        {
+            server.start();
+        });
+    }
+
+    @Test
+    public void testGoodWorkerName() throws Exception
+    {
+        Server server = new Server();
+        DefaultSessionIdManager idMgr = new DefaultSessionIdManager(server);
+        idMgr.setWorkerName("NODE99");
+        server.addBean(idMgr);
+
+        //create the SessionDataStore
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/ctx");
+
+        server.setHandler(context);
+        context.getSessionHandler().setSessionIdManager(idMgr);
+
+        DefaultSessionCacheFactory cacheFactory = new DefaultSessionCacheFactory();
+        cacheFactory.setSaveOnCreate(true);
+        server.addBean(cacheFactory);
+
+        SessionDataStoreFactory factory = createSessionDataStoreFactory();
+        server.addBean(factory);
+
+        not(assertThrows(IllegalStateException.class, () ->
+        {
+            server.start();
+        }));
+    }
+
+    @Test
+    public void testDefaultWorkerName() throws Exception
+    {
+        Server server = new Server();
+        DefaultSessionIdManager idMgr = new DefaultSessionIdManager(server);
+        server.addBean(idMgr);
+
+        //create the SessionDataStore
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/ctx");
+
+        server.setHandler(context);
+        context.getSessionHandler().setSessionIdManager(idMgr);
+
+        DefaultSessionCacheFactory cacheFactory = new DefaultSessionCacheFactory();
+        cacheFactory.setSaveOnCreate(true);
+        server.addBean(cacheFactory);
+
+        SessionDataStoreFactory factory = createSessionDataStoreFactory();
+        server.addBean(factory);
+
+        not(assertThrows(IllegalStateException.class, () ->
+        {
+            server.start();
+        }));
     }
 
     /**
