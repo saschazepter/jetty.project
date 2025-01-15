@@ -17,16 +17,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.session.AbstractSessionDataStoreFactory;
 import org.eclipse.jetty.session.AbstractSessionDataStoreTest;
-import org.eclipse.jetty.session.DefaultSessionCache;
 import org.eclipse.jetty.session.DefaultSessionCacheFactory;
 import org.eclipse.jetty.session.DefaultSessionIdManager;
-import org.eclipse.jetty.session.ManagedSession;
 import org.eclipse.jetty.session.SessionContext;
 import org.eclipse.jetty.session.SessionData;
 import org.eclipse.jetty.session.SessionDataStore;
@@ -39,10 +36,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.testcontainers.shaded.org.hamcrest.Matchers.not;
 
 /**
  * MongoSessionDataStoreTest
@@ -184,10 +181,8 @@ public class MongoSessionDataStoreTest extends AbstractSessionDataStoreTest
         SessionDataStoreFactory factory = createSessionDataStoreFactory();
         server.addBean(factory);
 
-        not(assertThrows(IllegalStateException.class, () ->
-        {
-            server.start();
-        }));
+        assertDoesNotThrow(() ->
+            server.start());
     }
 
     @Test
@@ -211,10 +206,8 @@ public class MongoSessionDataStoreTest extends AbstractSessionDataStoreTest
         SessionDataStoreFactory factory = createSessionDataStoreFactory();
         server.addBean(factory);
 
-        not(assertThrows(IllegalStateException.class, () ->
-        {
-            server.start();
-        }));
+        assertDoesNotThrow(() ->
+            server.start());
     }
 
     /**
