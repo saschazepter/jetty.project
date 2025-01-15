@@ -129,8 +129,8 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
      * Calls to {@code onFields} and {@code getFields} methods are idempotent, and
      * can be called multiple times, with subsequent calls returning the results of the first call.
      * @param request The request to get or read the Fields from
-     * @param maxFields The maximum number of fields to accept or -1 for unlimited
-     * @param maxLength The maximum length of fields or -1 for unlimited.
+     * @param maxFields The maximum number of fields to accept or -1 for a default
+     * @param maxLength The maximum length of fields or -1 for a default.
      * @return the Fields
      * @see #onFields(Request, Promise.Invocable)
      * @see #onFields(Request, Charset, Promise.Invocable)
@@ -138,6 +138,10 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
      */
     public static Fields getFields(Request request, int maxFields, int maxLength)
     {
+        if (maxFields < 0)
+            maxFields = getContextAttribute(request.getContext(), FormFields.MAX_FIELDS_ATTRIBUTE, FormFields.MAX_FIELDS_DEFAULT);
+        if (maxLength < 0)
+            maxLength = getContextAttribute(request.getContext(), FormFields.MAX_LENGTH_ATTRIBUTE, FormFields.MAX_LENGTH_DEFAULT);
         Charset charset = getFormEncodedCharset(request);
         return from(request, InvocationType.NON_BLOCKING, request, charset, maxFields, maxLength).join();
     }
@@ -154,8 +158,9 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
      * @param attributes The {@link Attributes} in which to look for an existing {@link CompletableFuture} of
      *                   {@link FormFields}, using the classname as the attribute name.  If not found the attribute
      *                   is set with the created {@link CompletableFuture} of {@link FormFields}.
-     * @param charset the {@link Charset} to use for byte to string conversion.     * @param maxFields The maximum number of fields to accept
-     * @param maxLength The maximum length of fields
+     * @param charset the {@link Charset} to use for byte to string conversion.
+     * @param maxFields The maximum number of fields to accept or -1 for a default.
+     * @param maxLength The maximum length of fields or -1 for a default.
      * @return the Fields
      * @see #onFields(Request, Promise.Invocable)
      * @see #onFields(Request, Charset, Promise.Invocable)
@@ -163,6 +168,10 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
      */
     public static Fields getFields(Content.Source source, Attributes attributes, Charset charset, int maxFields, int maxLength)
     {
+        if (maxFields < 0)
+            maxFields = FormFields.MAX_FIELDS_DEFAULT;
+        if (maxLength < 0)
+            maxLength = FormFields.MAX_FIELDS_DEFAULT;
         return from(source, InvocationType.NON_BLOCKING, attributes, charset, maxFields, maxLength).join();
     }
 
