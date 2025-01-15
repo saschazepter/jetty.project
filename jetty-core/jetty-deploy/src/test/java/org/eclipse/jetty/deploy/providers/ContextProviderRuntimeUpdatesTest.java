@@ -39,7 +39,6 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
  * Similar in scope to {@link ContextProviderStartupTest}, except is concerned with the modification of existing
@@ -124,8 +123,10 @@ public class ContextProviderRuntimeUpdatesTest
     }
 
     /**
-     * Test that if a war file has a context xml sibling, it will only be redeployed when the
-     * context xml changes, not the war.
+     * Test that if a unit (called "simple" has both a war file and xml file), will be
+     * redeployed if the war file is touched (note: the XML is the main deployable path)
+     *
+     * This addresses issue https://github.com/jetty/jetty.project/issues/12543
      */
     @Test
     public void testSelectiveDeploy(WorkDir workDir) throws Exception
@@ -143,20 +144,20 @@ public class ContextProviderRuntimeUpdatesTest
         assertNotNull(contextHandler);
         assertEquals(jetty.getJettyBasePath().resolve("tmp").toFile().getAbsolutePath(), contextHandler.getTempDirectory().getAbsolutePath());
 
-        //touch the context xml and check the context handler was redeployed
+        // touch the context xml and check the context handler was redeployed
         jetty.copyWebapp("simple.xml", "simple.xml");
         waitForDirectoryScan();
         ContextHandler contextHandler2 = jetty.getContextHandler("/simple");
         assertNotNull(contextHandler2);
         assertNotSame(contextHandler, contextHandler2);
 
-        //touch the war file and check the context handler was NOT redeployed
-        Thread.sleep(1000L); //ensure at least a millisecond has passed
+        // touch the war file and check that the context handler was redeployed
+        Thread.sleep(1000L); // ensure at least a millisecond has passed
         Files.setLastModifiedTime(webappsDir.resolve("simple.war"), FileTime.fromMillis(System.currentTimeMillis()));
         waitForDirectoryScan();
         ContextHandler contextHandler3 = jetty.getContextHandler("/simple");
         assertNotNull(contextHandler3);
-        assertSame(contextHandler2, contextHandler3);
+        assertNotSame(contextHandler2, contextHandler3);
     }
 
     /**

@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -31,6 +30,7 @@ import java.util.stream.Collectors;
 import org.eclipse.jetty.deploy.App;
 import org.eclipse.jetty.deploy.AppProvider;
 import org.eclipse.jetty.deploy.DeploymentManager;
+import org.eclipse.jetty.deploy.providers.internal.DeploymentUnits;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.Scanner;
 import org.eclipse.jetty.util.annotation.ManagedAttribute;
@@ -38,7 +38,6 @@ import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.annotation.ManagedOperation;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
 import org.eclipse.jetty.util.component.LifeCycle;
-import org.eclipse.jetty.util.resource.PathCollators;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.resource.Resources;
@@ -46,11 +45,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ManagedObject("Abstract Provider for loading webapps")
-public abstract class ScanningAppProvider extends ContainerLifeCycle implements AppProvider
+public abstract class ScanningAppProvider extends ContainerLifeCycle implements AppProvider, DeploymentUnits.Events
 {
     private static final Logger LOG = LoggerFactory.getLogger(ScanningAppProvider.class);
 
-    private final Map<Path, App> _appMap = new HashMap<>();
+    private DeploymentUnits _units = new DeploymentUnits();
+    private Map<String, App> _appMap = new HashMap<>();
 
     private DeploymentManager _deploymentManager;
     private FilenameFilter _filenameFilter;
@@ -62,30 +62,10 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
 
     private final Scanner.BulkListener _scannerBulkListener = new Scanner.BulkListener()
     {
-        private final Set<Path> _addedPaths = new HashSet<>();
-
         @Override
-        public void pathsChanged(Set<Path> paths) throws Exception
+        public void pathsChanged(Set<Path> paths)
         {
-            List<Path> sortedPaths = paths.stream()
-                .sorted(PathCollators.byName(true))
-                .toList();
-
-            for (Path path : sortedPaths)
-            {
-                if (Files.exists(path))
-                {
-                    if (_addedPaths.add(path))
-                        ScanningAppProvider.this.pathAdded(path);
-                    else
-                        ScanningAppProvider.this.pathChanged(path);
-                }
-                else
-                {
-                    _addedPaths.remove(path);
-                    ScanningAppProvider.this.pathRemoved(path);
-                }
-            }
+            _units.processChanges(paths, ScanningAppProvider.this);
         }
 
         @Override
@@ -132,7 +112,7 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
     /**
      * @return The index of currently deployed applications.
      */
-    protected Map<Path, App> getDeployedApps()
+    protected Map<String, App> getDeployedApps()
     {
         return _appMap;
     }
@@ -238,41 +218,58 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
         return _scanner.exists(path);
     }
 
-    protected void pathAdded(Path path) throws Exception
+    /**
+     * Given a set of Paths that belong to the same unit of deployment,
+     * pick the main Path that is actually the point of deployment.
+     *
+     * @param paths the set of paths that represent a single unit of deployment. (all paths in {@link Set} are of the same basename)
+     * @return the specific path that represents the main point of deployment (eg: xml if it exists)
+     */
+    protected abstract Path getMainDeploymentPath(Set<Path> paths);
+
+    public void unitAdded(String basename, Set<Path> paths)
     {
-        App app = ScanningAppProvider.this.createApp(path);
+        Path mainDeploymentPath = getMainDeploymentPath(paths);
+        App app = this.createApp(mainDeploymentPath);
+
         if (LOG.isDebugEnabled())
-            LOG.debug("fileAdded {}: {}", path, app);
+            LOG.debug("unitAdded {} -> {}: {}", basename, paths, app);
 
         if (app != null)
         {
-            _appMap.put(path, app);
+            _appMap.put(basename, app);
             _deploymentManager.addApp(app);
         }
     }
 
-    protected void pathChanged(Path path) throws Exception
+    @Override
+    public void unitChanged(String basename, Set<Path> paths)
     {
-        App oldApp = _appMap.remove(path);
+        App oldApp = _appMap.remove(basename);
         if (oldApp != null)
             _deploymentManager.removeApp(oldApp);
-        App app = ScanningAppProvider.this.createApp(path);
+
+        Path mainDeploymentPath = getMainDeploymentPath(paths);
+        App app = ScanningAppProvider.this.createApp(mainDeploymentPath);
         if (LOG.isDebugEnabled())
-            LOG.debug("fileChanged {}: {}", path, app);
+            LOG.debug("unitChanged {} -> {}: {}", basename, paths, app);
         if (app != null)
         {
-            _appMap.put(path, app);
+            _appMap.put(basename, app);
             _deploymentManager.addApp(app);
         }
     }
 
-    protected void pathRemoved(Path path) throws Exception
+    @Override
+    public void unitRemoved(String basename)
     {
-        App app = _appMap.remove(path);
+        App app = _appMap.remove(basename);
         if (LOG.isDebugEnabled())
-            LOG.debug("fileRemoved {}: {}", path, app);
+            LOG.debug("unitRemoved {}: {}", basename, app);
         if (app != null)
+        {
             _deploymentManager.removeApp(app);
+        }
     }
 
     /**
@@ -287,7 +284,7 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
 
     public Resource getMonitoredDirResource()
     {
-        if (_monitored.size() == 0)
+        if (_monitored.isEmpty())
             return null;
         if (_monitored.size() > 1)
             throw new IllegalStateException();

@@ -24,12 +24,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -71,11 +73,11 @@ import org.slf4j.LoggerFactory;
  * <li>Directories with names ending in {@code ".d"} are ignored</li>
  * <li>Property files with names ending in {@code ".properties"} are not deployed.</li>
  * <li>If a directory and a WAR file exist (eg: {@code foo/} and {@code foo.war}) then the directory is assumed to be
- * the unpacked WAR and only the WAR is deployed (which may reused the unpacked directory)</li>
+ * the unpacked WAR and only the WAR file is deployed (which may reuse the unpacked directory)</li>
  * <li>If a directory and a matching XML file exist (eg: {@code foo/} and {@code foo.xml}) then the directory is assumed to be
- * an unpacked WAR and only the XML is deployed (which may use the directory in its configuration)</li>
- * <li>If a WAR file and a matching XML exist (eg: {@code foo.war} and {@code foo.xml}) then the WAR is assumed to
- * be configured by the XML and only the XML is deployed.
+ * an unpacked WAR and only the XML file is deployed (which may use the directory in its configuration)</li>
+ * <li>If a WAR file and a matching XML file exist (eg: {@code foo.war} and {@code foo.xml}) then the WAR file is assumed to
+ * be configured by the XML file and only the XML file is deployed.
  * </ul>
  * <p>For XML configured contexts, the following is available.</p>
  * <ul>
@@ -133,7 +135,7 @@ public class ContextProvider extends ScanningAppProvider
                 app,
                 Environment.getAll().stream()
                     .map(Environment::getName)
-                    .collect(Collectors.joining(",", "[", "]"))
+                    .collect(Collectors.joining(", ", "[", "]"))
             );
             return null;
         }
@@ -631,44 +633,42 @@ public class ContextProvider extends ScanningAppProvider
         contextHandler.setContextPath(contextPath);
     }
 
-    protected boolean isDeployable(Path path)
-    {
-        String basename = FileID.getBasename(path);
-
-        // is the file that changed a directory?
-        if (Files.isDirectory(path))
-        {
-            // deploy if there is not a .xml or .war file of the same basename?
-            return !Files.exists(path.getParent().resolve(basename + ".xml")) &&
-                !Files.exists(path.getParent().resolve(basename + ".XML")) &&
-                !Files.exists(path.getParent().resolve(basename + ".war")) &&
-                !Files.exists(path.getParent().resolve(basename + ".WAR"));
-        }
-
-        // deploy if it is a .war and there is not a .xml for of the same basename
-        if (FileID.isWebArchive(path))
-        {
-            // if a .xml file exists for it
-            return !Files.exists(path.getParent().resolve(basename + ".xml")) &&
-                !Files.exists(path.getParent().resolve(basename + ".XML"));
-        }
-
-        // otherwise only deploy an XML
-        return FileID.isXml(path);
-    }
-
+    /**
+     * Apply the main deployable heuristics referenced in the main javadoc
+     * for this class.
+     *
+     * @param paths the set of paths that represent a single unit of deployment.
+     * @return the main deployable.
+     */
     @Override
-    protected void pathAdded(Path path) throws Exception
+    protected Path getMainDeploymentPath(Set<Path> paths)
     {
-        if (isDeployable(path))
-            super.pathAdded(path);
-    }
+        // XML always win.
+        List<Path> xmls = paths.stream()
+            .filter(FileID::isXml)
+            .toList();
+        if (xmls.size() == 1)
+            return xmls.get(0);
+        else if (xmls.size() > 1)
+            throw new IllegalStateException("More than 1 XML for deployable " + asStringList(xmls));
+        // WAR files are next.
+        List<Path> wars = paths.stream()
+            .filter(FileID::isWebArchive)
+            .toList();
+        if (wars.size() == 1)
+            return wars.get(0);
+        else if (wars.size() > 1)
+            throw new IllegalStateException("More than 1 WAR for deployable " + asStringList(wars));
+        // Directories next.
+        List<Path> dirs = paths.stream()
+            .filter(Files::isDirectory)
+            .toList();
+        if (dirs.size() == 1)
+            return dirs.get(0);
+        if (dirs.size() > 1)
+            throw new IllegalStateException("More than 1 Directory for deployable " + asStringList(dirs));
 
-    @Override
-    protected void pathChanged(Path path) throws Exception
-    {
-        if (isDeployable(path))
-            super.pathChanged(path);
+        throw new IllegalStateException("Unable to determine main deployable " + asStringList(paths));
     }
 
     /**
@@ -782,6 +782,14 @@ public class ContextProvider extends ScanningAppProvider
         props.load(inputStream);
         props.stringPropertyNames().forEach((name) ->
             environment.setAttribute(name, props.getProperty(name)));
+    }
+
+    private static String asStringList(Collection<Path> paths)
+    {
+        return paths.stream()
+            .sorted(PathCollators.byName(true))
+            .map(Path::toString)
+            .collect(Collectors.joining(", ", "[", "]"));
     }
 
     /**
@@ -962,13 +970,6 @@ public class ContextProvider extends ScanningAppProvider
 
             // ignore source control directories
             if ("cvs".equals(lowerName) || "cvsroot".equals(lowerName))
-                return false;
-
-            // ignore directories that have sibling war or XML file
-            if (Files.exists(dir.toPath().resolve(name + ".war")) ||
-                Files.exists(dir.toPath().resolve(name + ".WAR")) ||
-                Files.exists(dir.toPath().resolve(name + ".xml")) ||
-                Files.exists(dir.toPath().resolve(name + ".XML")))
                 return false;
 
             return true;
