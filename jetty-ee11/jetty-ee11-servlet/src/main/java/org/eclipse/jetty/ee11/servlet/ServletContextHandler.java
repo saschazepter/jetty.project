@@ -688,7 +688,7 @@ public class ServletContextHandler extends ContextHandler
     /**
      * Set the maximum number of form Keys to protect against DOS attack from crafted hash keys.
      *
-     * @param max the maximum number of form keys
+     * @param max the maximum number of form keys or -1 for a default value.
      */
     public void setMaxFormKeys(int max)
     {
