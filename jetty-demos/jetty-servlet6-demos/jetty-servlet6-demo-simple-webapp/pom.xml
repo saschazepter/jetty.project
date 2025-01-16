@@ -41,14 +41,4 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.eclipse.jetty.ee11</groupId>
-        <artifactId>jetty-ee11-maven-plugin</artifactId>
-        <version>${project.version}</version>
-      </plugin>
-    </plugins>
-  </build>
 </project>
