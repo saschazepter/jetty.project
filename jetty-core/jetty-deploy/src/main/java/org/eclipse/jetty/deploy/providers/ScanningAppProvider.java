@@ -227,8 +227,14 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
     {
         units.sort(getUnitComparator());
 
+        if (LOG.isDebugEnabled())
+            LOG.debug("unitsChanged: {}", units);
+
         for (Unit unit : units)
         {
+            if (LOG.isDebugEnabled())
+                LOG.debug("unit changed: {}", unit);
+
             switch (unit.getState())
             {
                 case ADDED ->
@@ -269,7 +275,7 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
             }
 
             // we are done processing unit, reset its state
-            unit.setUnchanged();
+            unit.resetStates();
         }
     }
 

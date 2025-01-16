@@ -15,6 +15,7 @@ package org.eclipse.jetty.deploy.providers;
 
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -50,29 +51,41 @@ public class Unit
 
     public State getState()
     {
+        if (paths.isEmpty())
+            return State.REMOVED;
+
         // Calculate state of unit from Path states.
-        Unit.State state = State.UNCHANGED;
+        Unit.State ret = null;
         for (Unit.State pathState : paths.values())
         {
             switch (pathState)
             {
+                case UNCHANGED ->
+                {
+                    if (ret == null)
+                        ret = State.UNCHANGED;
+                }
                 case ADDED ->
                 {
-                    if (state == State.UNCHANGED || state == State.REMOVED)
-                        state = State.ADDED;
+                    if (ret == null)
+                        ret = State.ADDED;
+                    else if (ret == State.UNCHANGED || ret == State.REMOVED)
+                        ret = State.ADDED;
                 }
                 case CHANGED ->
                 {
-                    state = State.CHANGED;
+                    ret = State.CHANGED;
                 }
                 case REMOVED ->
                 {
-                    if (state == State.UNCHANGED)
-                        state = State.REMOVED;
+                    if (ret == null)
+                        ret = State.REMOVED;
+                    else if (ret != State.REMOVED)
+                        ret = State.CHANGED;
                 }
             }
         }
-        return state;
+        return ret != null ? ret : State.UNCHANGED;
     }
 
     public Map<Path, State> getPaths()
@@ -102,8 +115,18 @@ public class Unit
         return oldApp;
     }
 
-    public void setUnchanged()
+    public void resetStates()
     {
+        // Drop paths that were removed.
+        List<Path> removedPaths = paths.entrySet()
+            .stream().filter(e -> e.getValue() == State.REMOVED)
+            .map(Map.Entry::getKey)
+            .toList();
+        for (Path removedPath : removedPaths)
+        {
+            paths.remove(removedPath);
+        }
+        // Set all remaining path states to UNCHANGED
         paths.replaceAll((p, v) -> State.UNCHANGED);
     }
 

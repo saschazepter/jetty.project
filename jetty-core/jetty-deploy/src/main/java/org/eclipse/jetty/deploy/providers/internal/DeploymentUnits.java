@@ -39,6 +39,9 @@ public class DeploymentUnits implements Scanner.ChangeSetListener
 {
     private static final Logger LOG = LoggerFactory.getLogger(DeploymentUnits.class);
 
+    /**
+     * Basename of unit, to the Unit instance.
+     */
     private Map<String, Unit> units = new HashMap<>();
 
     private Listener listener;
