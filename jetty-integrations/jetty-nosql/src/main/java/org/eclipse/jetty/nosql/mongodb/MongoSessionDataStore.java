@@ -157,7 +157,7 @@ public class MongoSessionDataStore extends NoSqlSessionDataStore
      */
     private DBObject _version1;
 
-    private final Pattern _workerNamePattern = Pattern.compile("[0-9a-zA-Z]*");
+    private static final Pattern _workerNamePattern = Pattern.compile("[_0-9a-zA-Z]*");
 
     /**
      * Access to MongoDB

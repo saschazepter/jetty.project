@@ -164,7 +164,7 @@ public class MongoSessionDataStoreTest extends AbstractSessionDataStoreTest
     {
         Server server = new Server();
         DefaultSessionIdManager idMgr = new DefaultSessionIdManager(server);
-        idMgr.setWorkerName("NODE99");
+        idMgr.setWorkerName("NODE_99");
         server.addBean(idMgr);
 
         //create the SessionDataStore
