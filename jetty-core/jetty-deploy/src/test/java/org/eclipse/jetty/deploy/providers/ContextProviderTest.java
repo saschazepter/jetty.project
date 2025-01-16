@@ -16,7 +16,6 @@ package org.eclipse.jetty.deploy.providers;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Set;
 
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
@@ -44,8 +43,11 @@ public class ContextProviderTest
         Path xml = dir.resolve("bar.xml");
         Files.writeString(xml, "XML for bar", UTF_8);
 
+        Unit unit = new Unit("bar");
+        unit.putPath(xml, Unit.State.UNCHANGED);
+
         ContextProvider provider = new ContextProvider();
-        Path main = provider.getMainDeploymentPath(Set.of(xml));
+        Path main = provider.getMainDeploymentPath(unit);
 
         assertThat("main path", main, equalTo(xml));
     }
@@ -64,8 +66,12 @@ public class ContextProviderTest
         Path war = dir.resolve("bar.war");
         Files.writeString(war, "WAR for bar", UTF_8);
 
+        Unit unit = new Unit("bar");
+        unit.putPath(xml, Unit.State.UNCHANGED);
+        unit.putPath(war, Unit.State.UNCHANGED);
+
         ContextProvider provider = new ContextProvider();
-        Path main = provider.getMainDeploymentPath(Set.of(xml, war));
+        Path main = provider.getMainDeploymentPath(unit);
 
         assertThat("main path", main, equalTo(xml));
     }
@@ -84,8 +90,12 @@ public class ContextProviderTest
         Path war = dir.resolve("bar.war");
         Files.writeString(war, "WAR for bar", UTF_8);
 
+        Unit unit = new Unit("bar");
+        unit.putPath(appDir, Unit.State.UNCHANGED);
+        unit.putPath(war, Unit.State.UNCHANGED);
+
         ContextProvider provider = new ContextProvider();
-        Path main = provider.getMainDeploymentPath(Set.of(appDir, war));
+        Path main = provider.getMainDeploymentPath(unit);
 
         assertThat("main path", main, equalTo(war));
     }
@@ -104,8 +114,12 @@ public class ContextProviderTest
         Path xml = dir.resolve("bar.xml");
         Files.writeString(xml, "XML for bar", UTF_8);
 
+        Unit unit = new Unit("bar");
+        unit.putPath(appDir, Unit.State.UNCHANGED);
+        unit.putPath(xml, Unit.State.UNCHANGED);
+
         ContextProvider provider = new ContextProvider();
-        Path main = provider.getMainDeploymentPath(Set.of(appDir, xml));
+        Path main = provider.getMainDeploymentPath(unit);
 
         assertThat("main path", main, equalTo(xml));
     }
@@ -126,8 +140,13 @@ public class ContextProviderTest
         Path war = dir.resolve("bar.war");
         Files.writeString(war, "WAR for bar", UTF_8);
 
+        Unit unit = new Unit("bar");
+        unit.putPath(appDir, Unit.State.UNCHANGED);
+        unit.putPath(xml, Unit.State.UNCHANGED);
+        unit.putPath(war, Unit.State.UNCHANGED);
+
         ContextProvider provider = new ContextProvider();
-        Path main = provider.getMainDeploymentPath(Set.of(appDir, xml, war));
+        Path main = provider.getMainDeploymentPath(unit);
 
         assertThat("main path", main, equalTo(xml));
     }

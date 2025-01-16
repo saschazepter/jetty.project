@@ -31,7 +31,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -398,9 +397,9 @@ public class ContextProvider extends ScanningAppProvider
      *
      * <pre>{@code
      * ContextProvider provider = new ContextProvider();
-     * ContextProvider.EnvironmentConfig envbuilder = provider.configureEnvironment("ee10");
-     * envbuilder.setExtractWars(true);
-     * envbuilder.setParentLoaderPriority(false);
+     * ContextProvider.EnvironmentConfig env10config = provider.configureEnvironment("ee10");
+     * env10config.setExtractWars(true);
+     * env10config.setParentLoaderPriority(false);
      * }</pre>
      *
      * @see #configureEnvironment(String) instead
@@ -491,44 +490,54 @@ public class ContextProvider extends ScanningAppProvider
     protected ClassLoader findCoreContextClassLoader(Path path) throws IOException
     {
         Path webapps = path.getParent();
-        String basename = FileID.getBasename(path);
+        String basename = FileID.getBasename(path).toLowerCase(); // use system Locale as we are dealing with system FS.
         List<URL> urls = new ArrayList<>();
 
-        // Is there a matching jar file?
-        // TODO: both files can be there depending on FileSystem, is this still sane?
-        // TODO: what about other capitalization? eg: ".Jar" ?
-        Path contextJar = webapps.resolve(basename + ".jar");
-        if (!Files.exists(contextJar))
-            contextJar = webapps.resolve(basename + ".JAR");
-        if (Files.exists(contextJar))
-            urls.add(contextJar.toUri().toURL());
-
-        // Is there a matching lib directory?
-        Path libDir = webapps.resolve(basename + ".d/lib");
-        if (Files.exists(libDir) && Files.isDirectory(libDir))
+        try (Stream<Path> listingStream = Files.list(webapps))
         {
-            try (Stream<Path> paths = Files.list(libDir))
+            // Collect all paths that match "webapps/<basename>*"
+            List<Path> basenamePaths = listingStream
+                .filter((p) ->
+                {
+                    String filename = p.getFileName().toString().toLowerCase(); // use system Locale
+                    return filename.startsWith(basename);
+                })
+                .toList();
+
+            // Walk basename paths
+            for (Path p : basenamePaths)
             {
-                paths.filter(FileID::isJavaArchive)
-                    .map(Path::toUri)
-                    .forEach(uri ->
+                if (Files.isDirectory(p))
+                {
+                    if (p.getFileName().toString().toLowerCase().endsWith(".d"))
                     {
-                        try
+                        Path libDir = p.resolve("lib");
+                        // we have a possible lib directory.
+                        if (Files.isDirectory(libDir))
                         {
-                            urls.add(uri.toURL());
+                            try (Stream<Path> libPaths = Files.list(libDir))
+                            {
+                                List<Path> javaArchives = libPaths.filter(FileID::isJavaArchive).toList();
+
+                                for (Path lib : javaArchives)
+                                {
+                                    urls.add(lib.toUri().toURL());
+                                }
+                            }
                         }
-                        catch (Exception e)
-                        {
-                            throw new RuntimeException(e);
-                        }
-                    });
+
+                        Path classesDir = p.resolve(basename + "classes");
+                        if (Files.isDirectory(libDir))
+                            urls.add(classesDir.toUri().toURL());
+                    }
+                }
+
+                if (FileID.isJavaArchive(p))
+                {
+                    urls.add(p.toUri().toURL());
+                }
             }
         }
-
-        // Is there a matching lib directory?
-        Path classesDir = webapps.resolve(basename + ".d/classes");
-        if (Files.exists(classesDir) && Files.isDirectory(libDir))
-            urls.add(classesDir.toUri().toURL());
 
         if (LOG.isDebugEnabled())
             LOG.debug("Core classloader for {}", urls);
@@ -637,14 +646,14 @@ public class ContextProvider extends ScanningAppProvider
      * Apply the main deployable heuristics referenced in the main javadoc
      * for this class.
      *
-     * @param paths the set of paths that represent a single unit of deployment.
-     * @return the main deployable.
+     * @param unit the unit of deployment to interrogate.
+     * @return the main deployable path
      */
     @Override
-    protected Path getMainDeploymentPath(Set<Path> paths)
+    protected Path getMainDeploymentPath(Unit unit)
     {
         // XML always win.
-        List<Path> xmls = paths.stream()
+        List<Path> xmls = unit.getPaths().keySet().stream()
             .filter(FileID::isXml)
             .toList();
         if (xmls.size() == 1)
@@ -652,7 +661,7 @@ public class ContextProvider extends ScanningAppProvider
         else if (xmls.size() > 1)
             throw new IllegalStateException("More than 1 XML for deployable " + asStringList(xmls));
         // WAR files are next.
-        List<Path> wars = paths.stream()
+        List<Path> wars = unit.getPaths().keySet().stream()
             .filter(FileID::isWebArchive)
             .toList();
         if (wars.size() == 1)
@@ -660,7 +669,7 @@ public class ContextProvider extends ScanningAppProvider
         else if (wars.size() > 1)
             throw new IllegalStateException("More than 1 WAR for deployable " + asStringList(wars));
         // Directories next.
-        List<Path> dirs = paths.stream()
+        List<Path> dirs = unit.getPaths().keySet().stream()
             .filter(Files::isDirectory)
             .toList();
         if (dirs.size() == 1)
@@ -668,7 +677,7 @@ public class ContextProvider extends ScanningAppProvider
         if (dirs.size() > 1)
             throw new IllegalStateException("More than 1 Directory for deployable " + asStringList(dirs));
 
-        throw new IllegalStateException("Unable to determine main deployable " + asStringList(paths));
+        throw new IllegalStateException("Unable to determine main deployable for " + unit);
     }
 
     /**
@@ -700,7 +709,6 @@ public class ContextProvider extends ScanningAppProvider
         environment.getAttributeNameSet().forEach((key) ->
             attributes.setAttribute(key, environment.getAttribute(key)));
 
-        // TODO: double check if an empty environment name makes sense. Will the default environment name?
         String env = app.getEnvironmentName();
 
         if (StringUtil.isNotBlank(env))
@@ -748,9 +756,7 @@ public class ContextProvider extends ScanningAppProvider
                     String name = p.getName(0).toString();
                     if (!name.endsWith(".properties"))
                         return false;
-                    if (!name.startsWith(env))
-                        return false;
-                    return true;
+                    return name.startsWith(env);
                 }).sorted().toList();
         }
 

@@ -19,11 +19,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -45,35 +43,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ManagedObject("Abstract Provider for loading webapps")
-public abstract class ScanningAppProvider extends ContainerLifeCycle implements AppProvider, DeploymentUnits.Events
+public abstract class ScanningAppProvider extends ContainerLifeCycle implements AppProvider, DeploymentUnits.Listener
 {
     private static final Logger LOG = LoggerFactory.getLogger(ScanningAppProvider.class);
 
     private DeploymentUnits _units = new DeploymentUnits();
-    private Map<String, App> _appMap = new HashMap<>();
-
     private DeploymentManager _deploymentManager;
     private FilenameFilter _filenameFilter;
+    private Comparator<Unit> _unitComparator = Comparator.comparing(Unit::getBaseName);
     private final List<Resource> _monitored = new CopyOnWriteArrayList<>();
     private int _scanInterval = 10;
     private Scanner _scanner;
     private boolean _useRealPaths;
     private boolean _deferInitialScan = false;
-
-    private final Scanner.BulkListener _scannerBulkListener = new Scanner.BulkListener()
-    {
-        @Override
-        public void pathsChanged(Set<Path> paths)
-        {
-            _units.processChanges(paths, ScanningAppProvider.this);
-        }
-
-        @Override
-        public void filesChanged(Set<String> filenames)
-        {
-            // ignore, as we are using the pathsChanged() technique only.
-        }
-    };
 
     protected ScanningAppProvider()
     {
@@ -83,7 +65,8 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
     protected ScanningAppProvider(FilenameFilter filter)
     {
         _filenameFilter = filter;
-        installBean(_appMap);
+        _units.setListener(this);
+        installBean(_units);
     }
 
     /**
@@ -109,12 +92,25 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
         _filenameFilter = filter;
     }
 
+    public Comparator<Unit> getUnitComparator()
+    {
+        return _unitComparator;
+    }
+
+    public void setUnitComparator(Comparator<Unit> comparator)
+    {
+        this._unitComparator = comparator;
+    }
+
     /**
      * @return The index of currently deployed applications.
      */
-    protected Map<String, App> getDeployedApps()
+    protected Collection<App> getDeployedApps()
     {
-        return _appMap;
+        return _units.getUnits()
+            .stream()
+            .map(Unit::getApp)
+            .collect(Collectors.toUnmodifiableSet());
     }
 
     /**
@@ -173,7 +169,7 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
         _scanner.setFilenameFilter(_filenameFilter);
         _scanner.setReportDirs(true);
         _scanner.setScanDepth(1); //consider direct dir children of monitored dir
-        _scanner.addListener(_scannerBulkListener);
+        _scanner.addListener(_units);
         _scanner.setReportExistingFilesOnStartup(true);
         _scanner.setAutoStartScanning(!_deferInitialScan);
         addBean(_scanner);
@@ -208,7 +204,7 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
         if (_scanner != null)
         {
             removeBean(_scanner);
-            _scanner.removeListener(_scannerBulkListener);
+            _scanner.removeListener(_units);
             _scanner = null;
         }
     }
@@ -219,56 +215,61 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
     }
 
     /**
-     * Given a set of Paths that belong to the same unit of deployment,
-     * pick the main Path that is actually the point of deployment.
+     * Given a deployment unit, pick the main Path that is actually the point of deployment.
      *
-     * @param paths the set of paths that represent a single unit of deployment. (all paths in {@link Set} are of the same basename)
+     * @param unit a single unit of deployment.
      * @return the specific path that represents the main point of deployment (eg: xml if it exists)
      */
-    protected abstract Path getMainDeploymentPath(Set<Path> paths);
-
-    public void unitAdded(String basename, Set<Path> paths)
-    {
-        Path mainDeploymentPath = getMainDeploymentPath(paths);
-        App app = this.createApp(mainDeploymentPath);
-
-        if (LOG.isDebugEnabled())
-            LOG.debug("unitAdded {} -> {}: {}", basename, paths, app);
-
-        if (app != null)
-        {
-            _appMap.put(basename, app);
-            _deploymentManager.addApp(app);
-        }
-    }
+    protected abstract Path getMainDeploymentPath(Unit unit);
 
     @Override
-    public void unitChanged(String basename, Set<Path> paths)
+    public void unitsChanged(List<Unit> units)
     {
-        App oldApp = _appMap.remove(basename);
-        if (oldApp != null)
-            _deploymentManager.removeApp(oldApp);
+        units.sort(getUnitComparator());
 
-        Path mainDeploymentPath = getMainDeploymentPath(paths);
-        App app = ScanningAppProvider.this.createApp(mainDeploymentPath);
-        if (LOG.isDebugEnabled())
-            LOG.debug("unitChanged {} -> {}: {}", basename, paths, app);
-        if (app != null)
+        for (Unit unit : units)
         {
-            _appMap.put(basename, app);
-            _deploymentManager.addApp(app);
-        }
-    }
+            switch (unit.getState())
+            {
+                case ADDED ->
+                {
+                    Path mainDeploymentPath = getMainDeploymentPath(unit);
+                    App app = this.createApp(mainDeploymentPath);
+                    unit.setApp(app);
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Unit ADDED: {}", unit);
 
-    @Override
-    public void unitRemoved(String basename)
-    {
-        App app = _appMap.remove(basename);
-        if (LOG.isDebugEnabled())
-            LOG.debug("unitRemoved {}: {}", basename, app);
-        if (app != null)
-        {
-            _deploymentManager.removeApp(app);
+                    if (app != null)
+                        _deploymentManager.addApp(app);
+                }
+                case CHANGED ->
+                {
+                    App oldApp = unit.removeApp();
+                    if (oldApp != null)
+                        _deploymentManager.removeApp(oldApp);
+
+                    Path mainDeploymentPath = getMainDeploymentPath(unit);
+                    App app = this.createApp(mainDeploymentPath);
+                    unit.setApp(app);
+
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Unit CHANGED: {}", unit);
+
+                    if (app != null)
+                        _deploymentManager.addApp(app);
+                }
+                case REMOVED ->
+                {
+                    App app = unit.removeApp();
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Unit REMOVED: {}", unit);
+                    if (app != null)
+                        _deploymentManager.removeApp(app);
+                }
+            }
+
+            // we are done processing unit, reset its state
+            unit.setUnchanged();
         }
     }
 

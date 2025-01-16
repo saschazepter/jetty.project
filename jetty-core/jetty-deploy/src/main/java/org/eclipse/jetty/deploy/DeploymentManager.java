@@ -401,7 +401,6 @@ public class DeploymentManager extends ContainerLifeCycle
             if (entry.app.equals(app))
             {
                 // Its the input app. skip it.
-                // TODO: is this filter needed?
                 continue;
             }
 

@@ -13,194 +13,117 @@
 
 package org.eclipse.jetty.deploy.providers.internal;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
+import java.util.EventListener;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.eclipse.jetty.deploy.providers.Unit;
 import org.eclipse.jetty.util.FileID;
-import org.eclipse.jetty.util.resource.PathCollators;
+import org.eclipse.jetty.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The role of DeploymentUnits is to keep track groups of files (and directories) that represent
- * a single unit of deployment, identifying additions/changes/deletions of files/dirs properly.
+ * The role of DeploymentUnits is to keep track of {@link Unit} instances, and
+ * process changes coming from {@link java.util.Scanner} into a set of units
+ * that will be processed via a listener.
  */
-public class DeploymentUnits
+public class DeploymentUnits implements Scanner.ChangeSetListener
 {
-    enum EventType
-    {
-        UNCHANGED,
-        CHANGED,
-        ADDED,
-        REMOVED
-    }
-
     private static final Logger LOG = LoggerFactory.getLogger(DeploymentUnits.class);
 
-    /**
-     * The units that are being tracked by this component.
-     * Key is the basename (case-insensitive) and the value are all the paths known for that unit.
-     */
-    private HashMap<String, Set<Path>> units = new HashMap<>();
+    private Map<String, Unit> units = new HashMap<>();
 
-    public Set<Path> getUnit(String basename)
+    private Listener listener;
+
+    public Listener getListener()
+    {
+        return listener;
+    }
+
+    public void setListener(Listener listener)
+    {
+        this.listener = listener;
+    }
+
+    public Unit getUnit(String basename)
     {
         return units.get(basename);
     }
 
-    public synchronized void processChanges(Set<Path> rawPaths, Events events)
+    public Collection<Unit> getUnits()
     {
+        return units.values();
+    }
+
+    @Override
+    public void pathsChanged(Map<Path, Scanner.Notification> changeSet)
+    {
+        Objects.requireNonNull(changeSet);
         if (LOG.isDebugEnabled())
         {
-            LOG.debug("processChanges: rawPaths: {}", rawPaths.stream()
-                .sorted(PathCollators.byName(true))
-                .map(Path::toString)
-                .collect(Collectors.joining(", ", "[", "]"))
+            LOG.debug("processChanges: changeSet: {}",
+                changeSet.entrySet()
+                    .stream()
+                    .map((e) -> String.format("%s|%s", e.getKey(), e.getValue()))
+                    .collect(Collectors.joining(", ", "[", "]"))
             );
         }
-        Map<String, EventType> basenameEvents = new HashMap<>();
 
-        // Figure out what changed, and how.
-        for (Path path : rawPaths)
+        Set<String> changedBaseNames = new HashSet<>();
+
+        for (Map.Entry<Path, Scanner.Notification> entry : changeSet.entrySet())
         {
+            Path path = entry.getKey();
+            Unit.State state = toState(entry.getValue());
+
             // to lower-case uses system Locale, as we are working with the system FS.
             String basename = FileID.getBasename(path).toLowerCase();
-            basenameEvents.putIfAbsent(basename, EventType.UNCHANGED);
+            changedBaseNames.add(basename);
 
-            if (Files.exists(path))
-            {
-                // A path that exists, either added, or changed.
-                if (!units.containsKey(basename))
-                {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("basename: {} - new - {}", basename, path);
-                    // this is a new unit
-                    Set<Path> unitPaths = units.computeIfAbsent(basename, k -> new HashSet<>());
-                    unitPaths.add(path);
-                    basenameEvents.compute(basename,
-                        (b, v) ->
-                        {
-                            if (v == null)
-                                return EventType.ADDED;
-                            return switch (v)
-                            {
-                                case ADDED, CHANGED:
-                                {
-                                    yield v; // keep value
-                                }
-                                case UNCHANGED, REMOVED:
-                                {
-                                    yield EventType.ADDED;
-                                }
-                            };
-                        });
-                }
-                else
-                {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("basename: {} - existing - {}", basename, path);
-                    // this is an existing unit
-                    Set<Path> unitPaths = units.computeIfAbsent(basename, k -> new HashSet<>());
-                    unitPaths.add(path);
-                    units.put(basename, unitPaths);
-                    basenameEvents.compute(basename,
-                        (b, v) ->
-                        {
-                            if (v == null)
-                                return EventType.CHANGED;
-                            return switch (v)
-                            {
-                                case ADDED, CHANGED ->
-                                {
-                                    yield v; // keep value
-                                }
-                                case UNCHANGED, REMOVED ->
-                                {
-                                    yield EventType.CHANGED;
-                                }
-                            };
-                        });
-                }
-            }
-            else
-            {
-                // A path was removed
-
-                // Only care about paths that belong to an existing unit
-                if (units.containsKey(basename))
-                {
-                    // this is an existing unit
-                    Set<Path> unitPaths = units.get(basename);
-                    unitPaths.remove(path);
-                    if (unitPaths.isEmpty())
-                    {
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("basename: {} - removed - {}", basename, path);
-                        // remove unit
-                        basenameEvents.put(basename, EventType.REMOVED);
-                    }
-                    else
-                    {
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("basename: {} - changed - {}", basename, path);
-                        // unit has changed.
-                        basenameEvents.put(basename, EventType.CHANGED);
-                    }
-                }
-            }
+            Unit unit = units.computeIfAbsent(basename, Unit::new);
+            unit.putPath(path, state);
         }
 
-        // Notify of changes, alphabetically.
-        List<String> sortedBasenames = basenameEvents.keySet()
-            .stream()
-            .distinct()
-            .sorted()
-            .toList();
-
-        for (String basename : sortedBasenames)
+        Listener listener = getListener();
+        if (listener != null)
         {
-            Set<Path> paths = getUnit(basename);
-            if (LOG.isDebugEnabled())
-            {
-                LOG.debug("reporting unit{}: basename: {} - paths: {}",
-                    basenameEvents.get(basename),
-                    basename,
-                    paths.stream()
-                        .sorted(PathCollators.byName(true))
-                        .map(Path::toString)
-                        .collect(Collectors.joining(", ", "[", "]"))
-                );
-            }
-            switch (basenameEvents.get(basename))
-            {
-                case ADDED ->
-                {
-                    events.unitAdded(basename, paths);
-                }
-                case CHANGED ->
-                {
-                    events.unitChanged(basename, getUnit(basename));
-                }
-                case REMOVED ->
-                {
-                    events.unitRemoved(basename);
-                }
-            }
+            List<Unit> changedUnits = changedBaseNames.stream()
+                .map(name -> units.get(name))
+                .collect(Collectors.toList());
+
+            listener.unitsChanged(changedUnits);
         }
     }
 
-    public interface Events
+    private Unit.State toState(Scanner.Notification notification)
     {
-        void unitAdded(String basename, Set<Path> paths);
+        return switch (notification)
+        {
+            case ADDED ->
+            {
+                yield Unit.State.ADDED;
+            }
+            case CHANGED ->
+            {
+                yield Unit.State.CHANGED;
+            }
+            case REMOVED ->
+            {
+                yield Unit.State.REMOVED;
+            }
+        };
+    }
 
-        void unitChanged(String basename, Set<Path> paths);
-
-        void unitRemoved(String basename);
+    public interface Listener extends EventListener
+    {
+        void unitsChanged(List<Unit> units);
     }
 }
