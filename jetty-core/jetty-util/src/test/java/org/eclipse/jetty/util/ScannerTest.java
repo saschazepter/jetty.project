@@ -13,13 +13,13 @@
 
 package org.eclipse.jetty.util;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -139,22 +139,18 @@ public class ScannerTest
     @Test
     public void testDepth() throws Exception
     {
-        File root = new File(_directory.toFile(), "root");
+        Path root = _directory.resolve("root");
         FS.ensureDirExists(root);
-        FS.touch(new File(root, "foo.foo"));
-        FS.touch(new File(root, "foo2.foo"));
-        File dir = new File(root, "xxx");
+        FS.touch(root.resolve("foo.foo"));
+        FS.touch(root.resolve("foo2.foo"));
+        Path dir = root.resolve("xxx");
         FS.ensureDirExists(dir);
-        File x1 = new File(dir, "xxx.foo");
-        FS.touch(x1);
-        File x2 = new File(dir, "xxx2.foo");
-        FS.touch(x2);
-        File dir2 = new File(dir, "yyy");
+        FS.touch(dir.resolve("xxx.foo"));
+        FS.touch(dir.resolve("xxx2.foo"));
+        Path dir2 = dir.resolve("yyy");
         FS.ensureDirExists(dir2);
-        File y1 = new File(dir2, "yyy.foo");
-        FS.touch(y1);
-        File y2 = new File(dir2, "yyy2.foo");
-        FS.touch(y2);
+        FS.touch(dir2.resolve("yyy.foo"));
+        FS.touch(dir2.resolve("yyy2.foo"));
 
         BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
         Scanner scanner = new Scanner();
@@ -162,7 +158,7 @@ public class ScannerTest
         scanner.setScanDepth(0);
         scanner.setReportDirs(true);
         scanner.setReportExistingFilesOnStartup(true);
-        scanner.addDirectory(root.toPath());
+        scanner.addDirectory(root);
         scanner.addListener(new Scanner.DiscreteListener()
         {
             @Override
@@ -188,14 +184,14 @@ public class ScannerTest
         Event e = queue.take();
         assertNotNull(e);
         assertEquals(Notification.ADDED, e._notification);
-        assertTrue(e._filename.endsWith(root.getName()));
+        assertTrue(e._filename.endsWith(root.getFileName().toString()));
         queue.clear();
         scanner.stop();
         scanner.reset();
 
         //Depth one should report the dir itself and its file and dir direct children
         scanner.setScanDepth(1);
-        scanner.addDirectory(root.toPath());
+        scanner.addDirectory(root);
         scanner.start();
         assertEquals(4, queue.size());
         queue.clear();
@@ -204,7 +200,7 @@ public class ScannerTest
 
         //Depth 2 should report the dir itself, all file children, xxx and xxx's children
         scanner.setScanDepth(2);
-        scanner.addDirectory(root.toPath());
+        scanner.addDirectory(root);
         scanner.start();
 
         assertEquals(7, queue.size());
@@ -214,34 +210,34 @@ public class ScannerTest
     @Test
     public void testPatterns() throws Exception
     {
-        //test include and exclude patterns
-        File root = new File(_directory.toFile(), "proot");
+        // test include and exclude patterns
+        Path root = _directory.resolve("proot");
         FS.ensureDirExists(root);
 
-        File ttt = new File(root, "ttt.txt");
+        Path ttt = root.resolve("ttt.txt");
         FS.touch(ttt);
-        FS.touch(new File(root, "ttt.foo"));
-        File dir = new File(root, "xxx");
+        FS.touch(root.resolve("ttt.foo"));
+        Path dir = root.resolve("xxx");
         FS.ensureDirExists(dir);
 
-        File x1 = new File(dir, "ttt.xxx");
+        Path x1 = dir.resolve("ttt.xxx");
         FS.touch(x1);
-        File x2 = new File(dir, "xxx.txt");
+        Path x2 = dir.resolve("xxx.txt");
         FS.touch(x2);
 
-        File dir2 = new File(dir, "yyy");
+        Path dir2 = dir.resolve("yyy");
         FS.ensureDirExists(dir2);
-        File y1 = new File(dir2, "ttt.yyy");
+        Path y1 = dir2.resolve("ttt.yyy");
         FS.touch(y1);
-        File y2 = new File(dir2, "yyy.txt");
+        Path y2 = dir2.resolve("yyy.txt");
         FS.touch(y2);
 
         BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
         //only scan the *.txt files for changes
         Scanner scanner = new Scanner();
-        IncludeExcludeSet<PathMatcher, Path> pattern = scanner.addDirectory(root.toPath());
-        pattern.exclude(root.toPath().getFileSystem().getPathMatcher("glob:**/*.foo"));
-        pattern.exclude(root.toPath().getFileSystem().getPathMatcher("glob:**/ttt.xxx"));
+        IncludeExcludeSet<PathMatcher, Path> pattern = scanner.addDirectory(root);
+        pattern.exclude(root.getFileSystem().getPathMatcher("glob:**/*.foo"));
+        pattern.exclude(root.getFileSystem().getPathMatcher("glob:**/ttt.xxx"));
         scanner.setScanInterval(0);
         scanner.setScanDepth(2); //should never see any files from subdir yyy
         scanner.setReportDirs(false);
@@ -411,13 +407,14 @@ public class ScannerTest
         assertEquals(Notification.ADDED, event._notification);
 
         // Create a new file by writing to it.
-        long now = Instant.now().toEpochMilli();
-        File file = new File(_directory.toFile(), "st");
-        try (OutputStream out = new FileOutputStream(file, true))
+        FileTime now = FileTime.from(Instant.now());
+        Path file = _directory.resolve("st");
+        try (OutputStream out = Files.newOutputStream(file, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.APPEND))
         {
             out.write('x');
             out.flush();
-            file.setLastModified(now);
+            FS.touch(file);
+            Files.setLastModifiedTime(file, now);
 
             // Not stable yet so no notification.
             _scanner.scan();
@@ -427,7 +424,7 @@ public class ScannerTest
             // Modify size only
             out.write('x');
             out.flush();
-            file.setLastModified(now);
+            Files.setLastModifiedTime(file, now);
 
             // Still not stable yet so no notification.
             _scanner.scan();
@@ -444,7 +441,7 @@ public class ScannerTest
             // Modify size only
             out.write('x');
             out.flush();
-            file.setLastModified(now);
+            Files.setLastModifiedTime(file, now);
 
             // Still not stable yet so no notification.
             _scanner.scan();
@@ -468,10 +465,7 @@ public class ScannerTest
 
     private void touch(String string) throws IOException
     {
-        File file = new File(_directory.toFile(), string);
-        if (file.exists())
-            file.setLastModified(Instant.now().toEpochMilli());
-        else
-            file.createNewFile();
+        Path file = _directory.resolve(string);
+        FS.touch(file);
     }
 }
