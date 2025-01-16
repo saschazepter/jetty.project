@@ -188,7 +188,7 @@ public class MongoSessionDataStore extends NoSqlSessionDataStore
             return;
 
         if (!_workerNamePattern.matcher(_context.getWorkerName()).matches())
-            throw new IllegalStateException("Invalid worker name: " + _context.getWorkerName());
+            throw new IllegalStateException("Worker name " + _context.getWorkerName() + " does not match pattern " + _workerNamePattern.pattern());
     }
 
     @Override
