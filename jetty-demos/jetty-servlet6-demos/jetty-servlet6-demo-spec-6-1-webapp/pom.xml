@@ -27,6 +27,12 @@
       <version>${ee11.jakarta.servlet.api.version}</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.ee11</groupId>
+      <artifactId>jetty-ee11-webapp</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -126,15 +132,6 @@
               <targetPath>META-INF</targetPath>
             </resource>
           </webResources>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.eclipse.jetty.ee11</groupId>
-        <artifactId>jetty-ee11-maven-plugin</artifactId>
-        <version>${project.version}</version>
-        <configuration>
-          <scan>5</scan>
         </configuration>
       </plugin>
     </plugins>

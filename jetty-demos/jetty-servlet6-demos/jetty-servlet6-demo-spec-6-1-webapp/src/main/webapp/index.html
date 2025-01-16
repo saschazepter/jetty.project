@@ -94,7 +94,7 @@
             const fetchStatuses = urls.map(url =>
                 fetch(url)
                     .then(response => response.status === 400)
-                    .catch(() => false) // Treat any error as a failure
+                    .catch(() => false)
             );
 
             Promise.all(fetchStatuses)
