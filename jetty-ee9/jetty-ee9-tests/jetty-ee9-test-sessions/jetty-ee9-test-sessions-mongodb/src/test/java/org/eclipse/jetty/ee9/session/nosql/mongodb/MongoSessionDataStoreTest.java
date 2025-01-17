@@ -35,7 +35,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -150,7 +150,7 @@ public class MongoSessionDataStoreTest extends AbstractSessionDataStoreTest
     {
         Server server = new Server();
         DefaultSessionIdManager idMgr = new DefaultSessionIdManager(server);
-        idMgr.setWorkerName("NODE99");
+        idMgr.setWorkerName("NODE_99");
         server.addBean(idMgr);
 
         //create the SessionDataStore
@@ -167,10 +167,8 @@ public class MongoSessionDataStoreTest extends AbstractSessionDataStoreTest
         SessionDataStoreFactory factory = createSessionDataStoreFactory();
         server.addBean(factory);
 
-        not(assertThrows(IllegalStateException.class, () ->
-        {
-            server.start();
-        }));
+        assertDoesNotThrow(() ->
+            server.start());
     }
 
     @Test
@@ -194,10 +192,8 @@ public class MongoSessionDataStoreTest extends AbstractSessionDataStoreTest
         SessionDataStoreFactory factory = createSessionDataStoreFactory();
         server.addBean(factory);
 
-        not(assertThrows(IllegalStateException.class, () ->
-        {
-            server.start();
-        }));
+        assertDoesNotThrow(() ->
+            server.start());
     }
 
     /**
