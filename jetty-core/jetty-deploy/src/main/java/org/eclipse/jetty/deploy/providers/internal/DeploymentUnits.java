@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 import org.eclipse.jetty.deploy.providers.Unit;
 import org.eclipse.jetty.util.FileID;
 import org.eclipse.jetty.util.Scanner;
+import org.eclipse.jetty.util.StringUtil;
+import org.eclipse.jetty.util.component.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,18 +83,33 @@ public class DeploymentUnits implements Scanner.ChangeSetListener
         }
 
         Set<String> changedBaseNames = new HashSet<>();
+        Set<String> environmentNames = Environment.getAll().stream()
+            .map(Environment::getName).collect(Collectors.toUnmodifiableSet());
 
         for (Map.Entry<Path, Scanner.Notification> entry : changeSet.entrySet())
         {
             Path path = entry.getKey();
             Unit.State state = toState(entry.getValue());
 
-            // to lower-case uses system Locale, as we are working with the system FS.
+            // Using lower-case as defined by System Locale, as the files themselves from System FS.
             String basename = FileID.getBasename(path).toLowerCase();
-            changedBaseNames.add(basename);
 
-            Unit unit = units.computeIfAbsent(basename, Unit::new);
-            unit.putPath(path, state);
+            String envname = getEnvironmentName(basename, environmentNames);
+            if (StringUtil.isNotBlank(envname))
+            {
+                // we have an environment configuration specific path entry.
+                changedBaseNames.add(envname);
+                Unit unit = units.computeIfAbsent(envname, Unit::new);
+                unit.setEnvironmentConfigName(envname);
+                unit.putPath(path, state);
+            }
+            else
+            {
+                // we have a normal path entry
+                changedBaseNames.add(basename);
+                Unit unit = units.computeIfAbsent(basename, Unit::new);
+                unit.putPath(path, state);
+            }
         }
 
         Listener listener = getListener();
@@ -104,6 +121,18 @@ public class DeploymentUnits implements Scanner.ChangeSetListener
 
             listener.unitsChanged(changedUnits);
         }
+    }
+
+    protected String getEnvironmentName(String basename, Set<String> environmentNames)
+    {
+        // Handle the case where the basename is part of an environment configuration
+        for (String envname : environmentNames)
+        {
+            if (basename.startsWith(envname))
+                return envname;
+        }
+
+        return null;
     }
 
     private Unit.State toState(Scanner.Notification notification)

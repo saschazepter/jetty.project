@@ -85,6 +85,13 @@ public abstract class ScanningAppProvider extends ContainerLifeCycle implements 
         _useRealPaths = useRealPaths;
     }
 
+    protected List<Unit> getUnitsForEnvironment(String envName)
+    {
+        return _units.getUnits().stream()
+            .filter((unit) -> envName.equals(unit.getEnvironmentName()))
+            .toList();
+    }
+
     protected void setFilenameFilter(FilenameFilter filter)
     {
         if (isRunning())

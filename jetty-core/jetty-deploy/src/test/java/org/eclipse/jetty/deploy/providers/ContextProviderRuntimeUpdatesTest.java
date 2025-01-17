@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -29,6 +30,7 @@ import org.eclipse.jetty.toolchain.test.MavenPaths;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDirExtension;
 import org.eclipse.jetty.util.Scanner;
+import org.eclipse.jetty.util.component.Environment;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -116,6 +120,22 @@ public class ContextProviderRuntimeUpdatesTest
         jetty.stop();
     }
 
+    /**
+     * Cleanup after any tests that modify the {@link Environment} singleton
+     */
+    @AfterEach
+    public void clearEnvironments()
+    {
+        List<String> envnames = Environment.getAll().stream()
+            .map(Environment::getName)
+            .toList();
+        for (String envname : envnames)
+        {
+            Environment.remove(envname);
+        }
+        assertEquals(0, Environment.getAll().size());
+    }
+
     public void waitForDirectoryScan()
     {
         int scan = _scans.get() + _providerCount;
@@ -158,6 +178,38 @@ public class ContextProviderRuntimeUpdatesTest
         ContextHandler contextHandler3 = jetty.getContextHandler("/simple");
         assertNotNull(contextHandler3);
         assertNotSame(contextHandler2, contextHandler3);
+    }
+
+    @Test
+    public void testWebAppsWithAddedEnvConfig(WorkDir workDir) throws Exception
+    {
+        Path testdir = workDir.getEmptyPathDir();
+        createJettyBase(testdir);
+
+        Environment.ensure("core").setAttribute("testname", "Initial");
+
+        // Setup initial webapp, with XML
+        Path webappsDir = jetty.getJettyBasePath().resolve("webapps");
+        Files.createFile(webappsDir.resolve("simple.war"));
+        jetty.copyWebapp("simple.xml", "simple.xml");
+
+        // Start jetty
+        startJetty();
+
+        // Verify existence
+        jetty.assertContextHandlerExists("/simple");
+        ContextHandler contextHandler = jetty.getContextHandler("/simple");
+        assertNotNull(contextHandler);
+        assertThat("displayname", contextHandler.getDisplayName(), is("Simple Initial"));
+
+        // Add environment configuration
+        Path coreProp = jetty.getJettyBasePath().resolve("webapps/core.properties");
+        Files.writeString(coreProp, "testname=New EnvConfig");
+
+        waitForDirectoryScan();
+        contextHandler = jetty.getContextHandler("/simple");
+        assertNotNull(contextHandler);
+        assertThat("displayname", contextHandler.getDisplayName(), is("Simple New EnvConfig"));
     }
 
     /**

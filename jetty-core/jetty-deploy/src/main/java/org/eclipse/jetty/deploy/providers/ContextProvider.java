@@ -27,10 +27,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -146,6 +146,8 @@ public class ContextProvider extends ScanningAppProvider
         try
         {
             Thread.currentThread().setContextClassLoader(environment.getClassLoader());
+
+            app.setEnvironmentName(environment.getName());
 
             // Create de-aliased file
             Path path = app.getPath().toRealPath();
@@ -680,6 +682,49 @@ public class ContextProvider extends ScanningAppProvider
         throw new IllegalStateException("Unable to determine main deployable for " + unit);
     }
 
+    @Override
+    public void unitsChanged(List<Unit> units)
+    {
+        Set<String> envsChanges = units.stream()
+            .map(Unit::getEnvironmentConfigName)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+        if (envsChanges.isEmpty())
+        {
+            // normal set of changes, no environment configuration changes
+            // present in the incoming list of changed units.
+            super.unitsChanged(units);
+        }
+        else
+        {
+            // ensure that the units reported to super.unitsChanged
+            // includes all (known) units that belong to the list of changed environments,
+            // while filtering out the environment config specific units here.
+            List<Unit> unitsWithEnvChanges = new ArrayList<>(units.stream()
+                .filter(Unit::isDeployable)
+                .toList());
+
+            // Add any missing units into change set.
+            for (String envChange : envsChanges)
+            {
+                for (Unit unit : getUnitsForEnvironment(envChange))
+                {
+                    if (!unitsWithEnvChanges.contains(unit))
+                    {
+                        // unit is not part of changeSet but is
+                        // in need of a redeploy due to an environment configuration
+                        // file being changed.
+                        unit.setState(Unit.State.CHANGED);
+                        unitsWithEnvChanges.add(unit);
+                    }
+                }
+            }
+
+            super.unitsChanged(unitsWithEnvChanges);
+        }
+    }
+
     /**
      * Get the ClassLoader appropriate for applying Jetty XML.
      *
@@ -750,12 +795,10 @@ public class ContextProvider extends ScanningAppProvider
         try (Stream<Path> paths = Files.list(directory))
         {
             envPropertyFiles = paths.filter(Files::isRegularFile)
-                .map(directory::relativize)
+                .filter(p -> FileID.isExtension(p, "properties"))
                 .filter(p ->
                 {
-                    String name = p.getName(0).toString();
-                    if (!name.endsWith(".properties"))
-                        return false;
+                    String name = p.getFileName().toString();
                     return name.startsWith(env);
                 }).sorted().toList();
         }
@@ -942,7 +985,7 @@ public class ContextProvider extends ScanningAppProvider
         }
     }
 
-    public class Filter implements FilenameFilter
+    public static class Filter implements FilenameFilter
     {
         @Override
         public boolean accept(File dir, String name)
@@ -950,35 +993,32 @@ public class ContextProvider extends ScanningAppProvider
             if (dir == null || !dir.canRead())
                 return false;
 
-            // Accept XML files and WARs
-            if (FileID.isXml(name) || FileID.isWebArchive(name))
-                return true;
-
             Path path = dir.toPath().resolve(name);
 
-            // Ignore any other file that are not directories
-            if (!Files.isDirectory(path))
+            // We don't monitor subdirectories.
+            if (Files.isDirectory(path))
                 return false;
 
-            // Don't deploy monitored resources
-            if (getMonitoredResources().stream().map(Resource::getPath).anyMatch(path::equals))
+            // Synthetic files (like consoles, printers, serial ports, etc) are ignored.
+            if (!Files.isRegularFile(path))
                 return false;
 
-            // Ignore hidden directories
-            if (name.startsWith("."))
-                return false;
+            try
+            {
+                // ignore traditional "hidden" path entries.
+                if (name.startsWith("."))
+                    return false;
+                // ignore path tagged as hidden by FS
+                if (Files.isHidden(path))
+                    return false;
+            }
+            catch (IOException ignore)
+            {
+                // ignore
+            }
 
-            String lowerName = name.toLowerCase(Locale.ENGLISH);
-
-            // is it a nominated config directory
-            if (lowerName.endsWith(".d"))
-                return false;
-
-            // ignore source control directories
-            if ("cvs".equals(lowerName) || "cvsroot".equals(lowerName))
-                return false;
-
-            return true;
+            // The filetypes that are monitored, and we want updates for when they change.
+            return FileID.isExtension(name, "jar", "war", "xml", "properties");
         }
     }
 }

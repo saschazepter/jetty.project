@@ -17,9 +17,11 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.eclipse.jetty.deploy.App;
+import org.eclipse.jetty.util.StringUtil;
 
 /**
  * A Unit of deployment, a basename and all the associated
@@ -37,7 +39,14 @@ public class Unit
 
     private final String baseName;
     private final Map<Path, State> paths = new HashMap<>();
+    /**
+     * Indicates a synthetic Unit, used to track Environment specific configurations.
+     * Such as {@code <env>.xml}, {@code <env>.properties}, {@code <env>-<desc>.xml}, {@code <env>-<desc>.properties},
+     * all under a single unit that will not actually be deployed.
+     */
+    private String envConfig;
     private App app;
+    private State state = State.UNCHANGED;
 
     public Unit(String basename)
     {
@@ -50,6 +59,11 @@ public class Unit
     }
 
     public State getState()
+    {
+        return state;
+    }
+
+    private State calcState()
     {
         if (paths.isEmpty())
             return State.REMOVED;
@@ -96,6 +110,29 @@ public class Unit
     public void putPath(Path path, State state)
     {
         this.paths.put(path, state);
+        setState(calcState());
+    }
+
+    public boolean isDeployable()
+    {
+        return StringUtil.isBlank(envConfig);
+    }
+
+    public String getEnvironmentName()
+    {
+        if (app == null)
+            return null;
+        return app.getEnvironmentName();
+    }
+
+    public String getEnvironmentConfigName()
+    {
+        return envConfig;
+    }
+
+    public void setEnvironmentConfigName(String environmentConfigName)
+    {
+        this.envConfig = environmentConfigName;
     }
 
     public App getApp()
@@ -117,6 +154,7 @@ public class Unit
 
     public void resetStates()
     {
+        state = State.UNCHANGED;
         // Drop paths that were removed.
         List<Path> removedPaths = paths.entrySet()
             .stream().filter(e -> e.getValue() == State.REMOVED)
@@ -131,11 +169,33 @@ public class Unit
     }
 
     @Override
+    public boolean equals(Object o)
+    {
+        if (o == null || getClass() != o.getClass())
+            return false;
+        Unit unit = (Unit)o;
+        return Objects.equals(baseName, unit.baseName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hashCode(baseName);
+    }
+
+    public void setState(State state)
+    {
+        this.state = state;
+    }
+
+    @Override
     public String toString()
     {
         StringBuilder str = new StringBuilder();
         str.append("Unit[").append(baseName);
         str.append("|").append(getState());
+        if (envConfig != null)
+            str.append(", envConfig=").append(envConfig);
         str.append(", paths=");
         str.append(paths.entrySet().stream()
             .map((e) -> String.format("%s|%s", e.getKey(), e.getValue()))

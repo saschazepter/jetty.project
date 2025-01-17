@@ -140,6 +140,16 @@ public class App
         return _path;
     }
 
+    /**
+     * Set the environment name.
+     *
+     * @param name the name of the environment.
+     */
+    public void setEnvironmentName(String name)
+    {
+        getProperties().put(Deployable.ENVIRONMENT, name);
+    }
+
     @Override
     public String toString()
     {
