@@ -672,4 +672,33 @@ public class RequestTest
             [xyz]
             """));
     }
+
+    @Test
+    public void testXForwardedFor() throws Exception
+    {
+        HttpServlet servlet = new HttpServlet() {
+            @Override
+            protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException
+            {
+                String remoteAddr = req.getRemoteAddr();
+                resp.setStatus(200);
+                resp.getWriter().write("remoteAddr=" + remoteAddr);
+            }
+        };
+
+        startServer(servlet);
+
+        String rawResponse = _connector.getResponse(
+            """
+                GET /foo HTTP/1.1\r
+                Host: localhost\r
+                X-Forwarded-For: 10.9.8.7\r
+                Connection: close\r
+                \r
+                """);
+
+        HttpTester.Response response = HttpTester.parseResponse(rawResponse);
+        assertThat(response.getStatus(), is(HttpStatus.OK_200));
+        assertThat(response.getContent(), is("remoteAddr=10.9.8.7"));
+    }
 }
