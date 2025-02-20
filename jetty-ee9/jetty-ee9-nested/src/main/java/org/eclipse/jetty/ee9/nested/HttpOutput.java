@@ -684,6 +684,13 @@ public class HttpOutput extends ServletOutputStream implements Runnable
 
         if (_aggregate != null)
         {
+            if (_aggregate.remaining() != 0)
+            {
+                ContextHandler.CoreContextRequest coreRequest = _channelState.getBaseRequest().getCoreRequest();
+                HttpChannel coreHttpChannel = coreRequest == null ? null : coreRequest.getHttpChannel();
+                LOG.info("lockedReleaseBuffer aggregate={} core={} ee9={}", _aggregate, coreHttpChannel, _channelState, new Throwable());
+            }
+
             _aggregate.release();
             _aggregate = null;
             _pool = null;
