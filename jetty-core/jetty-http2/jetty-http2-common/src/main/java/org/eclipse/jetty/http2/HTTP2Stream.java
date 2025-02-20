@@ -166,7 +166,7 @@ public class HTTP2Stream implements Stream, Attachable, Closeable, Callback, Dum
         Throwable resetFailure = null;
         try (AutoLock ignored = lock.lock())
         {
-            if (isReset())
+            if (localReset)
             {
                 resetFailure = failure;
             }
@@ -182,6 +182,8 @@ public class HTTP2Stream implements Stream, Attachable, Closeable, Callback, Dum
         {
             close();
             session.removeStream(this);
+            if (LOG.isDebugEnabled())
+                LOG.debug("lorban: failing callback immediately as we already are reset, {}", this);
             callback.failed(resetFailure);
         }
         else
