@@ -37,6 +37,7 @@ import org.eclipse.jetty.ee9.nested.Request;
 import org.eclipse.jetty.ee9.nested.Response;
 import org.eclipse.jetty.ee9.nested.ServletConstraint;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.http.pathmap.LiteralPathSpec;
 import org.eclipse.jetty.http.pathmap.MappedResource;
 import org.eclipse.jetty.http.pathmap.MatchedResource;
 import org.eclipse.jetty.http.pathmap.PathMappings;
@@ -424,11 +425,12 @@ public class ConstraintSecurityHandler extends SecurityHandler implements Constr
      */
     protected void processConstraintMapping(ConstraintMapping mapping)
     {
-        Map<String, RoleInfo> mappings = _constraintRoles.get(asPathSpec(mapping));
+        PathSpec pathSpec = asPathSpec(mapping);
+        Map<String, RoleInfo> mappings = _constraintRoles.get(pathSpec);
         if (mappings == null)
         {
             mappings = new HashMap<>();
-            _constraintRoles.put(mapping.getPathSpec(), mappings);
+            _constraintRoles.put(pathSpec, mappings);
         }
         RoleInfo allMethodsRoleInfo = mappings.get(ALL_METHODS);
         if (allMethodsRoleInfo != null && allMethodsRoleInfo.isForbidden())
@@ -471,9 +473,17 @@ public class ConstraintSecurityHandler extends SecurityHandler implements Constr
 
     protected PathSpec asPathSpec(ConstraintMapping mapping)
     {
-        // As currently written, this allows regex patterns to be used.
-        // This may not be supported by default in future releases.
-        return PathSpec.from(mapping.getPathSpec());
+        try
+        {
+            // As currently written, this allows regex patterns to be used.
+            // This may not be supported by default in future releases.
+            return PathSpec.from(mapping.getPathSpec());
+        }
+        catch (Throwable t)
+        {
+            LOG.warn("Invalid pathSpec: {}", mapping.getPathSpec(), t);
+            return new LiteralPathSpec(mapping.getPathSpec());
+        }
     }
 
     /**

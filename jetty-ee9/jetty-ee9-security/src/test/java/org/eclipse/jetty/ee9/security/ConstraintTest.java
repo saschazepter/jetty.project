@@ -52,6 +52,7 @@ import org.eclipse.jetty.ee9.security.authentication.FormAuthenticator;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpTester;
+import org.eclipse.jetty.logging.StacklessLogging;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
@@ -2164,6 +2165,30 @@ public class ConstraintTest
 
         response = _connector.getResponse("GET /ctx/admin/relax/info HTTP/1.0\r\n\r\n");
         assertThat(response, startsWith("HTTP/1.1 200 OK"));
+    }
+
+    @Test
+    public void testInvalidPathMapping() throws Exception
+    {
+        ConstraintMapping mapping = new ConstraintMapping();
+        mapping.setPathSpec("/*.jsp");
+        mapping.setConstraint(_forbidConstraint);
+        _security.addConstraintMapping(mapping);
+        _security.setAuthenticator(new BasicAuthenticator());
+
+        // Suppress warning about invalid pathSpec.
+        try (StacklessLogging ignored = new StacklessLogging(SecurityHandler.class))
+        {
+            _server.start();
+        }
+
+        // This pathSpec reverts to literal mapping so only matches literally "/*.jsp" path.
+        String response = _connector.getResponse("GET /ctx/*.jsp HTTP/1.0\r\n\r\n");
+        assertThat(response, startsWith("HTTP/1.1 403 "));
+
+        // Other paths should not be affected.
+        response = _connector.getResponse("GET /ctx/foo.jsp HTTP/1.0\r\n\r\n");
+        assertThat(response, startsWith("HTTP/1.1 200 "));
     }
 
     private static String authBase64(String authorization)

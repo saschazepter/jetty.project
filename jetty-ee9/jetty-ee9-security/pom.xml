@@ -59,6 +59,13 @@
           </instructions>
         </configuration>
       </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>@{argLine} ${jetty.surefire.argLine}
+            --add-reads org.eclipse.jetty.ee9.security=org.eclipse.jetty.logging</argLine>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
