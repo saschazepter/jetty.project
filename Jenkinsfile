@@ -130,6 +130,7 @@ def mavenBuild(jdk, cmdline, mvnName) {
           //sh "cp $MVN_BUILD_CACHE_CONFIG .mvn/maven-build-cache-config.xml"
           //-Dmaven.build.cache.configPath=$MVN_BUILD_CACHE_CONFIG
           def buildCache = useBuildCache()
+          def extraArgs = ""
           if (buildCache) {
             echo "Using build cache"
             extraArgs = " -Dmaven.build.cache.restoreGeneratedSources=false -Dmaven.build.cache.remote.url=http://nexus-service.nexus.svc.cluster.local:8081/repository/maven-build-cache -Dmaven.build.cache.remote.enabled=true -Dmaven.build.cache.remote.save.enabled=true -Dmaven.build.cache.remote.server.id=nexus-cred "
@@ -143,7 +144,7 @@ def mavenBuild(jdk, cmdline, mvnName) {
               extraArgs = " -Dmaven.test.failure.ignore=true "
             }
           }
-          dashProfile = ""
+          def dashProfile = ""
           if(useEclipseDash()) {
             dashProfile = " -Peclipse-dash "
           }
