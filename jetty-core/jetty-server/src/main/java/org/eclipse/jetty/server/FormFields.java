@@ -313,7 +313,7 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
     private final CharsetStringBuilder _builder;
     private final int _maxFields;
     private final int _maxLength;
-    private int _length;
+    private long _length = 0;
     private String _name;
     private int _percent = 0;
     private byte _percentCode;
@@ -331,6 +331,12 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
     protected Fields parse(Content.Chunk chunk) throws CharacterCodingException
     {
         ByteBuffer buffer = chunk.getByteBuffer();
+        if (_maxLength >= 0)
+        {
+            _length += BufferUtil.remaining(buffer);
+            if (_length > _maxLength)
+                throw new IllegalStateException("form too large > " + _maxLength);
+        }
 
         while (BufferUtil.hasContent(buffer))
         {
@@ -358,14 +364,9 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
                     case '&' ->
                     {
                         String name = _builder.build();
-                        checkMaxLength(name);
                         onNewField(name, "");
                     }
-                    case '=' ->
-                    {
-                        _name = _builder.build();
-                        checkMaxLength(_name);
-                    }
+                    case '=' -> _name = _builder.build();
                     case '+' -> _builder.append(' ');
                     case '%' -> _percent++;
                     default -> _builder.append(b);
@@ -378,7 +379,6 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
                     case '&' ->
                     {
                         String value = _builder.build();
-                        checkMaxLength(value);
                         onNewField(_name, value);
                         _name = null;
                     }
@@ -400,26 +400,12 @@ public class FormFields extends ContentSourceCompletableFuture<Fields>
         if (_name == null)
         {
             if (!value.isEmpty())
-            {
-                checkMaxLength(value);
                 onNewField(value, "");
-            }
             return _fields;
         }
 
-        checkMaxLength(value);
         onNewField(_name, value);
         return _fields;
-    }
-
-    private void checkMaxLength(String nameOrValue)
-    {
-        if (_maxLength >= 0)
-        {
-            _length += nameOrValue.length();
-            if (_length > _maxLength)
-                throw new IllegalStateException("form too large > " + _maxLength);
-        }
     }
 
     private void onNewField(String name, String value)
