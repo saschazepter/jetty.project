@@ -20,9 +20,11 @@ import java.util.function.BiConsumer;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
@@ -40,9 +42,62 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @Measurement(iterations = 10, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 public class UrlEncodedBenchmark
 {
+    private static final String SMALL_STRING = "param=aaa&other=foo";
+    private static final int SMALL_LENGTH = SMALL_STRING.length();
+    private static final String LARGE_STRING = "text=%E0%B8%9F%E0%B8%AB%E0%B8%81%E0%B8%A7%E0%B8%94%E0%B8%B2%E0%B9%88%E0%B8%81%E0%B8%9F%E0%B8%A7%E0%B8%AB%E0%B8%AA%E0%B8%94%E0%B8%B2%E0%B9%88%E0%B8%AB%E0%B8%9F%E0%B8%81%E0%B8%A7%E0%B8%94%E0%B8%AA%E0%B8%B2%E0%B8%9F%E0%B8%81%E0%B8%AB%E0%B8%A3%E0%B8%94%E0%B9%89%E0%B8%9F%E0%B8%AB%E0%B8%99%E0%B8%81%E0%B8%A3%E0%B8%94%E0%B8%B5&Action=Submit";
+    private static final int LARGE_LENGTH = LARGE_STRING.length();
+
+    private BlackholeBiConsumer adder;
+    private InputStream smallInputStream;
+    private InputStream largeInputStream;
+
+    @Setup(Level.Invocation)
+    public void setupTrial(Blackhole blackhole)
+    {
+        byte[] small = SMALL_STRING.getBytes(UTF_8);
+        byte[] large = LARGE_STRING.getBytes(UTF_8);
+
+        smallInputStream = new ByteArrayInputStream(small);
+        largeInputStream = new ByteArrayInputStream(large);
+        adder = new BlackholeBiConsumer(blackhole);
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    public void testSmallQuery(Blackhole blackhole)
+    {
+        blackhole.consume(UrlEncoded.decodeUtf8To(SMALL_STRING, 0, SMALL_LENGTH, adder));
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    public void testLargeQuery(Blackhole blackhole)
+    {
+        blackhole.consume(UrlEncoded.decodeUtf8To(LARGE_STRING, 0, LARGE_LENGTH, adder));
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    public void testSmallForm(Blackhole blackhole) throws Exception
+    {
+        UrlEncoded.decodeUtf8To(smallInputStream, adder, -1, -1);
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    public void testLargeForm(Blackhole blackhole) throws Exception
+    {
+        UrlEncoded.decodeUtf8To(largeInputStream, adder, -1, -1);
+    }
+
     private static class BlackholeBiConsumer implements BiConsumer<String, String>
     {
-        Blackhole blackhole;
+        private final Blackhole blackhole;
+
+        public BlackholeBiConsumer(Blackhole blackhole)
+        {
+            this.blackhole = blackhole;
+        }
 
         @Override
         public void accept(String s, String s2)
@@ -50,46 +105,6 @@ public class UrlEncodedBenchmark
             blackhole.consume(s);
             blackhole.consume(s2);
         }
-    }
-
-    private final BlackholeBiConsumer newFieldAdder = new BlackholeBiConsumer();
-
-    @Benchmark
-    @BenchmarkMode(Mode.Throughput)
-    public void testSmallQuery(Blackhole blackhole) throws Exception
-    {
-        String input = "param=aaa&other=foo";
-        newFieldAdder.blackhole = blackhole;
-        blackhole.consume(UrlEncoded.decodeUtf8To(input, 0, input.length(), newFieldAdder));
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.Throughput)
-    public void testLargeQuery(Blackhole blackhole) throws Exception
-    {
-        String input = "text=%E0%B8%9F%E0%B8%AB%E0%B8%81%E0%B8%A7%E0%B8%94%E0%B8%B2%E0%B9%88%E0%B8%81%E0%B8%9F%E0%B8%A7%E0%B8%AB%E0%B8%AA%E0%B8%94%E0%B8%B2%E0%B9%88%E0%B8%AB%E0%B8%9F%E0%B8%81%E0%B8%A7%E0%B8%94%E0%B8%AA%E0%B8%B2%E0%B8%9F%E0%B8%81%E0%B8%AB%E0%B8%A3%E0%B8%94%E0%B9%89%E0%B8%9F%E0%B8%AB%E0%B8%99%E0%B8%81%E0%B8%A3%E0%B8%94%E0%B8%B5&Action=Submit";
-        newFieldAdder.blackhole = blackhole;
-        blackhole.consume(UrlEncoded.decodeUtf8To(input, 0, input.length(), newFieldAdder));
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.Throughput)
-    public void testSmallForm(Blackhole blackhole) throws Exception
-    {
-        String input = "param=aaa&other=foo";
-        newFieldAdder.blackhole = blackhole;
-        InputStream in = new ByteArrayInputStream(input.getBytes(UTF_8));
-        UrlEncoded.decodeUtf8To(in, newFieldAdder, -1, -1);
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.Throughput)
-    public void testLargeForm(Blackhole blackhole) throws Exception
-    {
-        String input = "text=%E0%B8%9F%E0%B8%AB%E0%B8%81%E0%B8%A7%E0%B8%94%E0%B8%B2%E0%B9%88%E0%B8%81%E0%B8%9F%E0%B8%A7%E0%B8%AB%E0%B8%AA%E0%B8%94%E0%B8%B2%E0%B9%88%E0%B8%AB%E0%B8%9F%E0%B8%81%E0%B8%A7%E0%B8%94%E0%B8%AA%E0%B8%B2%E0%B8%9F%E0%B8%81%E0%B8%AB%E0%B8%A3%E0%B8%94%E0%B9%89%E0%B8%9F%E0%B8%AB%E0%B8%99%E0%B8%81%E0%B8%A3%E0%B8%94%E0%B8%B5&Action=Submit";
-        newFieldAdder.blackhole = blackhole;
-        InputStream in = new ByteArrayInputStream(input.getBytes(UTF_8));
-        UrlEncoded.decodeUtf8To(in, newFieldAdder, -1, -1);
     }
 
     public static void main(String[] args) throws RunnerException
