@@ -64,28 +64,28 @@ public class UrlEncodedBenchmark
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public void testSmallQuery(Blackhole blackhole)
+    public void testSmallString(Blackhole blackhole)
     {
         blackhole.consume(UrlEncoded.decodeUtf8To(SMALL_STRING, 0, SMALL_LENGTH, adder));
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public void testLargeQuery(Blackhole blackhole)
+    public void testLargeString(Blackhole blackhole)
     {
         blackhole.consume(UrlEncoded.decodeUtf8To(LARGE_STRING, 0, LARGE_LENGTH, adder));
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public void testSmallForm(Blackhole blackhole) throws Exception
+    public void testSmallInputStream(Blackhole blackhole) throws Exception
     {
         UrlEncoded.decodeUtf8To(smallInputStream, adder, -1, -1);
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    public void testLargeForm(Blackhole blackhole) throws Exception
+    public void testLargeInputStream(Blackhole blackhole) throws Exception
     {
         UrlEncoded.decodeUtf8To(largeInputStream, adder, -1, -1);
     }
