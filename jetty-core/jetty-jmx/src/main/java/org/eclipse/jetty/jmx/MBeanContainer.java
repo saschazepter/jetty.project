@@ -300,6 +300,11 @@ public class MBeanContainer implements Container.InheritedListener, Dumpable, De
         if (parent == null)
             parent = ROOT;
 
+        // Skip if parent is a ManagedObject not allowing dynamic registration
+        ManagedObject managedObject = parent.getClass().getAnnotation(ManagedObject.class);
+        if ((managedObject != null) && (!managedObject.dynamic()))
+            return;
+
         // Is the bean already tracked ?
         if (_beans.putIfAbsent(obj, parent) != null)
             return;

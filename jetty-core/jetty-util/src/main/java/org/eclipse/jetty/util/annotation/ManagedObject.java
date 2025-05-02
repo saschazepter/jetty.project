@@ -37,4 +37,12 @@ public @interface ManagedObject
      * @return value
      */
     String value() default "Not Specified";
+
+    /**
+     * The ManagedObject will pay attention to Jetty LifeCycle components
+     * and auto add things it discovers.
+     *
+     * @return dynamic
+     */
+    boolean dynamic() default true;
 }

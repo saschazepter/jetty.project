@@ -81,7 +81,7 @@ import org.eclipse.jetty.util.thread.Scheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@ManagedObject
+@ManagedObject(dynamic = false)
 public abstract class HTTP2Session extends ContainerLifeCycle implements Session, Parser.Listener
 {
     private static final Logger LOG = LoggerFactory.getLogger(HTTP2Session.class);
