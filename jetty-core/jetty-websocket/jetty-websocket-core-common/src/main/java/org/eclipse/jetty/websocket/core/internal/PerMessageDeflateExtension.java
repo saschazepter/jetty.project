@@ -30,6 +30,7 @@ import org.eclipse.jetty.websocket.core.AbstractExtension;
 import org.eclipse.jetty.websocket.core.ExtensionConfig;
 import org.eclipse.jetty.websocket.core.Frame;
 import org.eclipse.jetty.websocket.core.OpCode;
+import org.eclipse.jetty.websocket.core.OutgoingEntry;
 import org.eclipse.jetty.websocket.core.WebSocketComponents;
 import org.eclipse.jetty.websocket.core.exception.BadPayloadException;
 import org.eclipse.jetty.websocket.core.exception.MessageTooLargeException;
@@ -84,10 +85,10 @@ public class PerMessageDeflateExtension extends AbstractExtension implements Dem
     }
 
     @Override
-    public void sendFrame(Frame frame, Callback callback, boolean batch)
+    public void sendFrame(OutgoingEntry entry)
     {
         // Compressed frames may increase in size so we need the flusher to fragment them.
-        outgoingFlusher.sendFrame(frame, callback, batch);
+        outgoingFlusher.sendFrame(entry);
     }
 
     @Override
@@ -240,14 +241,14 @@ public class PerMessageDeflateExtension extends AbstractExtension implements Dem
     }
 
     @Override
-    protected void nextOutgoingFrame(Frame frame, Callback callback, boolean batch)
+    protected void nextOutgoingFrame(OutgoingEntry entry)
     {
-        if (frame.isFin() && !outgoingContextTakeover)
+        if (entry.getFrame().isFin() && !outgoingContextTakeover)
         {
             LOG.debug("Outgoing Context Reset");
             releaseDeflater();
         }
-        super.nextOutgoingFrame(frame, callback, batch);
+        super.nextOutgoingFrame(entry);
     }
 
     @Override
@@ -273,7 +274,7 @@ public class PerMessageDeflateExtension extends AbstractExtension implements Dem
         {
             if (frame.isControlFrame())
             {
-                nextOutgoingFrame(frame, callback, batch);
+                nextOutgoingFrame(new OutgoingEntry(frame, callback, batch));
                 return true;
             }
 
@@ -364,7 +365,7 @@ public class PerMessageDeflateExtension extends AbstractExtension implements Dem
             chunk.setPayload(payload);
             chunk.setFin(_frame.isFin() && finished);
 
-            nextOutgoingFrame(chunk, callback, _batch);
+            nextOutgoingFrame(new OutgoingEntry(chunk, callback, _batch));
             return finished;
         }
     }

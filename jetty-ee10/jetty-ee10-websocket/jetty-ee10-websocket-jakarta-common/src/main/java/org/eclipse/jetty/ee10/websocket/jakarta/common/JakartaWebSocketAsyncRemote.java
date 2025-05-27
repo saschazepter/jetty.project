@@ -195,6 +195,7 @@ public class JakartaWebSocketAsyncRemote extends JakartaWebSocketRemoteEndpoint 
         {
             LOG.debug("sendText({},{})", TextUtils.hint(text), handler);
         }
+
         sendFrame(new Frame(OpCode.TEXT).setPayload(text), new SendHandlerCallback(handler), batch);
     }
 }

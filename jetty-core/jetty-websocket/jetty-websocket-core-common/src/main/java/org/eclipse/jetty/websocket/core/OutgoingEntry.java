@@ -11,22 +11,39 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.websocket.core.internal;
+package org.eclipse.jetty.websocket.core;
 
 import org.eclipse.jetty.util.Callback;
-import org.eclipse.jetty.websocket.core.Frame;
 
-public class FrameEntry
+// TODO: add methods/fields for frame and message timeouts.
+//       needs builder / copy / wrapper so we can change only specific fields.
+//       Can this extend the CyclicTimeouts.Expirable directly?
+public class OutgoingEntry
 {
-    public final Frame frame;
-    public final Callback callback;
-    public final boolean batch;
+    private final Frame frame;
+    private final Callback callback;
+    private final boolean batch;
 
-    public FrameEntry(Frame frame, Callback callback, boolean batch)
+    public OutgoingEntry(Frame frame, Callback callback, boolean batch)
     {
         this.frame = frame;
         this.callback = callback;
         this.batch = batch;
+    }
+
+    public Frame getFrame()
+    {
+        return frame;
+    }
+
+    public Callback getCallback()
+    {
+        return callback;
+    }
+
+    public boolean isBatch()
+    {
+        return batch;
     }
 
     @Override

@@ -29,6 +29,7 @@ import org.eclipse.jetty.websocket.core.CloseStatus;
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
 import org.eclipse.jetty.websocket.core.OpCode;
+import org.eclipse.jetty.websocket.core.OutgoingEntry;
 import org.eclipse.jetty.websocket.core.messages.MessageSink;
 import org.eclipse.jetty.websocket.core.messages.StringMessageSink;
 import org.slf4j.Logger;
@@ -65,8 +66,9 @@ public class OutgoingMessageCapture extends CoreSession.Empty implements CoreSes
     }
 
     @Override
-    public void sendFrame(Frame frame, org.eclipse.jetty.util.Callback callback, boolean batch)
+    public void sendFrame(OutgoingEntry entry)
     {
+        Frame frame = entry.getFrame();
         switch (frame.getOpCode())
         {
             case OpCode.CLOSE:
@@ -124,7 +126,7 @@ public class OutgoingMessageCapture extends CoreSession.Empty implements CoreSes
                 messageSink = null;
         }
 
-        callback.succeeded();
+        entry.getCallback().succeeded();
     }
 
     @Override

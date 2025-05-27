@@ -21,7 +21,7 @@ import org.eclipse.jetty.util.Callback;
 public interface OutgoingFrames
 {
     /**
-     * A frame, and optional callback, intended for the network layer.
+     * A frame, callback, intended for the network layer.
      * <p>
      * Note: the frame can undergo many transformations in the various
      * layers and extensions present in the implementation.
@@ -34,4 +34,14 @@ public interface OutgoingFrames
      * @param batch the batch mode requested by the sender.
      */
     void sendFrame(Frame frame, Callback callback, boolean batch);
+
+    /**
+     * Send an {@link OutgoingEntry} containing a {@link Frame} and {@link Callback}.
+     *
+     * @param entry the frame to eventually write to the network layer.
+     */
+    default void sendFrame(OutgoingEntry entry)
+    {
+        sendFrame(entry.getFrame(), entry.getCallback(), entry.isBatch());
+    }
 }
