@@ -44,7 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Provides the implementation of {@link org.eclipse.jetty.io.Connection} that is suitable for WebSocket
+ * Provides the implementation of {@link Connection} that is suitable for WebSocket
  */
 public class WebSocketConnection extends AbstractConnection implements Connection.UpgradeTo, Dumpable, Runnable
 {
@@ -86,13 +86,13 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
      * completed successfully before creating this connection.
      * </p>
      */
-    public WebSocketConnection(EndPoint endp,
+    public WebSocketConnection(EndPoint endpoint,
                                Executor executor,
                                Scheduler scheduler,
                                ByteBufferPool byteBufferPool,
                                WebSocketCoreSession coreSession)
     {
-        this(endp, executor, scheduler, byteBufferPool, coreSession, null);
+        this(endpoint, executor, scheduler, byteBufferPool, coreSession, null);
     }
 
     /**
@@ -102,23 +102,23 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
      * completed successfully before creating this connection.
      * </p>
      *
-     * @param endp The endpoint ever which Websockot is sent/received
+     * @param endpoint The endpoint ever which Websockot is sent/received
      * @param executor A thread executor to use for WS callbacks.
      * @param scheduler A scheduler to use for timeouts
      * @param byteBufferPool A pool of retainable buffers to use.
      * @param coreSession The WC core session to which frames are delivered.
      * @param randomMask A Random used to mask frames. If null then SecureRandom will be created if needed.
      */
-    public WebSocketConnection(EndPoint endp,
+    public WebSocketConnection(EndPoint endpoint,
                                Executor executor,
                                Scheduler scheduler,
                                ByteBufferPool byteBufferPool,
                                WebSocketCoreSession coreSession,
                                Random randomMask)
     {
-        super(endp, executor);
+        super(endpoint, executor);
 
-        Objects.requireNonNull(endp, "EndPoint");
+        Objects.requireNonNull(endpoint, "EndPoint");
         Objects.requireNonNull(coreSession, "Session");
         Objects.requireNonNull(executor, "Executor");
         Objects.requireNonNull(byteBufferPool, "ByteBufferPool");
@@ -127,7 +127,7 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
         this.coreSession = coreSession;
         this.generator = new Generator();
         this.parser = new Parser(byteBufferPool, coreSession);
-        this.flusher = new Flusher(scheduler, coreSession.getOutputBufferSize(), generator, endp);
+        this.flusher = new Flusher(scheduler, coreSession.getOutputBufferSize(), generator, endpoint);
         this.setInputBufferSize(coreSession.getInputBufferSize());
 
         if (this.coreSession.getBehavior() == Behavior.CLIENT && randomMask == null)
@@ -434,9 +434,7 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
 
         // Open Session
         super.onOpen();
-        coreSession.onOpen();
-        if (moreDemand())
-            fillingAndParsing.iterate();
+        coreSession.onOpen(Callback.from(fillingAndParsing::open));
     }
 
     @Override
@@ -550,9 +548,62 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
 
     private class FillAndParseICB extends IteratingCallback
     {
-        @Override
-        protected Action process() throws Throwable
+        /*
+         *  UNOPENED ----------> OPENED
+         *  |                      ^
+         *  v                      |
+         *  AWAITING_OPEN ---------+
+         */
+        private enum State
         {
+            UNOPENED,
+            OPENED,
+            AWAITING_OPEN
+        }
+
+        private State _state = State.UNOPENED;
+
+        public void open()
+        {
+            boolean succeed = false;
+            try (AutoLock ignored = lock.lock())
+            {
+                switch (_state)
+                {
+                    case UNOPENED -> _state = State.OPENED;
+                    case AWAITING_OPEN ->
+                    {
+                        succeed = true;
+                        _state = State.OPENED;
+                    }
+                    default -> throw new IllegalStateException(_state.name());
+                }
+            }
+
+            if (succeed)
+                succeeded();
+        }
+
+        @Override
+        protected Action process()
+        {
+            try (AutoLock ignored = lock.lock())
+            {
+                switch (_state)
+                {
+                    case UNOPENED, AWAITING_OPEN ->
+                    {
+                        _state = State.AWAITING_OPEN;
+                        return Action.SCHEDULED;
+                    }
+                    case OPENED ->
+                    {
+                        // We can continue processing.
+                    }
+                    default -> throw new IllegalStateException(_state.name());
+                }
+            }
+
             acquireNetworkBuffer();
 
             boolean registerFillInterested = false;

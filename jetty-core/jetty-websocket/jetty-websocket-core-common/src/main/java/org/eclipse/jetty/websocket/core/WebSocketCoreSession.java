@@ -370,10 +370,16 @@ public class WebSocketCoreSession implements CoreSession, Dumpable
         }
     }
 
+    @Deprecated
+    public void onOpen()
+    {
+        onOpen(NOOP);
+    }
+
     /**
      * Used to notify the {@link WebSocketCoreSession} that the connection has been opened.
      */
-    public void onOpen()
+    public void onOpen(Callback callback)
     {
         if (LOG.isDebugEnabled())
             LOG.debug("onOpen() {}", this);
@@ -386,6 +392,7 @@ public class WebSocketCoreSession implements CoreSession, Dumpable
         Callback openCallback = Callback.from(() ->
         {
             sessionState.onOpen();
+            callback.succeeded();
             if (LOG.isDebugEnabled())
                 LOG.debug("ConnectionState: Transition to OPEN");
         },
@@ -393,6 +400,7 @@ public class WebSocketCoreSession implements CoreSession, Dumpable
         {
             if (LOG.isDebugEnabled())
                 LOG.debug("Error during OPEN", x);
+            callback.failed(x);
             processHandlerError(new CloseException(CloseStatus.SERVER_ERROR, x), NOOP);
         });
 
