@@ -390,7 +390,7 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
                 LOG.debug("meetDemand d={} fp={} {} {}", demand, fillingAndParsing, networkBuffer, this);
 
             if (demand == DemandState.NOT_DEMANDING)
-                return false;
+                throw new IllegalStateException();
 
             if (demand != DemandState.CANCELLED)
                 demand = DemandState.NOT_DEMANDING;
@@ -546,6 +546,9 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
         }
     }
 
+    /**
+     * One Iteration of this equals one websocket frame produced, so only iterate this when demanded.
+     */
     private class FillAndParseICB extends IteratingCallback
     {
         /*
@@ -553,6 +556,8 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
          *  |                      ^
          *  v                      |
          *  AWAITING_OPEN ---------+
+         *
+         * This state is used to delay the first demand until after the onOpen callback.
          */
         private enum State
         {
@@ -604,9 +609,11 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
                 }
             }
 
+            if (!moreDemand())
+                return Action.IDLE;
+
             acquireNetworkBuffer();
 
-            boolean registerFillInterested = false;
             try
             {
                 while (true)
@@ -657,7 +664,7 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
                     if (filled == 0)
                     {
                         releaseNetworkBuffer();
-                        registerFillInterested = true;
+                        fillInterested();
                         return Action.SCHEDULED;
                     }
 
@@ -676,11 +683,7 @@ public class WebSocketConnection extends AbstractConnection implements Connectio
                 }
                 coreSession.processConnectionError(t, Callback.NOOP);
             }
-            finally
-            {
-                if (registerFillInterested)
-                    fillInterested();
-            }
+
             return Action.IDLE;
         }
 

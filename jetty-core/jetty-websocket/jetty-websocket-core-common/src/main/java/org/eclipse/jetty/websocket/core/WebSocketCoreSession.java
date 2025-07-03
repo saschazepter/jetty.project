@@ -370,7 +370,10 @@ public class WebSocketCoreSession implements CoreSession, Dumpable
         }
     }
 
-    @Deprecated
+    /**
+     * @deprecated please use
+     */
+    @Deprecated(since = "12.0.24", forRemoval = true)
     public void onOpen()
     {
         onOpen(NOOP);
