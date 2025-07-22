@@ -49,6 +49,7 @@ public class StatisticsHandler extends EventsHandler
     private final LongAdder _bytesRead = new LongAdder();
     private final LongAdder _bytesWritten = new LongAdder();
     private long _startTime = NanoTime.now();
+    private boolean _timingStatsInMs = false;
 
     public StatisticsHandler()
     {
@@ -57,6 +58,30 @@ public class StatisticsHandler extends EventsHandler
     public StatisticsHandler(Handler handler)
     {
         super(handler);
+    }
+
+    public boolean isTimingStatsInMs()
+    {
+        return _timingStatsInMs;
+    }
+
+    public void setTimingStatsInMs(boolean ms)
+    {
+        this._timingStatsInMs = ms;
+    }
+
+    private long timingStatConv(long stat)
+    {
+        if (_timingStatsInMs)
+            return stat / 1_000_000L;
+        return stat;
+    }
+
+    private double timingStatConv(double stat)
+    {
+        if (_timingStatsInMs)
+            return stat / (double)1_000_000;
+        return stat;
     }
 
     @Override
@@ -181,28 +206,28 @@ public class StatisticsHandler extends EventsHandler
         return (int)_requestStats.getMax();
     }
 
-    @ManagedAttribute("total time spent in request execution (in ns)")
+    @ManagedAttribute("total time spent in request execution (in ms/ns)")
     public long getRequestTimeTotal()
     {
-        return _requestTimeStats.getTotal();
+        return timingStatConv(_requestTimeStats.getTotal());
     }
 
-    @ManagedAttribute("maximum request execution time (in ns)")
+    @ManagedAttribute("maximum request execution time (in ms/ns)")
     public long getRequestTimeMax()
     {
-        return _requestTimeStats.getMax();
+        return timingStatConv(_requestTimeStats.getMax());
     }
 
-    @ManagedAttribute("mean request execution time (in ns)")
+    @ManagedAttribute("mean request execution time (in ms/ns)")
     public double getRequestTimeMean()
     {
-        return _requestTimeStats.getMean();
+        return timingStatConv(_requestTimeStats.getMean());
     }
 
-    @ManagedAttribute("standard deviation for request execution time (in ns)")
+    @ManagedAttribute("standard deviation for request execution time (in ms/ns)")
     public double getRequestTimeStdDev()
     {
-        return _requestTimeStats.getStdDev();
+        return timingStatConv(_requestTimeStats.getStdDev());
     }
 
     @ManagedAttribute("total number of calls to handle()")
@@ -223,28 +248,28 @@ public class StatisticsHandler extends EventsHandler
         return (int)_handleStats.getMax();
     }
 
-    @ManagedAttribute("maximum handle() execution time (in ns)")
+    @ManagedAttribute("maximum handle() execution time (in ms/ns)")
     public long getHandleTimeMax()
     {
-        return _handleTimeStats.getMax();
+        return timingStatConv(_handleTimeStats.getMax());
     }
 
-    @ManagedAttribute("total time spent in handle() execution (in ns)")
+    @ManagedAttribute("total time spent in handle() execution (in ms/ns)")
     public long getHandleTimeTotal()
     {
-        return _handleTimeStats.getTotal();
+        return timingStatConv(_handleTimeStats.getTotal());
     }
 
-    @ManagedAttribute("mean handle() execution time (in ns)")
+    @ManagedAttribute("mean handle() execution time (in ms/ns)")
     public double getHandleTimeMean()
     {
-        return _handleTimeStats.getMean();
+        return timingStatConv(_handleTimeStats.getMean());
     }
 
-    @ManagedAttribute("standard deviation for handle() execution time (in ns)")
+    @ManagedAttribute("standard deviation for handle() execution time (in ms/ns)")
     public double getHandleTimeStdDev()
     {
-        return _handleTimeStats.getStdDev();
+        return timingStatConv(_handleTimeStats.getStdDev());
     }
 
     @ManagedAttribute("number of failed requests")
