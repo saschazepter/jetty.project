@@ -1,3 +1,5 @@
+jetty-12.1.0-SNAPSHOT
+
 12.1.0.beta3 - 11 August 2025
  + 12300 Use of RewriteHandler.LastRuleHandler without a child handler should produce a clear error message. (@sanjerai)
  + 12735 Provide better documentation of JettyWebSocketServletContainerInitializer and jetty-${ee-version}-websocket-jetty-server modules
