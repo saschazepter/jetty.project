@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -105,6 +106,7 @@ public abstract class HTTP2Session extends AbstractLifeCycle implements Session,
     private final AtomicInteger recvWindow = new AtomicInteger();
     private final AtomicLong bytesWritten = new AtomicLong();
     private final AtomicInteger totalLocalStreams = new AtomicInteger();
+    private final Executor executor;
     private final EndPoint endPoint;
     private final Parser parser;
     private final Generator generator;
@@ -122,8 +124,9 @@ public abstract class HTTP2Session extends AbstractLifeCycle implements Session,
     private boolean pushEnabled;
     private boolean connectProtocolEnabled;
 
-    public HTTP2Session(Scheduler scheduler, EndPoint endPoint, Parser parser, Generator generator, Session.Listener listener, FlowControlStrategy flowControl, int initialStreamId)
+    public HTTP2Session(Executor executor, Scheduler scheduler, EndPoint endPoint, Parser parser, Generator generator, Session.Listener listener, FlowControlStrategy flowControl, int initialStreamId)
     {
+        this.executor = executor;
         this.endPoint = endPoint;
         this.parser = parser;
         this.generator = generator;
@@ -174,6 +177,11 @@ public abstract class HTTP2Session extends AbstractLifeCycle implements Session,
     {
         super.doStop();
         streamsState.halt("stop");
+    }
+
+    public Executor getExecutor()
+    {
+        return executor;
     }
 
     public int getFrameQueueSize()

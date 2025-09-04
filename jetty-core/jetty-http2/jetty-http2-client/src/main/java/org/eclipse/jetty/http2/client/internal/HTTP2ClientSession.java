@@ -14,6 +14,7 @@
 package org.eclipse.jetty.http2.client.internal;
 
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http2.ErrorCode;
@@ -37,9 +38,9 @@ public class HTTP2ClientSession extends HTTP2Session
 {
     private static final Logger LOG = LoggerFactory.getLogger(HTTP2ClientSession.class);
 
-    public HTTP2ClientSession(Scheduler scheduler, EndPoint endPoint, Parser parser, Generator generator, Session.Listener listener, FlowControlStrategy flowControl)
+    public HTTP2ClientSession(Executor executor, Scheduler scheduler, EndPoint endPoint, Parser parser, Generator generator, Session.Listener listener, FlowControlStrategy flowControl)
     {
-        super(scheduler, endPoint, parser, generator, listener, flowControl, 1);
+        super(executor, scheduler, endPoint, parser, generator, listener, flowControl, 1);
     }
 
     @Override

@@ -550,7 +550,7 @@ public class HTTP2Stream implements Stream, Attachable, Closeable, Callback, Dum
         if (LOG.isDebugEnabled())
             LOG.debug("Demand, {} data processing for {}", process ? "proceeding" : "stalling", this);
         if (process)
-            processData();
+            getSession().getExecutor().execute(this::processData);
     }
 
     public void processData()
