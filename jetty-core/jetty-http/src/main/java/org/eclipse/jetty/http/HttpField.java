@@ -20,6 +20,8 @@ import java.util.Objects;
 
 import org.eclipse.jetty.util.QuotedStringTokenizer;
 import org.eclipse.jetty.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>An immutable class representing an HTTP header or trailer.</p>
@@ -30,6 +32,8 @@ import org.eclipse.jetty.util.StringUtil;
  */
 public class HttpField
 {
+    private static final Logger LOG = LoggerFactory.getLogger(HttpField.class);
+
     /**
      * A constant {@link QuotedStringTokenizer} configured for quoting/tokenizing {@code parameters} lists as defined by
      * <a href="https://www.rfc-editor.org/rfc/rfc9110#name-parameters">RFC9110</a>
@@ -70,6 +74,11 @@ public class HttpField
         else
             _name = Objects.requireNonNull(name, "name");
         _value = value != null ? value : "";
+        if (!HttpTokens.isLegalFieldValue(_value))
+        {
+            String msg = "Illegal HTTP Field Value: \"%s\"".formatted(_value);
+            LOG.warn(msg, new Throwable(msg));
+        }
     }
 
     /**
