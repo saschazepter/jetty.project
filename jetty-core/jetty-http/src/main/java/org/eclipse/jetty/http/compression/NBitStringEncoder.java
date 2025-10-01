@@ -15,6 +15,8 @@ package org.eclipse.jetty.http.compression;
 
 import java.nio.ByteBuffer;
 
+import org.eclipse.jetty.io.RetainableByteBuffer;
+
 public class NBitStringEncoder
 {
     private NBitStringEncoder()
@@ -47,6 +49,44 @@ public class NBitStringEncoder
         else
         {
             int p = buffer.position() - 1;
+            buffer.put(p, (byte)(buffer.get(p) | huffmanFlag));
+        }
+
+        // Start encoding size & content in rest of prefix.
+        // If prefix was 1 we set it back to 8 to indicate to start on a new byte.
+        prefix = (prefix == 1) ? 8 : prefix - 1;
+
+        if (huffman)
+        {
+            int encodedValueSize = HuffmanEncoder.octetsNeeded(value);
+            NBitIntegerEncoder.encode(buffer, prefix, encodedValueSize);
+            HuffmanEncoder.encode(buffer, value);
+        }
+        else
+        {
+            int encodedValueSize = value.length();
+            NBitIntegerEncoder.encode(buffer, prefix, encodedValueSize);
+            for (int i = 0; i < encodedValueSize; i++)
+            {
+                char c = value.charAt(i);
+                buffer.put((byte)c);
+            }
+        }
+    }
+
+    public static void encode(RetainableByteBuffer.Mutable buffer, int prefix, String value, boolean huffman)
+    {
+        if (prefix <= 0 || prefix > 8)
+            throw new IllegalArgumentException();
+
+        byte huffmanFlag = huffman ? (byte)(0x01 << (prefix - 1)) : (byte)0x00;
+        if (prefix == 8)
+        {
+            buffer.put(huffmanFlag);
+        }
+        else
+        {
+            long p = buffer.size() - 1;
             buffer.put(p, (byte)(buffer.get(p) | huffmanFlag));
         }
 

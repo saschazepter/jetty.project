@@ -19,7 +19,6 @@ import org.eclipse.jetty.http3.qpack.internal.instruction.DuplicateInstruction;
 import org.eclipse.jetty.http3.qpack.internal.instruction.IndexedNameEntryInstruction;
 import org.eclipse.jetty.http3.qpack.internal.instruction.SetCapacityInstruction;
 import org.eclipse.jetty.http3.qpack.internal.parser.DecoderInstructionParser;
-import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DecoderInstructionParserTest
 {
-    private final ByteBufferPool bufferPool = ByteBufferPool.NON_POOLING;
     private DecoderInstructionParser _instructionParser;
     private DecoderParserDebugHandler _handler;
 
@@ -120,7 +118,7 @@ public class DecoderInstructionParserTest
     private ByteBuffer getEncodedValue(Instruction instruction)
     {
         RetainableByteBuffer.DynamicCapacity lease = new RetainableByteBuffer.DynamicCapacity();
-        instruction.encode(bufferPool, lease);
+        instruction.encode(lease);
         return lease.getByteBuffer();
     }
 }

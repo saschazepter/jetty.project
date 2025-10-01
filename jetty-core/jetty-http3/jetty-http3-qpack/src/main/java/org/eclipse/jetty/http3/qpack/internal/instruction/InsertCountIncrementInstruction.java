@@ -13,45 +13,23 @@
 
 package org.eclipse.jetty.http3.qpack.internal.instruction;
 
-import java.nio.ByteBuffer;
-
 import org.eclipse.jetty.http.compression.NBitIntegerEncoder;
 import org.eclipse.jetty.http3.qpack.Instruction;
-import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.RetainableByteBuffer;
-import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.TypeUtil;
 
-public class InsertCountIncrementInstruction implements Instruction
+public record InsertCountIncrementInstruction(int increment) implements Instruction
 {
-    private final int _increment;
-
-    public InsertCountIncrementInstruction(int increment)
-    {
-        _increment = increment;
-    }
-
-    public int getIncrement()
-    {
-        return _increment;
-    }
-
     @Override
-    public void encode(ByteBufferPool byteBufferPool, RetainableByteBuffer.Mutable accumulator)
+    public void encode(RetainableByteBuffer.Mutable accumulator)
     {
-        int size = NBitIntegerEncoder.octetsNeeded(6, _increment);
-        RetainableByteBuffer retainableByteBuffer = byteBufferPool.acquire(size, true);
-        ByteBuffer buffer = retainableByteBuffer.getByteBuffer();
-        BufferUtil.clearToFill(buffer);
-        buffer.put((byte)0x00);
-        NBitIntegerEncoder.encode(buffer, 6, _increment);
-        BufferUtil.flipToFlush(buffer, 0);
-        accumulator.add(retainableByteBuffer);
+        accumulator.put((byte)0x00);
+        NBitIntegerEncoder.encode(accumulator, 6, increment);
     }
 
     @Override
     public String toString()
     {
-        return String.format("%s@%x[increment=%d]", TypeUtil.toShortName(getClass()), hashCode(), getIncrement());
+        return String.format("%s@%x[increment=%d]", TypeUtil.toShortName(getClass()), hashCode(), increment);
     }
 }

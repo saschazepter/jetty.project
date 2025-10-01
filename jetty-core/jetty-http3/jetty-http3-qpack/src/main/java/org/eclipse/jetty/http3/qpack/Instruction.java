@@ -20,7 +20,16 @@ import org.eclipse.jetty.io.RetainableByteBuffer;
 
 public interface Instruction
 {
-    void encode(ByteBufferPool byteBufferPool, RetainableByteBuffer.Mutable buffer);
+    /**
+     * @deprecated use {@link #encode(RetainableByteBuffer.Mutable)} instead.
+     */
+    @Deprecated(since = "12.1.3", forRemoval = true)
+    default void encode(ByteBufferPool byteBufferPool, RetainableByteBuffer.Mutable buffer)
+    {
+        encode(buffer);
+    }
+
+    void encode(RetainableByteBuffer.Mutable buffer);
 
     /**
      * <p>A handler for instructions issued by an {@link QpackEncoder} or {@link QpackDecoder}.</p>

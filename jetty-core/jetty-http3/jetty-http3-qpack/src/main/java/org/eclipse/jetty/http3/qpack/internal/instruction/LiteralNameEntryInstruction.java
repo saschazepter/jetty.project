@@ -13,66 +13,36 @@
 
 package org.eclipse.jetty.http3.qpack.internal.instruction;
 
-import java.nio.ByteBuffer;
-
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.compression.NBitStringEncoder;
 import org.eclipse.jetty.http3.qpack.Instruction;
-import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.RetainableByteBuffer;
-import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.TypeUtil;
 
 public class LiteralNameEntryInstruction implements Instruction
 {
-    private final boolean _huffmanName;
-    private final boolean _huffmanValue;
+    private final boolean _huffman;
     private final String _name;
     private final String _value;
 
     public LiteralNameEntryInstruction(HttpField httpField, boolean huffman)
     {
-        this(httpField, huffman, huffman);
-    }
-
-    public LiteralNameEntryInstruction(HttpField httpField, boolean huffmanName, boolean huffmanValue)
-    {
-        _huffmanName = huffmanName;
-        _huffmanValue = huffmanValue;
+        _huffman = huffman;
         _name = httpField.getLowerCaseName();
         _value = httpField.getValue();
     }
 
-    public String getName()
-    {
-        return _name;
-    }
-
-    public String getValue()
-    {
-        return _value;
-    }
-
     @Override
-    public void encode(ByteBufferPool byteBufferPool, RetainableByteBuffer.Mutable accumulator)
+    public void encode(RetainableByteBuffer.Mutable accumulator)
     {
-        int size = NBitStringEncoder.octetsNeeded(6, _name, _huffmanName) +
-            NBitStringEncoder.octetsNeeded(8, _value, _huffmanValue);
-        RetainableByteBuffer retainableByteBuffer = byteBufferPool.acquire(size, false);
-        ByteBuffer buffer = retainableByteBuffer.getByteBuffer();
-        BufferUtil.clearToFill(buffer);
-
-        buffer.put((byte)0x40); // Instruction Pattern.
-        NBitStringEncoder.encode(buffer, 6, _name, _huffmanName);
-        NBitStringEncoder.encode(buffer, 8, _value, _huffmanValue);
-
-        BufferUtil.flipToFlush(buffer, 0);
-        accumulator.add(retainableByteBuffer);
+        accumulator.put((byte)0x40); // Instruction Pattern.
+        NBitStringEncoder.encode(accumulator, 6, _name, _huffman);
+        NBitStringEncoder.encode(accumulator, 8, _value, _huffman);
     }
 
     @Override
     public String toString()
     {
-        return String.format("%s@%x[name=%s,value=%s]", TypeUtil.toShortName(getClass()), hashCode(), getName(), getValue());
+        return String.format("%s@%x[name=%s,value=%s]", TypeUtil.toShortName(getClass()), hashCode(), _name, _value);
     }
 }

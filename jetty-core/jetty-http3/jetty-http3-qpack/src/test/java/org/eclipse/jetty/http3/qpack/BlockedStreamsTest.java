@@ -112,11 +112,11 @@ public class BlockedStreamsTest
 
         Instruction inc1 = _decoderHandler.getInstruction();
         assertThat(inc1, instanceOf(InsertCountIncrementInstruction.class));
-        assertThat(((InsertCountIncrementInstruction)inc1).getIncrement(), equalTo(1));
+        assertThat(((InsertCountIncrementInstruction)inc1).increment(), equalTo(1));
 
         Instruction ack1 = _decoderHandler.getInstruction();
         assertThat(ack1, instanceOf(SectionAcknowledgmentInstruction.class));
-        assertThat(((SectionAcknowledgmentInstruction)ack1).getStreamId(), equalTo(0L));
+        assertThat(((SectionAcknowledgmentInstruction)ack1).streamId(), equalTo(0L));
 
         assertNull(_decoderHandler.getMetaData());
         assertNull(_decoderHandler.getInstruction());
@@ -129,11 +129,11 @@ public class BlockedStreamsTest
 
         Instruction inc2 = _decoderHandler.getInstruction();
         assertThat(inc2, instanceOf(InsertCountIncrementInstruction.class));
-        assertThat(((InsertCountIncrementInstruction)inc2).getIncrement(), equalTo(1));
+        assertThat(((InsertCountIncrementInstruction)inc2).increment(), equalTo(1));
 
         Instruction ack2 = _decoderHandler.getInstruction();
         assertThat(ack2, instanceOf(SectionAcknowledgmentInstruction.class));
-        assertThat(((SectionAcknowledgmentInstruction)ack2).getStreamId(), equalTo(1L));
+        assertThat(((SectionAcknowledgmentInstruction)ack2).streamId(), equalTo(1L));
 
         assertNull(_decoderHandler.getMetaData());
         assertNull(_decoderHandler.getInstruction());

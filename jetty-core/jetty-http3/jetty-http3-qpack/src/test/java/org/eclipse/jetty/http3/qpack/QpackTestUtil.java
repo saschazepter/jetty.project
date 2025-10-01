@@ -22,7 +22,6 @@ import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.MetaData;
-import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.StringUtil;
@@ -32,11 +31,10 @@ public class QpackTestUtil
 {
     public static ByteBuffer toBuffer(Instruction... instructions)
     {
-        ByteBufferPool bufferPool = ByteBufferPool.NON_POOLING;
         RetainableByteBuffer.DynamicCapacity accumulator = new RetainableByteBuffer.DynamicCapacity();
         for (Instruction instruction : instructions)
         {
-            instruction.encode(bufferPool, accumulator);
+            instruction.encode(accumulator);
         }
         ByteBuffer combinedBuffer = BufferUtil.allocate(Math.toIntExact(accumulator.size()));
         BufferUtil.clearToFill(combinedBuffer);
@@ -53,9 +51,8 @@ public class QpackTestUtil
 
     public static ByteBuffer toBuffer(List<Instruction> instructions)
     {
-        ByteBufferPool bufferPool = ByteBufferPool.NON_POOLING;
         RetainableByteBuffer.DynamicCapacity accumulator = new RetainableByteBuffer.DynamicCapacity();
-        instructions.forEach(i -> i.encode(bufferPool, accumulator));
+        instructions.forEach(i -> i.encode(accumulator));
         ByteBuffer combinedBuffer = BufferUtil.allocate(Math.toIntExact(accumulator.size()), false);
         BufferUtil.clearToFill(combinedBuffer);
         accumulator.putTo(combinedBuffer);

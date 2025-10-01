@@ -13,45 +13,23 @@
 
 package org.eclipse.jetty.http3.qpack.internal.instruction;
 
-import java.nio.ByteBuffer;
-
 import org.eclipse.jetty.http.compression.NBitIntegerEncoder;
 import org.eclipse.jetty.http3.qpack.Instruction;
-import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.RetainableByteBuffer;
-import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.TypeUtil;
 
-public class SetCapacityInstruction implements Instruction
+public record SetCapacityInstruction(int capacity) implements Instruction
 {
-    private final int _capacity;
-
-    public SetCapacityInstruction(int capacity)
-    {
-        _capacity = capacity;
-    }
-
-    public int getCapacity()
-    {
-        return _capacity;
-    }
-
     @Override
-    public void encode(ByteBufferPool byteBufferPool, RetainableByteBuffer.Mutable accumulator)
+    public void encode(RetainableByteBuffer.Mutable accumulator)
     {
-        int size = NBitIntegerEncoder.octetsNeeded(5, _capacity);
-        RetainableByteBuffer retainableByteBuffer = byteBufferPool.acquire(size, true);
-        ByteBuffer buffer = retainableByteBuffer.getByteBuffer();
-        BufferUtil.clearToFill(buffer);
-        buffer.put((byte)0x20);
-        NBitIntegerEncoder.encode(buffer, 5, _capacity);
-        BufferUtil.flipToFlush(buffer, 0);
-        accumulator.add(retainableByteBuffer);
+        accumulator.put((byte)0x20);
+        NBitIntegerEncoder.encode(accumulator, 5, capacity);
     }
 
     @Override
     public String toString()
     {
-        return String.format("%s@%x[capacity=%d]", TypeUtil.toShortName(getClass()), hashCode(), getCapacity());
+        return String.format("%s@%x[capacity=%d]", TypeUtil.toShortName(getClass()), hashCode(), capacity);
     }
 }

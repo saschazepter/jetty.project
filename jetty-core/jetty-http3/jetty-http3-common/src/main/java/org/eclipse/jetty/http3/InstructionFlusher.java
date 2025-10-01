@@ -95,7 +95,7 @@ public class InstructionFlusher extends IteratingCallback
             accumulator.add(buffer);
         }
 
-        instructions.forEach(i -> i.encode(bufferPool, accumulator));
+        instructions.forEach(i -> i.encode(accumulator));
 
         if (LOG.isDebugEnabled())
             LOG.debug("writing buffers ({} bytes) on {}", accumulator.size(), this);

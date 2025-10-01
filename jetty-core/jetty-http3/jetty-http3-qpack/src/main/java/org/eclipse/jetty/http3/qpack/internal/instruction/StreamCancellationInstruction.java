@@ -13,40 +13,23 @@
 
 package org.eclipse.jetty.http3.qpack.internal.instruction;
 
-import java.nio.ByteBuffer;
-
 import org.eclipse.jetty.http.compression.NBitIntegerEncoder;
 import org.eclipse.jetty.http3.qpack.Instruction;
-import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.RetainableByteBuffer;
-import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.TypeUtil;
 
-public class StreamCancellationInstruction implements Instruction
+public record StreamCancellationInstruction(long streamId) implements Instruction
 {
-    private final long _streamId;
-
-    public StreamCancellationInstruction(long streamId)
-    {
-        _streamId = streamId;
-    }
-
     @Override
-    public void encode(ByteBufferPool byteBufferPool, RetainableByteBuffer.Mutable accumulator)
+    public void encode(RetainableByteBuffer.Mutable accumulator)
     {
-        int size = NBitIntegerEncoder.octetsNeeded(6, _streamId);
-        RetainableByteBuffer retainableByteBuffer = byteBufferPool.acquire(size, false);
-        ByteBuffer buffer = retainableByteBuffer.getByteBuffer();
-        BufferUtil.clearToFill(buffer);
-        buffer.put((byte)0x40);
-        NBitIntegerEncoder.encode(buffer, 6, _streamId);
-        BufferUtil.flipToFlush(buffer, 0);
-        accumulator.add(retainableByteBuffer);
+        accumulator.put((byte)0x40);
+        NBitIntegerEncoder.encode(accumulator, 6, streamId);
     }
 
     @Override
     public String toString()
     {
-        return String.format("%s@%x[stream=%d]", TypeUtil.toShortName(getClass()), hashCode(), _streamId);
+        return String.format("%s@%x[stream=%d]", TypeUtil.toShortName(getClass()), hashCode(), streamId);
     }
 }

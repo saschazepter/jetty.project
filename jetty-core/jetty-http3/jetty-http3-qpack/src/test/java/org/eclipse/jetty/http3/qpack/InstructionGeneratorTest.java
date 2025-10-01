@@ -15,7 +15,6 @@ package org.eclipse.jetty.http3.qpack;
 
 import org.eclipse.jetty.http3.qpack.internal.instruction.IndexedNameEntryInstruction;
 import org.eclipse.jetty.http3.qpack.internal.instruction.SectionAcknowledgmentInstruction;
-import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.util.BufferUtil;
 import org.junit.jupiter.api.Test;
@@ -25,12 +24,10 @@ import static org.hamcrest.Matchers.equalToIgnoringCase;
 
 public class InstructionGeneratorTest
 {
-    private final ByteBufferPool _bufferPool = ByteBufferPool.NON_POOLING;
-
     private String toHexString(Instruction instruction)
     {
         RetainableByteBuffer.DynamicCapacity lease = new RetainableByteBuffer.DynamicCapacity();
-        instruction.encode(_bufferPool, lease);
+        instruction.encode(lease);
         return BufferUtil.toHexString(lease.getByteBuffer());
     }
 

@@ -15,6 +15,8 @@ package org.eclipse.jetty.http.compression;
 
 import java.nio.ByteBuffer;
 
+import org.eclipse.jetty.io.RetainableByteBuffer;
+
 /**
  * Used to encode integers as described in RFC7541.
  */
@@ -64,6 +66,48 @@ public class NBitIntegerEncoder
 
         int bits = 0xFF >>> (8 - prefix);
         int p = buffer.position() - 1;
+        if (value < bits)
+        {
+            buffer.put(p, (byte)((buffer.get(p) & ~bits) | value));
+        }
+        else
+        {
+            buffer.put(p, (byte)(buffer.get(p) | bits));
+            long length = value - bits;
+            while (true)
+            {
+                // The value of ~0x7F is different to 0x80 because of all the 1s from the MSB.
+                if ((length & ~0x7FL) == 0)
+                {
+                    buffer.put((byte)length);
+                    return;
+                }
+                else
+                {
+                    buffer.put((byte)((length & 0x7F) | 0x80));
+                    length >>>= 7;
+                }
+            }
+        }
+    }
+
+    /**
+     *
+     * @param buffer the buffer to encode into.
+     * @param prefix the prefix used to encode this long.
+     * @param value the long to encode into the buffer.
+     */
+    public static void encode(RetainableByteBuffer.Mutable buffer, int prefix, long value)
+    {
+        if (prefix <= 0 || prefix > 8)
+            throw new IllegalArgumentException();
+
+        // If prefix is 8 we add an empty byte as we initially modify last byte from the buffer.
+        if (prefix == 8)
+            buffer.put((byte)0x00);
+
+        int bits = 0xFF >>> (8 - prefix);
+        long p = buffer.size() - 1;
         if (value < bits)
         {
             buffer.put(p, (byte)((buffer.get(p) & ~bits) | value));
