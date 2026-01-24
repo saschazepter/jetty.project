@@ -132,17 +132,16 @@ public abstract class AbstractSession extends ContainerLifeCycle implements Sess
         }
     }
 
-    protected TransportParameters notifyPrepare()
+    public void notifyPrepare(TransportParameters transportParameters)
     {
         try
         {
-            return listener.onPrepare(this);
+            listener.onPrepare(this, transportParameters);
         }
         catch (Throwable x)
         {
             if (LOG.isDebugEnabled())
                 LOG.atDebug().setCause(x).log("failure while notifying listener {}", listener);
-            return null;
         }
     }
 
