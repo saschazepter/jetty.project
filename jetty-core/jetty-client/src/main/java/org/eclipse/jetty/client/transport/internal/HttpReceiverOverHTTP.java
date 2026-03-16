@@ -55,6 +55,7 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
     private int status;
     private String method;
     private Content.Chunk chunk;
+    private boolean upgraded;
     private boolean shutdown;
     private boolean disposed;
 
@@ -256,6 +257,8 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
                 {
                     // Return immediately, as this thread may be in a race
                     // with e.g. another thread demanding more content.
+                    if (upgraded)
+                        releaseNetworkBuffer();
                     return false;
                 }
 
@@ -346,6 +349,7 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
                     // Connection upgrade, bail out.
                     if (isUpgrade || isTunnel)
                     {
+                        upgraded = true;
                         responseSuccess(null);
                         return true;
                     }

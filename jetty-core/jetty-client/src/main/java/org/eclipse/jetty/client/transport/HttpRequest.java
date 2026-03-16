@@ -46,6 +46,7 @@ import org.eclipse.jetty.client.Destination;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.Origin;
 import org.eclipse.jetty.client.PathRequestContent;
+import org.eclipse.jetty.client.RedirectCache;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.RequestListeners;
 import org.eclipse.jetty.client.Response;
@@ -82,6 +83,7 @@ public class HttpRequest implements Request
     private String path;
     private String query;
     private URI uri;
+    private URI origin;
     private Transport transport;
     private String method = HttpMethod.GET.asString();
     private HttpVersion version = HttpVersion.HTTP_1_1;
@@ -188,6 +190,7 @@ public class HttpRequest implements Request
     {
         this.scheme = URIUtil.normalizeScheme(scheme);
         this.uri = null;
+        this.origin = null;
         return this;
     }
 
@@ -202,6 +205,7 @@ public class HttpRequest implements Request
     {
         this.host = host;
         this.uri = null;
+        this.origin = null;
         return this;
     }
 
@@ -216,6 +220,7 @@ public class HttpRequest implements Request
     {
         this.port = port;
         this.uri = null;
+        this.origin = null;
         return this;
     }
 
@@ -303,6 +308,13 @@ public class HttpRequest implements Request
         @SuppressWarnings("ReferenceEquality")
         boolean isNullURI = (uri == NULL_URI);
         return isNullURI ? null : uri;
+    }
+
+    public URI getOrigin()
+    {
+        if (origin == null)
+            origin = URI.create(URIUtil.newURIBuilder(getScheme(), getHost(), getPort()).toString());
+        return origin;
     }
 
     @Override
@@ -740,7 +752,7 @@ public class HttpRequest implements Request
             // or HttpConnection.
             // We now do not do a timed get and just rely on the HttpDestination/HttpConnection
             // timeouts.
-            // This has the affect of changing this method from mostly throwing a TimeoutException
+            // This has the effect of changing this method from mostly throwing a TimeoutException
             // to always throwing an ExecutionException(TimeoutException).
             // Thus, for backwards compatibility we unwrap the TimeoutException here.
             if (x.getCause() instanceof TimeoutException t)
@@ -764,16 +776,30 @@ public class HttpRequest implements Request
     @Override
     public void send(Response.CompleteListener listener)
     {
-        Destination destination = resolveDestination(listener);
+        HttpRequest request = this;
+        RedirectCache redirectCache = client.getRedirectCache();
+        if (redirectCache != null)
+        {
+            RedirectCache.MethodOriginTarget original = new RedirectCache.MethodOriginTarget(getMethod(), getOrigin(), getPath());
+            RedirectCache.MethodOriginTarget redirect = redirectCache.get(original);
+            if (redirect != null)
+            {
+                request = copy(redirect.origin());
+                request.method(redirect.method());
+                request.path(redirect.target());
+            }
+        }
+
+        Destination destination = request.resolveDestination(listener);
         if (destination == null)
             return;
         try
         {
-            destination.send(this, listener);
+            destination.send(request, listener);
         }
         catch (Throwable x)
         {
-            abort(x);
+            request.abort(x);
         }
     }
 
@@ -948,7 +974,7 @@ public class HttpRequest implements Request
     {
         try
         {
-            // Handle specially the "OPTIONS *" case, since it is possible to create a URI from "*" (!).
+            // Handle the "OPTIONS *" case specially, since it is possible to create a URI from "*" (!).
             if ("*".equals(path))
                 return null;
             URI result = new URI(path);
