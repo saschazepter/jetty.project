@@ -154,7 +154,7 @@ public class HttpRedirector
             {
                 URI origin = ((HttpRequest)request).getOrigin();
                 URI redirectOrigin = newURI.isAbsolute()
-                    ? URI.create(URIUtil.newURIBuilder(newURI.getScheme(), newURI.getHost(), newURI.getPort()).toString())
+                    ? URI.create(URIUtil.newURIBuilder(newURI.getScheme(), newURI.getRawAuthority(), 0).toString())
                     : origin;
 
                 if (!newURI.isAbsolute())
@@ -299,8 +299,9 @@ public class HttpRedirector
 
     private URI sanitize(String location)
     {
-        // Redirects should be valid, absolute, URIs, with properly escaped paths and encoded
-        // query parameters. However, shit happens, and here we try our best to recover.
+        // Redirects should be valid, absolute, URIs, with properly encoded
+        // host name (with IDN), URL-encoded paths and query parameters.
+        // However, shit happens, and here we try our best to recover.
 
         try
         {
