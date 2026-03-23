@@ -159,11 +159,10 @@ public class MemoryEndPointPipeTest
         EndPoint localEndPoint = pipe.getLocalEndPoint();
         EndPoint remoteEndPoint = pipe.getRemoteEndPoint();
 
-        // Register fill interest before writing
+        // Register fill interest before writing.
         Callback.Completable remoteFillCallback = new Callback.Completable();
         remoteEndPoint.fillInterested(remoteFillCallback);
 
-        // Write some data
         byte[] data = new byte[100];
         Arrays.fill(data, (byte)42);
         Blocker.Shared blocker = new Blocker.Shared();
@@ -173,29 +172,28 @@ public class MemoryEndPointPipeTest
             callback.block();
         }
 
-        // Shutdown output to signal EOF
+        // Shutdown output to signal EOF.
         localEndPoint.shutdownOutput();
 
-        // Wait for data to be available
+        // Wait for data to be available.
         remoteFillCallback.get(5, TimeUnit.SECONDS);
 
-        // Read all data first
-        RetainableByteBuffer buffer = buffers.acquire(200, false);
+        RetainableByteBuffer buffer = buffers.acquire(2 * data.length, false);
         ByteBuffer readBuffer = buffer.getByteBuffer();
         int totalFilled = 0;
-        int filled = remoteEndPoint.fill(readBuffer);
-        while (filled > 0)
+        while (true)
         {
-            readBuffer.position(readBuffer.position() + filled);
-            totalFilled += filled;
-            filled = remoteEndPoint.fill(readBuffer);
+            int filled = remoteEndPoint.fill(readBuffer);
+            if (filled >= 0)
+                totalFilled += filled;
+            else
+                break;
         }
 
-        // Verify all data was read
+        // Verify all data was read.
         assertThat(totalFilled, equalTo(data.length));
 
-        // Verify EOF is returned after all data consumed
-        assertThat(filled, equalTo(-1));
+        assertThat(remoteEndPoint.fill(readBuffer), equalTo(-1));
     }
 
     @Test
@@ -206,16 +204,14 @@ public class MemoryEndPointPipeTest
         EndPoint localEndPoint = pipe.getLocalEndPoint();
         EndPoint remoteEndPoint = pipe.getRemoteEndPoint();
 
-        // Shutdown output without writing any data
+        // Shutdown output without writing any data.
         localEndPoint.shutdownOutput();
+        assertTrue(localEndPoint.isOutputShutdown());
 
         // Remote endpoint should get EOF immediately
         ByteBuffer readBuffer = ByteBuffer.allocate(100);
         int filled = remoteEndPoint.fill(readBuffer);
         assertThat(filled, equalTo(-1));
-
-        // Verify local endpoint is output shutdown
-        assertTrue(localEndPoint.isOutputShutdown());
     }
 
     @Test
@@ -226,7 +222,7 @@ public class MemoryEndPointPipeTest
         EndPoint localEndPoint = pipe.getLocalEndPoint();
         EndPoint remoteEndPoint = pipe.getRemoteEndPoint();
 
-        // Register fill interest before writing
+        // Register fill interest before writing.
         Callback.Completable remoteFillCallback = new Callback.Completable();
         remoteEndPoint.fillInterested(remoteFillCallback);
 
@@ -239,56 +235,50 @@ public class MemoryEndPointPipeTest
             callback.block();
         }
 
-        // Close local endpoint
+        // Close the local endpoint.
         localEndPoint.close();
-
-        // Verify local endpoint is closed
         assertFalse(localEndPoint.isOpen());
 
-        // Wait for data to be available
+        // Wait for data to be available.
         remoteFillCallback.get(5, TimeUnit.SECONDS);
 
-        // Remote endpoint should still be able to read existing data
-        RetainableByteBuffer buffer = buffers.acquire(100, false);
+        // Remote endpoint should be able to read existing data.
+        RetainableByteBuffer buffer = buffers.acquire(2 * data.length, false);
         ByteBuffer readBuffer = buffer.getByteBuffer();
         int filled = remoteEndPoint.fill(readBuffer);
         assertThat(filled, equalTo(data.length));
 
-        // Advance buffer position after reading
-        readBuffer.position(readBuffer.position() + filled);
-
-        // After reading all data, should get EOF
+        // After reading all data, should get EOF.
         filled = remoteEndPoint.fill(readBuffer);
         assertThat(filled, equalTo(-1));
     }
 
     @Test
-    public void testFillOnClosedEndpoint() throws Exception
+    public void testFillOnClosedEndpoint()
     {
         MemoryEndPointPipe pipe = new MemoryEndPointPipe(scheduler, executor::execute, null);
 
-        EndPoint localEndPoint = pipe.getLocalEndPoint();
         EndPoint remoteEndPoint = pipe.getRemoteEndPoint();
 
-        // Close remote endpoint
+        // Close the remote endpoint.
         remoteEndPoint.close();
 
-        // fill() on closed endpoint should throw IOException
+        // fill() on closed endpoint should throw IOException.
         ByteBuffer readBuffer = ByteBuffer.allocate(100);
         assertThrows(IOException.class, () -> remoteEndPoint.fill(readBuffer));
     }
 
     @Test
-    public void testFlushOnClosedEndpoint() throws Exception
+    public void testFlushOnClosedEndpoint()
     {
         MemoryEndPointPipe pipe = new MemoryEndPointPipe(scheduler, executor::execute, null);
 
         EndPoint localEndPoint = pipe.getLocalEndPoint();
 
-        // Close local endpoint
+        // Close the local endpoint.
         localEndPoint.close();
 
-        // flush() on closed endpoint should throw IOException
+        // flush() on closed endpoint should throw IOException.
         ByteBuffer writeBuffer = ByteBuffer.wrap(new byte[50]);
         assertThrows(IOException.class, () -> localEndPoint.flush(writeBuffer));
     }
@@ -297,18 +287,20 @@ public class MemoryEndPointPipeTest
     public void testSmallCapacityPartialFlush() throws Exception
     {
         MemoryEndPointPipe pipe = new MemoryEndPointPipe(scheduler, executor::execute, null);
-        // Set a small capacity that is less than the data we want to write
-        pipe.setLocalEndPointMaxCapacity(20);
+        // Set a small capacity that is less than the data we want to write.
+        int maxCapacity = 20;
+        pipe.setLocalEndPointMaxCapacity(maxCapacity);
 
         EndPoint localEndPoint = pipe.getLocalEndPoint();
 
-        // Try to flush more data than capacity allows
-        ByteBuffer writeBuffer = ByteBuffer.wrap(new byte[50]);
+        // Try to flush more data than capacity allows.
+        byte[] bytes = new byte[2 * maxCapacity + maxCapacity / 2];
+        ByteBuffer writeBuffer = ByteBuffer.wrap(bytes);
         boolean flushed = localEndPoint.flush(writeBuffer);
         assertFalse(flushed);
 
-        // Only 20 bytes should have been flushed, 30 remaining
-        assertThat(writeBuffer.remaining(), equalTo(30));
+        // Only maxCapacity bytes should have been flushed.
+        assertThat(writeBuffer.remaining(), equalTo(bytes.length - maxCapacity));
     }
 
     @Test
@@ -319,18 +311,18 @@ public class MemoryEndPointPipeTest
         EndPoint localEndPoint = pipe.getLocalEndPoint();
         EndPoint remoteEndPoint = pipe.getRemoteEndPoint();
 
-        // Flush empty buffers
+        // Flush empty buffers.
         ByteBuffer emptyBuffer = ByteBuffer.allocate(0);
         boolean flushed = localEndPoint.flush(emptyBuffer);
         assertTrue(flushed);
 
-        // Flush with position == limit (consumed buffer)
+        // Flush with position == limit (consumed buffer).
         ByteBuffer consumedBuffer = ByteBuffer.allocate(50);
         consumedBuffer.position(consumedBuffer.limit());
         flushed = localEndPoint.flush(consumedBuffer);
         assertTrue(flushed);
 
-        // Remote should have no data to read
+        // Remote should have no data to read.
         ByteBuffer readBuffer = ByteBuffer.allocate(100);
         int filled = remoteEndPoint.fill(readBuffer);
         assertThat(filled, equalTo(0));
