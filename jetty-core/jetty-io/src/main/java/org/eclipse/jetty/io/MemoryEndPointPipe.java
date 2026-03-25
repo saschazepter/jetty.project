@@ -312,7 +312,8 @@ public class MemoryEndPointPipe implements EndPoint.Pipe
 
         private RetainableByteBuffer lockedCopy(ByteBuffer buffer)
         {
-            int length = buffer.remaining();
+            int remaining = buffer.remaining();
+            int length = remaining;
             long maxCapacity = getMaxCapacity();
             if (maxCapacity > 0)
             {
@@ -323,7 +324,16 @@ public class MemoryEndPointPipe implements EndPoint.Pipe
             }
 
             RetainableByteBuffer.Mutable copy = byteBufferPool.acquire(length, buffer.isDirect());
-            copy.append(buffer);
+            if (length < remaining)
+            {
+                // Partial copy.
+                copy.append(buffer.slice(buffer.position(), length));
+                buffer.position(buffer.position() + length);
+            }
+            else
+            {
+                copy.append(buffer);
+            }
             return copy;
         }
 
