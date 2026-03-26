@@ -154,7 +154,7 @@ public class HttpRedirector
             {
                 URI origin = ((HttpRequest)request).getOrigin();
                 URI redirectOrigin = newURI.isAbsolute()
-                    ? URI.create(URIUtil.newURIBuilder(newURI.getScheme(), newURI.getRawAuthority(), 0).toString())
+                    ? URI.create(newURI.getScheme() + "://" + newURI.getRawAuthority())
                     : origin;
 
                 if (!newURI.isAbsolute())
