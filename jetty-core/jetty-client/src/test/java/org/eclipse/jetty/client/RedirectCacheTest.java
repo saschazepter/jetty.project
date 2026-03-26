@@ -97,6 +97,76 @@ public class RedirectCacheTest extends AbstractHttpClientServerTest
 
     @ParameterizedTest
     @ArgumentsSource(ScenarioProvider.class)
+    public void test301NotCachedForDifferentQuery(Scenario scenario) throws Exception
+    {
+        AtomicInteger redirectCount = new AtomicInteger();
+        startServer(scenario, new Handler.Abstract()
+        {
+            @Override
+            public boolean handle(Request request, org.eclipse.jetty.server.Response response, Callback callback)
+            {
+                String path = Request.getPathInContext(request);
+                if ("/old".equals(path))
+                {
+                    redirectCount.incrementAndGet();
+                    String location = scenario.getScheme() + "://localhost:" + connector.getLocalPort() + "/new";
+                    org.eclipse.jetty.server.Response.sendRedirect(request, response, callback, HttpStatus.MOVED_PERMANENTLY_301, location, true);
+                }
+                else if ("/new".equals(path))
+                {
+                    response.setStatus(HttpStatus.OK_200);
+                    response.write(true, StandardCharsets.UTF_8.encode("ok"), callback);
+                }
+                else
+                {
+                    response.setStatus(HttpStatus.NOT_FOUND_404);
+                    callback.succeeded();
+                }
+                return true;
+            }
+        });
+
+        startClient(scenario, httpClient -> httpClient.setRedirectCache(new RedirectCache.Default(100)));
+
+        // First request - should follow redirect and cache it.
+        ContentResponse response1 = client.newRequest("localhost", connector.getLocalPort())
+            .scheme(scenario.getScheme())
+            .path("/old?time=1")
+            .timeout(5, TimeUnit.SECONDS)
+            .send();
+
+        assertEquals(HttpStatus.OK_200, response1.getStatus());
+        assertEquals("ok", response1.getContentAsString());
+        assertEquals(1, redirectCount.get());
+        assertEquals(1, client.getRedirectCache().size());
+
+        // Second request - different query, should not use the cache.
+        ContentResponse response2 = client.newRequest("localhost", connector.getLocalPort())
+            .scheme(scenario.getScheme())
+            .path("/old?time=2")
+            .timeout(5, TimeUnit.SECONDS)
+            .send();
+
+        assertEquals(HttpStatus.OK_200, response2.getStatus());
+        assertEquals("ok", response2.getContentAsString());
+        assertEquals(2, redirectCount.get());
+        assertEquals(2, client.getRedirectCache().size());
+
+        // Third request - same query as the first, should use the cache.
+        ContentResponse response3 = client.newRequest("localhost", connector.getLocalPort())
+            .scheme(scenario.getScheme())
+            .path("/old?time=1")
+            .timeout(5, TimeUnit.SECONDS)
+            .send();
+
+        assertEquals(HttpStatus.OK_200, response3.getStatus());
+        assertEquals("ok", response3.getContentAsString());
+        assertEquals(2, redirectCount.get());
+        assertEquals(2, client.getRedirectCache().size());
+    }
+
+    @ParameterizedTest
+    @ArgumentsSource(ScenarioProvider.class)
     public void test308Cached(Scenario scenario) throws Exception
     {
         AtomicInteger redirectCount = new AtomicInteger();
@@ -105,7 +175,7 @@ public class RedirectCacheTest extends AbstractHttpClientServerTest
         startServer(scenario, new Handler.Abstract()
         {
             @Override
-            public boolean handle(Request request, org.eclipse.jetty.server.Response response, Callback callback) throws Exception
+            public boolean handle(Request request, org.eclipse.jetty.server.Response response, Callback callback)
             {
                 String path = Request.getPathInContext(request);
                 if ("/old".equals(path))
@@ -285,7 +355,7 @@ public class RedirectCacheTest extends AbstractHttpClientServerTest
     }
 
     @Test
-    public void testCacheEviction() throws Exception
+    public void testCacheEviction()
     {
         RedirectCache.Default cache = new RedirectCache.Default(2);
 
@@ -314,18 +384,18 @@ public class RedirectCacheTest extends AbstractHttpClientServerTest
     @Test
     public void testCacheClearedOnStop() throws Exception
     {
-        HttpClient httpClient = new HttpClient();
         RedirectCache.Default cache = new RedirectCache.Default(100);
-        httpClient.setRedirectCache(cache);
-        httpClient.start();
+        try (HttpClient httpClient = new HttpClient())
+        {
+            httpClient.setRedirectCache(cache);
+            httpClient.start();
 
-        RedirectCache.MethodOriginTarget original1 = new RedirectCache.MethodOriginTarget("GET", URI.create("http://example.com"), "/old1");
-        RedirectCache.MethodOriginTarget redirect1 = new RedirectCache.MethodOriginTarget("GET", URI.create("http://example.com"), "/new1");
-        cache.put(original1, HttpStatus.PERMANENT_REDIRECT_308, redirect1);
+            RedirectCache.MethodOriginTarget original1 = new RedirectCache.MethodOriginTarget("GET", URI.create("http://example.com"), "/old1");
+            RedirectCache.MethodOriginTarget redirect1 = new RedirectCache.MethodOriginTarget("GET", URI.create("http://example.com"), "/new1");
+            cache.put(original1, HttpStatus.PERMANENT_REDIRECT_308, redirect1);
 
-        assertEquals(1, cache.size());
-
-        httpClient.stop();
+            assertEquals(1, cache.size());
+        }
 
         assertEquals(0, cache.size());
     }

@@ -44,6 +44,7 @@ import org.eclipse.jetty.client.Connection;
 import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.Destination;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.HttpRedirector;
 import org.eclipse.jetty.client.Origin;
 import org.eclipse.jetty.client.PathRequestContent;
 import org.eclipse.jetty.client.RedirectCache;
@@ -780,7 +781,8 @@ public class HttpRequest implements Request
         RedirectCache redirectCache = client.getRedirectCache();
         if (redirectCache != null)
         {
-            RedirectCache.MethodOriginTarget original = new RedirectCache.MethodOriginTarget(getMethod(), getOrigin(), getPath());
+            String pathQuery = HttpRedirector.formatPathQuery(getPath(), getQuery());
+            RedirectCache.MethodOriginTarget original = new RedirectCache.MethodOriginTarget(getMethod(), getOrigin(), pathQuery);
             RedirectCache.MethodOriginTarget redirect = redirectCache.get(original);
             if (redirect != null)
             {

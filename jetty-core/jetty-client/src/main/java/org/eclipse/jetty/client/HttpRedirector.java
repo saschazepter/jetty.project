@@ -161,12 +161,12 @@ public class HttpRedirector
                     newURI = origin.resolve(newURI);
 
                 String method = request.getMethod();
-                String newPath = newURI.getRawPath();
-                if (HttpMethod.OPTIONS.is(method) && (newPath == null || newPath.isEmpty()))
-                    newPath = request.getPath();
+                String newPathQuery = formatPathQuery(newURI.getRawPath(), newURI.getRawQuery());
+                if (HttpMethod.OPTIONS.is(method) && newPathQuery.isEmpty())
+                    newPathQuery = request.getPath();
                 else if (HttpMethod.CONNECT.is(method))
-                    newPath = request.getPath();
-                String redirectPath = newPath;
+                    newPathQuery = request.getPath();
+                String redirectPathQuery = newPathQuery;
 
                 String redirectMethod = computeRedirectMethod(request, response);
                 if (redirectMethod != null)
@@ -188,8 +188,9 @@ public class HttpRedirector
                                 if (!responseHeaders.contains(HttpHeader.CACHE_CONTROL, "no-cache") &&
                                     !responseHeaders.contains(HttpHeader.CACHE_CONTROL, "no-store"))
                                 {
-                                    RedirectCache.MethodOriginTarget original = new RedirectCache.MethodOriginTarget(method, origin, request.getPath());
-                                    RedirectCache.MethodOriginTarget redirect = new RedirectCache.MethodOriginTarget(redirectMethod, redirectOrigin, redirectPath);
+                                    String pathQuery = formatPathQuery(request.getPath(), request.getQuery());
+                                    RedirectCache.MethodOriginTarget original = new RedirectCache.MethodOriginTarget(method, origin, pathQuery);
+                                    RedirectCache.MethodOriginTarget redirect = new RedirectCache.MethodOriginTarget(redirectMethod, redirectOrigin, redirectPathQuery);
                                     redirectCache.put(original, response.getStatus(), redirect);
                                 }
                             }
@@ -209,7 +210,7 @@ public class HttpRedirector
                         }
                     };
 
-                    return redirect(request, response, wrapper, redirectMethod, redirectOrigin, redirectPath);
+                    return redirect(request, response, wrapper, redirectMethod, redirectOrigin, redirectPathQuery);
                 }
                 else
                 {
@@ -229,7 +230,12 @@ public class HttpRedirector
         return null;
     }
 
-    private Request redirect(Request request, Response response, Response.CompleteListener listener, String redirectMethod, URI redirectOrigin, String redirectPath)
+    public static String formatPathQuery(String path, String query)
+    {
+        return (path != null ? path : "/") + (query != null ? "?" + query : "");
+    }
+
+    private Request redirect(Request request, Response response, Response.CompleteListener listener, String redirectMethod, URI redirectOrigin, String redirectPathQuery)
     {
         HttpRequest httpRequest = (HttpRequest)request;
         HttpConversation conversation = httpRequest.getConversation();
@@ -241,7 +247,7 @@ public class HttpRedirector
         {
             ++redirects;
             conversation.setAttribute(ATTRIBUTE, redirects);
-            return sendRedirect(httpRequest, response, listener, redirectMethod, redirectOrigin, redirectPath);
+            return sendRedirect(httpRequest, response, listener, redirectMethod, redirectOrigin, redirectPathQuery);
         }
         else
         {
@@ -335,7 +341,7 @@ public class HttpRedirector
         }
     }
 
-    private Request sendRedirect(HttpRequest httpRequest, Response response, Response.CompleteListener listener, String redirectMethod, URI redirectOrigin, String redirectPath)
+    private Request sendRedirect(HttpRequest httpRequest, Response response, Response.CompleteListener listener, String redirectMethod, URI redirectOrigin, String redirectPathQuery)
     {
         try
         {
@@ -343,7 +349,7 @@ public class HttpRedirector
 
             // Use the given method and path.
             redirect.method(redirectMethod);
-            redirect.path(redirectPath);
+            redirect.path(redirectPathQuery);
 
             if (HttpMethod.GET.is(redirectMethod))
             {
@@ -359,7 +365,7 @@ public class HttpRedirector
             if (body != null && !body.rewind())
             {
                 if (LOG.isDebugEnabled())
-                    LOG.debug("Could not redirect to {}, request body is not reproducible", redirectPath);
+                    LOG.debug("Could not redirect to {}, request body is not reproducible", redirect.getURI());
                 HttpConversation conversation = httpRequest.getConversation();
                 conversation.updateResponseListeners(null);
                 conversation.getResponseListeners().emitSuccessComplete(new Result(httpRequest, response));
