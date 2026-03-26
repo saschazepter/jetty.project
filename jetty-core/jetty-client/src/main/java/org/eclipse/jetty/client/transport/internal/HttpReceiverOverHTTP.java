@@ -257,7 +257,9 @@ public class HttpReceiverOverHTTP extends HttpReceiver implements HttpParser.Res
                 {
                     // Return immediately, as this thread may be in a race
                     // with e.g. another thread demanding more content.
-                    if (upgraded)
+                    // The call to parse() above may reenter this method.
+                    // The buffer may contain bytes for the upgraded protocol.
+                    if (upgraded && networkBuffer != null && !networkBuffer.hasRemaining())
                         releaseNetworkBuffer();
                     return false;
                 }
