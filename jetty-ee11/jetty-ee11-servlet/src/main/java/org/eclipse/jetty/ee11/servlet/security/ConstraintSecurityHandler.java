@@ -430,7 +430,7 @@ public class ConstraintSecurityHandler extends SecurityHandler implements Constr
     }
 
     /**
-     * <p>Combine constrains as per the servlet specification.
+     * <p>Combine constraints as per the servlet specification.
      * This is NOT equivalent to {@link Constraint#combine(Constraint, Constraint)}, which implements
      * a more secure combination.</p>
      * @param constraintA A constraint

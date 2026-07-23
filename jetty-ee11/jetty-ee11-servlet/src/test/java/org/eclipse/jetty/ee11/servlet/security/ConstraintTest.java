@@ -1916,8 +1916,6 @@ public class ConstraintTest
         assertThat(response, startsWith("HTTP/1.1 403 Forbidden"));
 
         response = _connector.getResponse("GET /ctx/auth/info HTTP/1.0\r\n\r\n");
-        // assertThat(response,containsString(" 302 Found"));
-        // assertThat(response,containsString("/ctx/testLoginPage"));
         assertThat(response, containsString("Cache-Control: no-cache"));
         assertThat(response, containsString("Expires"));
         assertThat(response, containsString("URI=/ctx/testLoginPage"));
@@ -1958,8 +1956,6 @@ public class ConstraintTest
 
         // log in again as user2
         response = _connector.getResponse("GET /ctx/auth/info HTTP/1.0\r\n\r\n");
-//        assertThat(response,startsWith("HTTP/1.1 302 "));
-//        assertThat(response,containsString("testLoginPage"));
         session = response.substring(response.indexOf("JSESSIONID=") + 11, response.indexOf("; Path=/ctx"));
 
         response = _connector.getResponse("POST /ctx/j_security_check HTTP/1.0\r\n" +
@@ -1986,8 +1982,6 @@ public class ConstraintTest
 
         // log in again as admin
         response = _connector.getResponse("GET /ctx/auth/info HTTP/1.0\r\n\r\n");
-//        assertThat(response,startsWith("HTTP/1.1 302 "));
-//        assertThat(response,containsString("testLoginPage"));
         session = response.substring(response.indexOf("JSESSIONID=") + 11, response.indexOf("; Path=/ctx"));
 
         response = _connector.getResponse("POST /ctx/j_security_check HTTP/1.0\r\n" +
@@ -2120,8 +2114,6 @@ public class ConstraintTest
 
         // log in again as admin
         response = _connector.getResponse("GET /ctx/auth/info HTTP/1.0\r\n\r\n");
-//        assertThat(response,startsWith("HTTP/1.1 302 "));
-//        assertThat(response,containsString("testLoginPage"));
         session = response.substring(response.indexOf("JSESSIONID=") + 11, response.indexOf("; Path=/ctx"));
 
         response = _connector.getResponse("POST /ctx/j_security_check HTTP/1.0\r\n" +
@@ -2456,8 +2448,8 @@ public class ConstraintTest
     }
 
     /**
-     * Replication of Constraint combination from Jakarta Servlet Spec 13.8.1 : Combining Constraints.
-     * https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#combining-constraints
+     * Replication of Constraint combination from
+     * <a href="https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#combining-constraints">Jakarta Servlet Spec 13.8.1 : Combining Constraints</a>.
      */
     @ParameterizedTest
     @MethodSource("jakartaSpecCombinedConstraintExampleCases")
