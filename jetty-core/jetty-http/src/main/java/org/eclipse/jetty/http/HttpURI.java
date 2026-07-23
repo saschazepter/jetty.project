@@ -1398,7 +1398,12 @@ public interface HttpURI
                                 URIUtil.validateInetAddress(host);
                                 _host = host;
                                 if (i == end)
+                                {
+                                    pathMark = mark = i;
+                                    segment = mark + 1;
+                                    state = State.PATH;
                                     break;
+                                }
                                 c = uri.charAt(i);
                                 if (c == ':')
                                 {
@@ -1408,6 +1413,7 @@ public interface HttpURI
                                 else
                                 {
                                     pathMark = mark = i;
+                                    segment = mark + 1;
                                     state = State.PATH;
                                 }
                                 break;
@@ -1756,7 +1762,7 @@ public interface HttpURI
         {
             if (_violations == null)
                 _violations = EnumSet.of(violation);
-            else 
+            else
                 _violations.add(violation);
         }
 
