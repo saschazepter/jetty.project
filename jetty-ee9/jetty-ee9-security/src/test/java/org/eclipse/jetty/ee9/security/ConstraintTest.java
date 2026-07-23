@@ -2406,7 +2406,7 @@ public class ConstraintTest
         assertThrows(IllegalArgumentException.class, () -> mapping.setMethodOmissions(names));
     }
 
-    public static Stream<Arguments> jakartaSpecCombinedConstraintExampleCases()
+    public static Stream<Arguments> servletSpecCombinedConstraintExampleCases()
     {
         return Stream.of(
             // Test the Table 13-4 "Security Constraint Table" url-pattern of "/*"
@@ -2429,8 +2429,8 @@ public class ConstraintTest
      * <a href="https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#combining-constraints">Jakarta Servlet Spec 13.8.1 : Combining Constraints</a>.
      */
     @ParameterizedTest
-    @MethodSource("jakartaSpecCombinedConstraintExampleCases")
-    public void testJakartaSpecCombinedConstraintsExamples(String httpMethod, String requestPath,
+    @MethodSource("servletSpecCombinedConstraintExampleCases")
+    public void testServletSpecCombinedConstraintsExamples(String httpMethod, String requestPath,
                                                            boolean expectedIsChecked,
                                                            boolean expectedForbidden,
                                                            org.hamcrest.Matcher<Set<String>> rolesMatcher,
