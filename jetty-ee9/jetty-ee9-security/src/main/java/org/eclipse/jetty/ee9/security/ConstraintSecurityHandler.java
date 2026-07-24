@@ -44,6 +44,7 @@ import org.eclipse.jetty.http.pathmap.PathSpec;
 import org.eclipse.jetty.security.UserIdentity;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.component.DumpableCollection;
 import org.slf4j.Logger;
@@ -192,7 +193,7 @@ public class ConstraintSecurityHandler extends SecurityHandler implements Constr
      */
     public static List<ConstraintMapping> removeConstraintMappingsForPath(String pathSpec, List<ConstraintMapping> constraintMappings)
     {
-        if (pathSpec == null || "".equals(pathSpec.trim()) || constraintMappings == null || constraintMappings.size() == 0)
+        if (StringUtil.isBlank(pathSpec) || constraintMappings == null || constraintMappings.isEmpty())
             return Collections.emptyList();
 
         List<ConstraintMapping> mappings = new ArrayList<>();
@@ -208,7 +209,7 @@ public class ConstraintSecurityHandler extends SecurityHandler implements Constr
     }
 
     /**
-     * Generate Constraints and ContraintMappings for the given url pattern and ServletSecurityElement
+     * Generate Constraints and ConstraintMappings for the given url pattern and ServletSecurityElement
      *
      * @param name the name
      * @param pathSpec the path spec
@@ -520,9 +521,8 @@ public class ConstraintSecurityHandler extends SecurityHandler implements Constr
      */
     protected void processConstraintMappingWithMethodOmissions(ConstraintMapping mapping, Map<String, RoleInfo> mappings)
     {
-        String omissions = String.join(".", mapping.getMethodOmissions()) + OMISSION_SUFFIX;
         RoleInfo ri = new RoleInfo();
-        mappings.put(omissions, ri);
+        mappings.put(toMethodOmissions(mapping), ri);
         configureRoleInfo(ri, mapping);
     }
 

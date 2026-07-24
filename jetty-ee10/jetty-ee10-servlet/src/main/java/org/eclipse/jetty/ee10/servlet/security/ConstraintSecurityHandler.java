@@ -46,6 +46,7 @@ import org.eclipse.jetty.server.Context;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.component.DumpableCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,7 +183,7 @@ public class ConstraintSecurityHandler extends SecurityHandler implements Constr
      */
     public static List<ConstraintMapping> removeConstraintMappingsForPath(String pathSpec, List<ConstraintMapping> constraintMappings)
     {
-        if (pathSpec == null || pathSpec.trim().isEmpty() || constraintMappings == null || constraintMappings.isEmpty())
+        if (StringUtil.isBlank(pathSpec) || constraintMappings == null || constraintMappings.isEmpty())
             return Collections.emptyList();
 
         List<ConstraintMapping> mappings = new ArrayList<>();
@@ -578,8 +579,7 @@ public class ConstraintSecurityHandler extends SecurityHandler implements Constr
     @Deprecated(since = "12.1.11", forRemoval = true)
     protected void processConstraintMappingWithMethodOmissions(ConstraintMapping mapping, Map<String, Constraint> mappings)
     {
-        String omissions = String.join(".", mapping.getMethodOmissions()) + OMISSION_SUFFIX;
-        mappings.put(omissions, mapping.getConstraint());
+        mappings.put(toMethodOmissions(mapping), mapping.getConstraint());
     }
 
     private String toMethodOmissions(ConstraintMapping mapping)

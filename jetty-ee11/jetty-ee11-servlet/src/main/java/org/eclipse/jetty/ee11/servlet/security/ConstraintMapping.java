@@ -57,7 +57,7 @@ public class ConstraintMapping
     public void setMethod(String method)
     {
         if (method != null)
-            validMethodName(method, "Servlet Constraint HTTP Method");
+            checkHttpMethodName(method, "Servlet Constraint HTTP Method");
 
         this._method = method;
     }
@@ -86,7 +86,7 @@ public class ConstraintMapping
         if (omissions != null)
         {
             for (String omission: omissions)
-                validMethodName(omission, "Servlet Constraint HTTP Method Omission");
+                checkHttpMethodName(omission, "Servlet Constraint HTTP Method Omission");
         }
 
         _methodOmissions = omissions;
@@ -102,7 +102,7 @@ public class ConstraintMapping
         return _methodOmissions != null && _methodOmissions.length > 0;
     }
 
-    public void validMethodName(String methodName, String msg)
+    private void checkHttpMethodName(String methodName, String msg)
     {
         if (StringUtil.isBlank(methodName))
             throw new IllegalArgumentException("Blank HTTP Method Name: " + msg);
