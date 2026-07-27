@@ -15,6 +15,9 @@ package org.eclipse.jetty.ee10.annotations;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import jakarta.servlet.ServletSecurityElement;
 import jakarta.servlet.annotation.ServletSecurity;
@@ -25,6 +28,7 @@ import org.eclipse.jetty.ee10.servlet.security.ConstraintAware;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintMapping;
 import org.eclipse.jetty.ee10.servlet.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.ee10.webapp.WebAppContext;
+import org.eclipse.jetty.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,28 +69,31 @@ public class ServletSecurityAnnotationHandler extends AbstractIntrospectableAnno
         if (servletSecurity == null)
             return;
 
-        //If there are already constraints defined (ie from web.xml) that match any
-        //of the url patterns defined for this servlet, then skip the security annotation.
-
         List<ServletMapping> servletMappings = getServletMappings(clazz.getCanonicalName());
-        List<ConstraintMapping> constraintMappings = ((ConstraintAware)_context.getSecurityHandler()).getConstraintMappings();
 
-        if (constraintsExist(servletMappings, constraintMappings))
-        {
-            LOG.warn("Constraints already defined for {}, skipping ServletSecurity annotation", clazz.getName());
-            return;
-        }
+        Set<String> existingConstraintMappingPathSpecs = securityHandler.getConstraintMappings()
+            .stream()
+            .filter(cm -> StringUtil.isNotBlank(cm.getPathSpec()))
+            .flatMap(cm -> Stream.of(cm.getPathSpec()))
+            .collect(Collectors.toSet());
 
-        //Make a fresh list
-        constraintMappings = new ArrayList<>();
+        List<ConstraintMapping> constraintMappings = new ArrayList<>();
 
         ServletSecurityElement securityElement = new ServletSecurityElement(servletSecurity);
         for (ServletMapping sm : servletMappings)
         {
-            for (String url : sm.getPathSpecs())
+            for (String pathSpec : sm.getPathSpecs())
             {
-                _context.getMetaData().setOrigin("constraint.url." + url, servletSecurity, clazz);
-                constraintMappings.addAll(ConstraintSecurityHandler.createConstraintsWithMappingsForPath(clazz.getName(), url, securityElement));
+                // Per Jakarta Servlet Spec 13.4.1: @ServletSecurity
+                // The security-constraint elements defined in web.xml are authoritative for all exact match url-patterns.
+                // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#servletsecurity-annotation
+                if (existingConstraintMappingPathSpecs.contains(pathSpec))
+                {
+                    LOG.warn("Constraint Mapping already defined for {} on path-spec {}, skipping ServletSecurity annotation", clazz.getName(), pathSpec);
+                    continue; // skip
+                }
+                _context.getMetaData().setOrigin("constraint.url." + pathSpec, servletSecurity, clazz);
+                constraintMappings.addAll(ConstraintSecurityHandler.createConstraintsWithMappingsForPath(clazz.getName(), pathSpec, securityElement));
             }
         }
 
