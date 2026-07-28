@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import jakarta.servlet.ServletSecurityElement;
 import jakarta.servlet.annotation.ServletSecurity;
@@ -73,8 +72,8 @@ public class ServletSecurityAnnotationHandler extends AbstractIntrospectableAnno
 
         Set<String> existingConstraintMappingPathSpecs = securityHandler.getConstraintMappings()
             .stream()
-            .filter(cm -> StringUtil.isNotBlank(cm.getPathSpec()))
-            .flatMap(cm -> Stream.of(cm.getPathSpec()))
+            .map(ConstraintMapping::getPathSpec)
+            .filter(StringUtil::isNotBlank)
             .collect(Collectors.toSet());
 
         List<ConstraintMapping> constraintMappings = new ArrayList<>();
@@ -163,6 +162,6 @@ public class ServletSecurityAnnotationHandler extends AbstractIntrospectableAnno
                 }
             }
         }
-        return false;
+        return exists;
     }
 }

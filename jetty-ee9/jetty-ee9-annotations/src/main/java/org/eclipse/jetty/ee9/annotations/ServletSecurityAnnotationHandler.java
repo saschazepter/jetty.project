@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import jakarta.servlet.ServletSecurityElement;
 import jakarta.servlet.annotation.ServletSecurity;
@@ -60,7 +59,7 @@ public class ServletSecurityAnnotationHandler extends AbstractIntrospectableAnno
     }
 
     @Override
-    public void doHandle(Class clazz)
+    public void doHandle(Class<?> clazz)
     {
         if (!(_context.getSecurityHandler() instanceof ConstraintAware securityHandler))
         {
@@ -68,7 +67,7 @@ public class ServletSecurityAnnotationHandler extends AbstractIntrospectableAnno
             return;
         }
 
-        ServletSecurity servletSecurity = (ServletSecurity)clazz.getAnnotation(ServletSecurity.class);
+        ServletSecurity servletSecurity = clazz.getAnnotation(ServletSecurity.class);
         if (servletSecurity == null)
             return;
 
@@ -76,8 +75,8 @@ public class ServletSecurityAnnotationHandler extends AbstractIntrospectableAnno
 
         Set<String> existingConstraintMappingPathSpecs = securityHandler.getConstraintMappings()
             .stream()
-            .filter(cm -> StringUtil.isNotBlank(cm.getPathSpec()))
-            .flatMap(cm -> Stream.of(cm.getPathSpec()))
+            .map(ConstraintMapping::getPathSpec)
+            .filter(StringUtil::isNotBlank)
             .collect(Collectors.toSet());
 
         List<ConstraintMapping> constraintMappings = new ArrayList<>();
@@ -89,7 +88,8 @@ public class ServletSecurityAnnotationHandler extends AbstractIntrospectableAnno
             {
                 // Per Jakarta Servlet Spec 13.4.1: @ServletSecurity
                 // The security-constraint elements defined in web.xml are authoritative for all exact match url-patterns.
-                // https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1#servletsecurity-annotation
+                // https://jakarta.ee/specifications/servlet/5.0/jakarta-servlet-spec-5.0#servletsecurity-annotation
+                // Note: for ee8 conversion, the rules here still apply on Jakarta Servlet 4.0 / EE8
                 if (existingConstraintMappingPathSpecs.contains(pathSpec))
                 {
                     LOG.warn("Constraint Mapping already defined for {} on path-spec {}, skipping ServletSecurity annotation", clazz.getName(), pathSpec);
