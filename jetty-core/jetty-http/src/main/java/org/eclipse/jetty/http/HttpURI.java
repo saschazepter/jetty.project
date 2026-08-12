@@ -1410,11 +1410,15 @@ public interface HttpURI
                                     mark = i + 1;
                                     state = State.PORT;
                                 }
-                                else
+                                else if (c == '/')
                                 {
                                     pathMark = mark = i;
                                     segment = mark + 1;
                                     state = State.PATH;
+                                }
+                                else
+                                {
+                                    throw new IllegalArgumentException("Bad authority");
                                 }
                                 break;
                             case ':':
