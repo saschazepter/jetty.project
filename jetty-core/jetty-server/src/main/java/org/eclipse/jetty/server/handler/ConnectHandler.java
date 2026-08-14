@@ -453,7 +453,7 @@ public class ConnectHandler extends Handler.Wrapper
      * @return the set of whitelisted hosts.
      * @deprecated use {@link #getHostIncludeExclude()} and its {@link IncludeExclude#include(Object)} method instead.
      */
-    @Deprecated(since = "12.1.12", forRemoval = true)
+    @Deprecated(since = "12.0.39", forRemoval = true)
     public Set<String> getWhiteListHosts()
     {
         return hosts.getIncluded();
@@ -465,7 +465,7 @@ public class ConnectHandler extends Handler.Wrapper
      * @return the set of blacklisted hosts.
      * @deprecated use {@link #getHostIncludeExclude()} and its {@link IncludeExclude#exclude(Object)} method instead.
      */
-    @Deprecated(since = "12.1.12", forRemoval = true)
+    @Deprecated(since = "12.0.39", forRemoval = true)
     public Set<String> getBlackListHosts()
     {
         return hosts.getExcluded();
