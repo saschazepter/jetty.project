@@ -1201,6 +1201,12 @@ public interface HttpURI
             return this;
         }
 
+        public Mutable violations(Collection<Violation> violations)
+        {
+            _violations.addAll(violations);
+            return this;
+        }
+
         @Override
         public String toString()
         {
