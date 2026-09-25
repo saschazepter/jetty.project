@@ -111,7 +111,7 @@ public class RewriteRegexRule extends RegexRule
         }
         if (isPreserveViolations())
         {
-            uriBuilder.violations(input.getHttpURI().getViolations());
+            uriBuilder.addViolations(input.getHttpURI().getViolations());
         }
         return new HttpURIHandler(input, uriBuilder.asImmutable());
     }

@@ -18,6 +18,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -895,8 +896,7 @@ public interface HttpURI
             _uri = null;
             _canonicalPath = null;
             _emptySegment = false;
-            if (_violations != null)
-                _violations.clear();
+            clearViolations();
             return this;
         }
 
@@ -1201,9 +1201,30 @@ public interface HttpURI
             return this;
         }
 
-        public Mutable violations(Collection<Violation> violations)
+        /**
+         * Clears all violations
+         *
+         * @return this mutable for chaining.
+         */
+        public Mutable clearViolations()
         {
-            _violations.addAll(violations);
+            if (_violations != null)
+                _violations.clear();
+            return this;
+        }
+
+        /**
+         * Adds a set of violations to the existing violations
+         *
+         * @param violations the violations to add
+         * @return this mutable for chaining.
+         */
+        public Mutable addViolations(Collection<Violation> violations)
+        {
+            if (_violations == null)
+                _violations = new HashSet<>(violations);
+            else
+                _violations.addAll(violations);
             return this;
         }
 

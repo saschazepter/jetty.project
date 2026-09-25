@@ -91,7 +91,7 @@ public class RewritePatternRule extends PatternRule
         String newPath = URIUtil.addPaths(_path, ServletPathSpec.pathInfo(getPattern(), httpURI.getPath()));
         HttpURI.Mutable uriBuilder = HttpURI.build(httpURI, newPath, httpURI.getParam(), newQuery);
         if (isPreserveViolations())
-            uriBuilder.violations(input.getHttpURI().getViolations());
+            uriBuilder.addViolations(input.getHttpURI().getViolations());
         if (LOG.isDebugEnabled())
             LOG.debug("rewriting {} to {}", httpURI, uriBuilder);
         return new HttpURIHandler(input, uriBuilder.asImmutable());

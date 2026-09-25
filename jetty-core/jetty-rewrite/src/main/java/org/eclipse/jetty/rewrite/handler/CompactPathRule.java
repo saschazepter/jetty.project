@@ -145,7 +145,7 @@ public class CompactPathRule extends Rule
                 HttpURI.Mutable uriBuilder = HttpURI.build(input.getHttpURI())
                     .path("/");
                 if (isPreserveViolations())
-                    uriBuilder.violations(input.getHttpURI().getViolations());
+                    uriBuilder.addViolations(input.getHttpURI().getViolations());
                 HttpURI uri = uriBuilder.asImmutable();
 
                 return new HttpURIHandler(input, uri);
@@ -164,7 +164,7 @@ public class CompactPathRule extends Rule
             HttpURI.Mutable uriBuilder = HttpURI.build(input.getHttpURI())
                 .path(cleanedPath);
             if (isPreserveViolations())
-                uriBuilder.violations(input.getHttpURI().getViolations());
+                uriBuilder.addViolations(input.getHttpURI().getViolations());
             HttpURI uri = uriBuilder.asImmutable();
             return new HttpURIHandler(input, uri);
         }
