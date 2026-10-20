@@ -698,7 +698,7 @@ public class StartArgs
         return Boolean.parseBoolean(offline);
     }
 
-    public boolean readonlyMavenLocalRepo()
+    public boolean readonlyMavenLocalRepo(boolean defaultValue)
     {
         String readonly = getJettyEnvironment().getProperties().getString("maven.local.repo.readonly");
 
@@ -709,7 +709,7 @@ public class StartArgs
             readonly = System.getenv("MAVEN_LOCAL_REPO_READONLY");
 
         if (Utils.isBlank(readonly))
-            return false; // default value (not defined by property or environment)
+            return defaultValue; // not defined by property or environment
 
         return Boolean.parseBoolean(readonly);
     }

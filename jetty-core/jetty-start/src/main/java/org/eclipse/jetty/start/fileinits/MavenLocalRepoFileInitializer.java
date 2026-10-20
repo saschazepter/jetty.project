@@ -47,13 +47,14 @@ import org.xml.sax.SAXException;
  */
 public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
 {
-    public class Coordinates
+    public static class Coordinates
     {
         public String groupId;
         public String artifactId;
         public String version;
         public String type;
         public String classifier;
+        private String mavenRepoUri = DEFAULT_REMOTE_REPO;
 
         public String toPath()
         {
@@ -116,6 +117,8 @@ public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
         }
     }
 
+    private static final String DEFAULT_REMOTE_REPO = "https://repo1.maven.org/maven2/";
+
     private final Path localRepositoryDir;
 
     private final boolean readonly;
@@ -125,10 +128,31 @@ public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
     /**
      * @deprecated use {@link MavenLocalRepoFileInitializer(BaseHome, StartArgs)} instead
      */
-    @Deprecated(forRemoval = true, since = "12.1.15")
+    @Deprecated(forRemoval = true, since = "12.1.14")
     public MavenLocalRepoFileInitializer(BaseHome baseHome)
     {
-        this(baseHome, null);
+        this(baseHome, null, true);
+    }
+
+    /**
+     * @deprecated use {@link MavenLocalRepoFileInitializer(BaseHome, StartArgs, Path)} instead
+     */
+    @Deprecated(forRemoval = true, since = "12.1.14")
+    public MavenLocalRepoFileInitializer(BaseHome baseHome, Path localRepoDir, boolean readonly)
+    {
+        this(baseHome, localRepoDir, readonly, null);
+    }
+
+    /**
+     * @deprecated use {@link MavenLocalRepoFileInitializer(BaseHome, StartArgs, Path, String)} instead
+     */
+    @Deprecated(forRemoval = true, since = "12.1.14")
+    public MavenLocalRepoFileInitializer(BaseHome baseHome, Path localRepoDir, boolean readonly, String mavenRepoUri)
+    {
+        super(baseHome, "maven");
+        this.localRepositoryDir = localRepoDir != null ? localRepoDir : newTempRepo();
+        this.readonly = readonly;
+        this.mavenRepoUri = Utils.isNotBlank(mavenRepoUri) ? mavenRepoUri : DEFAULT_REMOTE_REPO;
     }
 
     public MavenLocalRepoFileInitializer(BaseHome baseHome, StartArgs startArgs)
@@ -145,7 +169,12 @@ public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
     {
         super(baseHome, "maven");
         this.localRepositoryDir = localRepoDir != null ? localRepoDir : newTempRepo();
-        this.readonly = startArgs.readonlyMavenLocalRepo();
+        // An explicitly configured local repo is writable by default (it gets
+        // populated); an auto-discovered repo (e.g. the user's ~/.m2) is read-only
+        // by default, so downloads go into the ${jetty.base} instead. The
+        // maven.local.repo.readonly property/env var overrides this default.
+        boolean readonlyByDefault = startArgs.getMavenLocalRepoDir() == null;
+        this.readonly = startArgs.readonlyMavenLocalRepo(readonlyByDefault);
         this.offline = startArgs.useMavenOffline();
         this.mavenRepoUri = Utils.isNotBlank(mavenRepoUri) ? mavenRepoUri : startArgs.getMavenBaseUri();
     }
@@ -360,6 +389,7 @@ public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
         coords.version = parts[2];
         coords.type = "jar";
         coords.classifier = null;
+        coords.mavenRepoUri = getRemoteUri();
 
         if (parts.length >= 4)
         {
@@ -418,26 +448,38 @@ public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
             return;
         }
 
-        if (coords.version.endsWith("-SNAPSHOT"))
+        Path destinationFile = destination;
+        try
         {
-            Path localRepoMetadataPath = localRepositoryDir.resolve(coords.toMetadataPath());
-            if (isMetadataStale(localRepoMetadataPath))
+            if (coords.version.endsWith("-SNAPSHOT"))
             {
-                // Grab a fresh copy of the metadata xml
-                URI mavenMetadataURI = coords.toSnapshotMetadataXmlURI();
-                super.download(mavenMetadataURI, localRepoMetadataPath);
-            }
+                destinationFile = localRepositoryDir.resolve(coords.toMetadataPath());
+                if (isMetadataStale(destinationFile))
+                {
+                    // Grab a fresh copy of the metadata xml
+                    URI mavenMetadataURI = coords.toSnapshotMetadataXmlURI();
+                    super.download(mavenMetadataURI, destinationFile);
+                }
 
-            if (Files.exists(localRepoMetadataPath))
+                if (Files.exists(destinationFile))
+                {
+                    // parse metadata to get actual SNAPSHOT version
+                    String actualVersion = getMetadataVersion(destinationFile, coords);
+                    super.download(coords.toCentralURI(actualVersion), destination);
+                }
+            }
+            else
             {
-                // parse metadata to get actual SNAPSHOT version
-                String actualVersion = getMetadataVersion(localRepoMetadataPath, coords);
-                super.download(coords.toCentralURI(actualVersion), destination);
+                super.download(coords.toCentralURI(), destinationFile);
             }
         }
-        else
+        catch (Throwable t)
         {
-            super.download(coords.toCentralURI(), destination);
+            // Delete bad download file
+            if (destinationFile != null && Files.exists(destinationFile))
+            {
+                Files.delete(destinationFile);
+            }
         }
     }
 
