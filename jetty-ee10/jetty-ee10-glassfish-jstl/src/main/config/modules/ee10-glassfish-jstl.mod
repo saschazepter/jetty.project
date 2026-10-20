@@ -10,7 +10,7 @@ ee10
 ee10-apache-jsp
 
 [ini]
-ee10.jakarta.servlet.jsp.jstl.impl.version?=3.0.1
+ee10.jakarta.servlet.jsp.jstl.impl.version?=@ee10.jakarta.servlet.jsp.jstl.impl.version@
 
 # The group id prefix on the jar names is necessary because the
 # Glassfish jars have no JPMS metadata, see #9301.
