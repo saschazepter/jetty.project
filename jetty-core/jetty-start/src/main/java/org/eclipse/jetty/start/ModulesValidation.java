@@ -76,9 +76,11 @@ public class ModulesValidation
             {
                 for (String parent : module.getDepends())
                 {
+                    // Check the raw name for the conditional '?' prefix before it is stripped.
+                    boolean conditional = Module.isConditionalDependency(parent);
                     parent = Module.normalizeModuleName(parent);
                     String expandedParent = fullProps.expand(parent);
-                    if (!Module.isConditionalDependency(parent) && !hasDependency(modules, expandedParent))
+                    if (!conditional && !hasDependency(modules, expandedParent))
                     {
                         failures.add("%s - [depends] Does not exist '%s'".formatted(module.getName(), parent));
                     }
@@ -256,7 +258,8 @@ public class ModulesValidation
         {
             try
             {
-                Module depModule = modules.find(dependent);
+                // Strip any conditional '?' prefix so the dependency can be resolved.
+                Module depModule = modules.find(Module.normalizeModuleName(dependent));
                 if (depModule != null)
                 {
                     Props modProps = asProps(depModule);

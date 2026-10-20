@@ -371,6 +371,40 @@ public class ModuleValidationTest extends AbstractUseCase
     }
 
     @Test
+    public void testConditionalDependencyDoesNotExist() throws IOException
+    {
+        setupStandardHomeDir();
+
+        FS.ensureDirExists(baseDir.resolve("modules"));
+        Files.writeString(baseDir.resolve("modules/feature.mod"),
+            """
+            [depend]
+            # A conditional ('?') reference to a module that doesn't exist is not a failure
+            ?bogus-foo
+            """, UTF_8);
+
+        List<String> runArgs = List.of(
+            "--validate-modules=feature"
+        );
+        ExecResults results = exec(runArgs, false);
+        try (PrintCapture capture = new PrintCapture())
+        {
+            try
+            {
+                results.main.validateModules(capture, results.startArgs);
+            }
+            catch (IllegalStateException e)
+            {
+                fail(results.output + capture.asString(), e);
+            }
+            String validationOutput = capture.asString();
+            assertThat(validationOutput, allOf(
+                containsString("Validated 1 module(s)"),
+                containsString("No failure detected")));
+        }
+    }
+
+    @Test
     public void testBeforeDoesNotExist() throws IOException
     {
         setupStandardHomeDir();
