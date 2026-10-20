@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -61,8 +62,10 @@ public class ModulesValidation
             Main.initBaseProps(moduleProps, modules.getBaseHome(), VALIDATE_ORIGIN, VALIDATE_ORIGIN);
 
             Props fullProps = new Props();
-            fullProps.addAll(moduleProps);
+            // Load the dependencies' [ini] values first, then the module's own on top,
+            // so the module's own values take precedence over those of its dependencies.
             loadDependentProps(modules, module, fullProps);
+            fullProps.addAll(moduleProps);
 
             Set<String> provides = module.getProvides();
             provides.remove(module.getName());
@@ -125,12 +128,14 @@ public class ModulesValidation
                     {
                         FileArg fileArg = new FileArg(module, fileRef);
                         URI fileURI = fileArg.uri == null ? null : URI.create(fileArg.uri);
-                        for (FileInitializer finit : fileInitializers)
+                        if (fileURI != null)
                         {
-                            if (fileURI != null)
+                            boolean applicable = false;
+                            for (FileInitializer finit : fileInitializers)
                             {
                                 if (finit.isApplicable(fileURI))
                                 {
+                                    applicable = true;
                                     try
                                     {
                                         if (!finit.exists(fileURI))
@@ -147,12 +152,16 @@ public class ModulesValidation
                                     }
                                 }
                             }
-                            else
-                            {
-                                // Just a raw location reference (no URI)
-                                String destLocation = moduleProps.expand(fileArg.location);
-                                filesLocations.add(destLocation);
-                            }
+                            // No initializer handles this URI's scheme (e.g. a typo like
+                            // 'mavne://...'); normal processing would throw "Unable to create".
+                            if (!applicable)
+                                failures.add("%s - [files] Unable to create '%s'".formatted(module.getName(), file));
+                        }
+                        else
+                        {
+                            // Just a raw location reference (no URI)
+                            String destLocation = moduleProps.expand(fileArg.location);
+                            filesLocations.add(destLocation);
                         }
                     }
                 }
@@ -254,18 +263,28 @@ public class ModulesValidation
 
     private static void loadDependentProps(Modules modules, Module module, Props fullProps)
     {
+        Set<String> visited = new HashSet<>();
+        visited.add(module.getName());
+        loadDependentProps(modules, module, fullProps, visited);
+    }
+
+    private static void loadDependentProps(Modules modules, Module module, Props fullProps, Set<String> visited)
+    {
         for (String dependent: module.getDepends())
         {
             try
             {
                 // Strip any conditional '?' prefix so the dependency can be resolved.
                 Module depModule = modules.find(Module.normalizeModuleName(dependent));
-                if (depModule != null)
+                // Guard against dependency cycles (e.g. through dynamic 'a/b' modules that
+                // the topological sort doesn't see), which would otherwise recurse until
+                // the stack overflows.
+                if (depModule != null && visited.add(depModule.getName()))
                 {
                     Props modProps = asProps(depModule);
                     fullProps.addAll(modProps);
                     // Recurse
-                    loadDependentProps(modules, depModule, fullProps);
+                    loadDependentProps(modules, depModule, fullProps, visited);
                 }
             }
             catch (IOException e)

@@ -404,6 +404,87 @@ public class ModuleValidationTest extends AbstractUseCase
         }
     }
 
+    /**
+     * Test of validation, where a [files] entry uses a URI scheme that no file
+     * initializer handles (e.g. a typo), which normal processing would reject.
+     */
+    @Test
+    public void testFilesWithUnknownScheme() throws IOException
+    {
+        setupStandardHomeDir();
+
+        FS.ensureDirExists(baseDir.resolve("modules"));
+        Files.writeString(baseDir.resolve("modules/feature.mod"),
+            """
+            [files]
+            # 'mavne' is a typo of 'maven' that no initializer can handle
+            mavne://org.example/foo/1.0/jar|lib/foo-1.0.jar
+            """, UTF_8);
+
+        List<String> runArgs = List.of(
+            "--validate-modules=feature"
+        );
+        ExecResults results = exec(runArgs, false);
+        try (PrintCapture capture = new PrintCapture())
+        {
+            assertThrows(IllegalStateException.class, () -> results.main.validateModules(capture, results.startArgs));
+            String validationOutput = capture.asString();
+            assertThat(validationOutput, allOf(
+                containsString("Validated 1 module(s)"),
+                containsString("There are 1 failed module validations"),
+                containsString("feature - [files] Unable to create 'mavne://org.example/foo/1.0/jar|lib/foo-1.0.jar'")));
+        }
+    }
+
+    /**
+     * Test of validation where the dependency graph contains a cycle through dynamic
+     * ('a/b') modules that the topological sort does not see. The property walk must
+     * terminate rather than recurse until the stack overflows.
+     */
+    @Test
+    public void testDependencyCycle() throws IOException
+    {
+        setupStandardHomeDir();
+
+        FS.ensureDirExists(baseDir.resolve("modules"));
+        FS.ensureDirExists(baseDir.resolve("modules/cycle"));
+        Files.writeString(baseDir.resolve("modules/feature.mod"),
+            """
+            [depend]
+            cycle/a
+            """, UTF_8);
+        Files.writeString(baseDir.resolve("modules/cycle/a.mod"),
+            """
+            [depend]
+            cycle/b
+            """, UTF_8);
+        Files.writeString(baseDir.resolve("modules/cycle/b.mod"),
+            """
+            [depend]
+            cycle/a
+            """, UTF_8);
+
+        List<String> runArgs = List.of(
+            "--validate-modules=feature"
+        );
+        ExecResults results = exec(runArgs, false);
+        try (PrintCapture capture = new PrintCapture())
+        {
+            try
+            {
+                results.main.validateModules(capture, results.startArgs);
+            }
+            catch (IllegalStateException e)
+            {
+                fail(results.output + capture.asString(), e);
+            }
+            String validationOutput = capture.asString();
+            assertThat(validationOutput, allOf(
+                containsString("Validated 1 module(s)"),
+                containsString("No failure detected")));
+        }
+    }
+
     @Test
     public void testBeforeDoesNotExist() throws IOException
     {
