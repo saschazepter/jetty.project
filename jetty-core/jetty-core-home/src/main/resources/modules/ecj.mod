@@ -7,7 +7,7 @@ Adds Eclipse JDT ECJ libs
 eclipse.jdt.ecj.version?=@eclipse.jdt.ecj.version@
 
 [files]
-maven://org.eclipse.jdt/ecj/${eclipse.jdt.ecj.version}/jar|lib/support/org.eclipse.jdt.ecj-${eclipse.jdt.ecj.version}.jar
+maven://org.eclipse.jdt/ecj/${eclipse.jdt.ecj.version}/jar|lib/support/ecj-${eclipse.jdt.ecj.version}.jar
 
 [lib]
-lib/support/org.eclipse.jdt.ecj-${eclipse.jdt.ecj.version}.jar
+lib/support/ecj-${eclipse.jdt.ecj.version}.jar
