@@ -44,6 +44,15 @@ public class UriFileInitializer extends DownloadFileInitializer
     @Override
     public boolean exists(URI uri) throws IOException
     {
+        // Apply the same insecure-http check that create()/download() enforces, so a
+        // plain http:// entry fails validation rather than passing here only to be
+        // refused by --create-files.
+        // Apply the same insecure-http check that create()/download() enforces, so a
+        // plain http:// entry fails validation rather than passing here only to be
+        // refused by --create-files.
+        if ("http".equalsIgnoreCase(uri.getScheme()) && !allowInsecureHttpDownloads())
+            throw new IOException("Insecure HTTP download not allowed (use " + StartArgs.ARG_ALLOW_INSECURE_HTTP_DOWNLOADS + " to bypass): " + uri);
+
         HttpClient httpClient = getHttpClient();
 
         try
@@ -56,7 +65,18 @@ public class UriFileInitializer extends DownloadFileInitializer
             HttpResponse<Void> response =
                 httpClient.send(request, HttpResponse.BodyHandlers.discarding());
 
-            return response.statusCode() == 200;
+            int status = response.statusCode();
+
+            // Definitive answers from the cheap HEAD request.
+            if (status == 200)
+                return true;
+            if (status == 404)
+                return false;
+
+            // Anything else is ambiguous: a 3xx redirect to an insecure location, or a
+            // 405 because the server does not support HEAD. Fall back to the GET-based
+            // check, which surfaces the real cause instead of a misleading "Does not exist".
+            return super.exists(uri);
         }
         catch (InterruptedException e)
         {

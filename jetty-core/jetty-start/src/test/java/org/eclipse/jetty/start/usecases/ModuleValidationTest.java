@@ -437,6 +437,39 @@ public class ModuleValidationTest extends AbstractUseCase
     }
 
     /**
+     * Test of validation, where a [files] entry uses an insecure {@code http://} URI.
+     * Validation must reject it (like {@code --create-files} would) rather than passing.
+     */
+    @Test
+    public void testFilesWithInsecureHttp() throws IOException
+    {
+        setupStandardHomeDir();
+
+        FS.ensureDirExists(baseDir.resolve("modules"));
+        Files.writeString(baseDir.resolve("modules/feature.mod"),
+            """
+            [files]
+            http://example.org/foo.txt|resources/foo.txt
+            """, UTF_8);
+
+        List<String> runArgs = List.of(
+            "--validate-modules=feature"
+        );
+        ExecResults results = exec(runArgs, false);
+        try (PrintCapture capture = new PrintCapture())
+        {
+            assertThrows(IllegalStateException.class, () -> results.main.validateModules(capture, results.startArgs));
+            String validationOutput = capture.asString();
+            assertThat(validationOutput, allOf(
+                containsString("Validated 1 module(s)"),
+                containsString("feature - [files] Invalid 'http://example.org/foo.txt|resources/foo.txt'"),
+                containsString("Insecure HTTP download not allowed (use --allow-insecure-http-downloads to bypass)"),
+                containsString("There are 1 failed module validations")
+            ));
+        }
+    }
+
+    /**
      * Test of validation where the dependency graph contains a cycle through dynamic
      * ('a/b') modules that the topological sort does not see. The property walk must
      * terminate rather than recurse until the stack overflows.
