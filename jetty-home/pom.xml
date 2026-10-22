@@ -71,6 +71,41 @@
               </target>
             </configuration>
           </execution>
+          <execution>
+            <!-- Aggregate the per-component SBOM zips (unpacked from each home into the
+                 assembly tree) into a single sbom.zip of the raw CycloneDX files. The
+                 aggregate is placed in the distribution root (as sbom.zip) and also kept
+                 as jetty-home-<version>-sbom.zip for attachment by build-helper below.
+                 The per-component SBOM zips are removed from the distribution. -->
+            <id>aggregate-sbom</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <target>
+                <mkdir dir="${project.build.directory}/sbom"/>
+                <unzip dest="${project.build.directory}/sbom">
+                  <fileset dir="${assembly-directory}">
+                    <include name="*-sbom.zip"/>
+                  </fileset>
+                </unzip>
+                <delete>
+                  <fileset dir="${assembly-directory}">
+                    <include name="*-sbom.zip"/>
+                  </fileset>
+                </delete>
+                <!-- whenempty=create so an (offline) build with no component SBOMs still
+                     produces the file, keeping the copy and artifact attachment below valid. -->
+                <zip destfile="${project.build.directory}/${project.artifactId}-${project.version}-sbom.zip" whenempty="create">
+                  <fileset dir="${project.build.directory}/sbom">
+                    <include name="*cyclonedx.*"/>
+                  </fileset>
+                </zip>
+                <copy file="${project.build.directory}/${project.artifactId}-${project.version}-sbom.zip" tofile="${assembly-directory}/sbom.zip"/>
+              </target>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>
@@ -238,6 +273,30 @@
                   <filtering>true</filtering>
                 </resource>
               </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <!-- Attach the aggregated SBOM archive as a deployable Maven artifact
+                 (jetty-home-<version>-sbom.zip, classifier 'sbom'). -->
+            <id>attach-sbom</id>
+            <goals>
+              <goal>attach-artifact</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <artifacts>
+                <artifact>
+                  <file>${project.build.directory}/${project.artifactId}-${project.version}-sbom.zip</file>
+                  <type>zip</type>
+                  <classifier>sbom</classifier>
+                </artifact>
+              </artifacts>
             </configuration>
           </execution>
         </executions>

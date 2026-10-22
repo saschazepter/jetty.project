@@ -218,6 +218,32 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <!-- Collect this home's CycloneDX SBOMs into <artifactId>-<version>-sbom.zip,
+                 which the binary assembly then bundles into the distribution archive root.
+                 maven-antrun sorts ahead of maven-assembly within the package phase, so this
+                 runs first. The CycloneDX files are not attached/deployed as Maven artifacts. -->
+            <id>sbom</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <target>
+                <zip destfile="${project.build.directory}/${project.artifactId}-${project.version}-sbom.zip" whenempty="skip">
+                  <fileset dir="${project.build.directory}">
+                    <include name="*cyclonedx.*"/>
+                  </fileset>
+                </zip>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
           <tarLongFileMode>posix</tarLongFileMode>
