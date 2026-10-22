@@ -370,7 +370,7 @@
                 org.eclipse.jetty.fcgi</includeGroupIds>
               <excludeGroupIds>org.eclipse.jetty.orbit,
                 org.eclipse.jetty.toolchain</excludeGroupIds>
-              <excludeArtifactIds>jetty-start,jetty-setuid-jna</excludeArtifactIds>
+              <excludeArtifactIds>jetty-start,jetty-setuid-jna,jetty-http2-client,jetty-http2-client-transport</excludeArtifactIds>
               <includeTypes>jar</includeTypes>
               <includeScope>runtime</includeScope>
               <excludeClassifiers>config</excludeClassifiers>
