@@ -1722,6 +1722,16 @@ public class DistributionTests extends AbstractJettyHomeTest
         {
             assertTrue(run1.awaitFor(START_TIMEOUT, TimeUnit.SECONDS));
             assertEquals(0, run1.getExitValue(), run1.logs());
+
+            // Exit 0 alone is not enough: validation must actually have run over the bundled
+            // modules. Assert it reported success and validated a non-zero number of modules,
+            // so a regression that silently validates nothing (e.g. "Validated 0 module(s)")
+            // is caught rather than passing.
+            Collection<String> logs = run1.getLogs();
+            assertThat("validation reported success", logs.stream()
+                .anyMatch(log -> log.contains("No failure detected.")), is(true));
+            assertThat("modules were actually validated", logs.stream()
+                .noneMatch(log -> log.contains("Validated 0 module(s)")), is(true));
         }
     }
 }
