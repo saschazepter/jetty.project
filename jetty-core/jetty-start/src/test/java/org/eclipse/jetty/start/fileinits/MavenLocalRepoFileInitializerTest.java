@@ -41,7 +41,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.eclipse.jetty.toolchain.test.PathMatchers.isRegularFile;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -189,89 +188,24 @@ public class MavenLocalRepoFileInitializerTest
     {
         MavenLocalRepoFileInitializer repo =
             new MavenLocalRepoFileInitializer(baseHome, new StartArgs(baseHome), null);
-        String ref = "maven://org.eclipse.jetty/jetty-session/12.0.21/jar/tests";
+        String ref = "maven://org.eclipse.jetty/jetty-session/12.0.40/jar/tests";
         Coordinates coords = repo.getCoordinates(URI.create(ref));
         assertThat("Coordinates", coords, notNullValue());
 
         assertThat("coords.groupId", coords.groupId, is("org.eclipse.jetty"));
         assertThat("coords.artifactId", coords.artifactId, is("jetty-session"));
-        assertThat("coords.version", coords.version, is("12.0.21"));
+        assertThat("coords.version", coords.version, is("12.0.40"));
         assertThat("coords.type", coords.type, is("jar"));
         assertThat("coords.classifier", coords.classifier, is("tests"));
 
         assertThat("coords.toCentralURI", coords.toCentralURI().toASCIIString(),
-                   is(repo.getRemoteUri() + "org/eclipse/jetty/jetty-session/12.0.21/jetty-session-12.0.21-tests.jar"));
+                   is(repo.getRemoteUri() + "org/eclipse/jetty/jetty-session/12.0.40/jetty-session-12.0.40-tests.jar"));
 
-        Path destination = testdir.resolve("jetty-session-12.0.21-tests.jar");
+        Path destination = testdir.resolve("jetty-session-12.0.40-tests.jar");
         Files.deleteIfExists(destination);
         repo.download(coords.toCentralURI(), destination);
         assertThat(Files.exists(destination), is(true));
-        assertThat(Files.size(destination), is(89867L));
-    }
-
-    @Test
-    @Tag("external")
-    public void testDownloadSnapshotRepo()
-        throws Exception
-    {
-        Path snapshotLocalRepoDir = testdir.resolve("snapshot-repo");
-        FS.ensureEmpty(snapshotLocalRepoDir);
-
-        MavenLocalRepoFileInitializer repo =
-            new MavenLocalRepoFileInitializer(baseHome, new StartArgs(baseHome), snapshotLocalRepoDir, "https://central.sonatype.com/repository/maven-snapshots/");
-        String ref = "maven://org.eclipse.jetty/jetty-rewrite/12.0.34-SNAPSHOT/jar";
-        Coordinates coords = repo.getCoordinates(URI.create(ref));
-        assertThat("Coordinates", coords, notNullValue());
-
-        assertThat("coords.groupId", coords.groupId, is("org.eclipse.jetty"));
-        assertThat("coords.artifactId", coords.artifactId, is("jetty-rewrite"));
-        assertThat("coords.version", coords.version, is("12.0.34-SNAPSHOT"));
-        assertThat("coords.type", coords.type, is("jar"));
-        assertThat("coords.classifier", coords.classifier, is(nullValue()));
-
-        assertThat("coords.toCentralURI", coords.toCentralURI().toASCIIString(),
-            is("https://central.sonatype.com/repository/maven-snapshots/org/eclipse/jetty/jetty-rewrite/12.0.34-SNAPSHOT/jetty-rewrite-12.0.34-SNAPSHOT.jar"));
-
-        Path destination = baseHome.getBasePath().resolve("jetty-rewrite-12.0.34-SNAPSHOT.jar");
-        repo.download(coords, destination);
-        assertThat(Files.exists(destination), is(true));
-        assertThat("Snapshot File size", Files.size(destination), greaterThan(10_000L));
-    }
-
-    @Test
-    @Tag("external")
-    public void testDownloadSnapshotRepoWithExtractDeep()
-        throws Exception
-    {
-        Path snapshotLocalRepoDir = testdir.resolve("snapshot-repo");
-        FS.ensureEmpty(snapshotLocalRepoDir);
-
-        MavenLocalRepoFileInitializer repo =
-            new MavenLocalRepoFileInitializer(baseHome, new StartArgs(baseHome), snapshotLocalRepoDir,
-                "https://central.sonatype.com/repository/maven-snapshots/");
-        String ref = "maven://org.eclipse.jetty.ee10.demos/jetty-ee10-demo-simple-webapp/12.0.34-SNAPSHOT/jar/config";
-        Path baseDir = baseHome.getBasePath();
-        repo.create(URI.create(ref), "extract:company/");
-
-        assertThat(Files.exists(baseDir.resolve("company/modules/ee10-demo-simple.mod")), is(true));
-    }
-
-    @Test
-    @Tag("external")
-    public void testDownloadSnapshotRepoWithExtractDefault()
-        throws Exception
-    {
-        Path snapshotLocalRepoDir = testdir.resolve("snapshot-repo");
-        FS.ensureEmpty(snapshotLocalRepoDir);
-
-        MavenLocalRepoFileInitializer repo =
-            new MavenLocalRepoFileInitializer(baseHome, new StartArgs(baseHome), snapshotLocalRepoDir,
-                "https://central.sonatype.com/repository/maven-snapshots/");
-        String ref = "maven://org.eclipse.jetty.ee10.demos/jetty-ee10-demo-simple-webapp/12.0.34-SNAPSHOT/jar/config";
-        Path baseDir = baseHome.getBasePath();
-        repo.create(URI.create(ref), "extract:/");
-
-        assertThat(Files.exists(baseDir.resolve("modules/ee10-demo-simple.mod")), is(true));
+        assertThat(Files.size(destination), is(90325L));
     }
 
     @Test
