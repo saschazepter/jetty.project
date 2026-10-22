@@ -475,11 +475,12 @@ public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
         }
         catch (Throwable t)
         {
-            // Delete bad download file
-            if (destinationFile != null && Files.exists(destinationFile))
-            {
+            // Delete bad download files (the artifact and, for SNAPSHOTs, the metadata)
+            if (Files.exists(destination))
+                Files.delete(destination);
+            if (!destinationFile.equals(destination) && Files.exists(destinationFile))
                 Files.delete(destinationFile);
-            }
+            throw (t instanceof IOException io) ? io : new IOException("Failed to download " + coords, t);
         }
     }
 
