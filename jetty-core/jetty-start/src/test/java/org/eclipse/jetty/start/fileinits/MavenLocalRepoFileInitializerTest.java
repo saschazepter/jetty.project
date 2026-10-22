@@ -266,21 +266,17 @@ public class MavenLocalRepoFileInitializerTest
     }
 
     @Test
-    public void testExistsReadonlyChecksRemotelyWithoutDownloading()
+    public void testExistsChecksRemotelyWithoutPopulatingLocalRepo()
         throws Exception
     {
-        // A read-only local repo (e.g. the user's ~/.m2) that does not contain the artifact.
-        Path localRepoDir = testdir.resolve("readonly-repo");
+        // A local repo that does not contain the artifact.
+        Path localRepoDir = testdir.resolve("local-repo");
         FS.ensureEmpty(localRepoDir);
-
-        StartArgs startArgs = new StartArgs(baseHome);
-        startArgs.getJettyEnvironment().getProperties()
-            .setProperty("maven.local.repo.readonly", "true", "test");
 
         // Capture the remote existence check instead of hitting the network.
         AtomicReference<Coordinates> remotelyChecked = new AtomicReference<>();
         MavenLocalRepoFileInitializer repo =
-            new MavenLocalRepoFileInitializer(baseHome, startArgs, localRepoDir, "https://repo1.maven.org/maven2/")
+            new MavenLocalRepoFileInitializer(baseHome, new StartArgs(baseHome), localRepoDir, "https://repo1.maven.org/maven2/")
             {
                 @Override
                 protected boolean existsOnCentralRepo(Coordinates coords)
@@ -297,8 +293,48 @@ public class MavenLocalRepoFileInitializerTest
         assertThat("remote existence check performed", remotelyChecked.get(), notNullValue());
         assertThat("checked coordinates", remotelyChecked.get().artifactId, is("jetty-util"));
 
-        // ... and must NOT have downloaded the artifact into the read-only local repo.
+        // ... and exists() must never write into the local repo.
         Path localFile = localRepoDir.resolve("org/eclipse/jetty/jetty-util/12.0.21/jetty-util-12.0.21.jar");
-        assertThat("not downloaded into read-only local repo", Files.exists(localFile), is(false));
+        assertThat("local repo not populated", Files.exists(localFile), is(false));
+    }
+
+    @Test
+    public void testCreateReadonlyDownloadsToBaseNotLocalRepo()
+        throws Exception
+    {
+        // A read-only local repo (e.g. the user's ~/.m2) that does not contain the artifact.
+        Path localRepoDir = testdir.resolve("readonly-repo");
+        FS.ensureEmpty(localRepoDir);
+
+        StartArgs startArgs = new StartArgs(baseHome);
+        startArgs.getJettyEnvironment().getProperties()
+            .setProperty("maven.local.repo.readonly", "true", "test");
+
+        // Capture (and simulate) the download instead of hitting the network.
+        AtomicReference<Path> downloadedTo = new AtomicReference<>();
+        MavenLocalRepoFileInitializer repo =
+            new MavenLocalRepoFileInitializer(baseHome, startArgs, localRepoDir, "https://repo1.maven.org/maven2/")
+            {
+                @Override
+                protected void download(Coordinates coords, Path destination) throws IOException
+                {
+                    downloadedTo.set(destination);
+                    FS.ensureDirExists(destination.getParent());
+                    Files.writeString(destination, "downloaded", UTF_8);
+                }
+            };
+
+        String location = "lib/jetty-util-12.0.21.jar";
+        String ref = "maven://org.eclipse.jetty/jetty-util/12.0.21/jar";
+        assertThat("created", repo.create(URI.create(ref), location), is(true));
+
+        // Because the local repo is read-only and does not hold the artifact, create() must
+        // download straight into the ${jetty.base}, never writing into the local repo.
+        Path baseFile = baseHome.getBasePath().resolve(location);
+        assertThat("download target was the base destination", downloadedTo.get(), is(baseFile));
+        assertThat("downloaded into base", baseFile, isRegularFile());
+
+        Path localRepoFile = localRepoDir.resolve("org/eclipse/jetty/jetty-util/12.0.21/jetty-util-12.0.21.jar");
+        assertThat("read-only local repo not populated", Files.exists(localRepoFile), is(false));
     }
 }
