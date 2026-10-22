@@ -53,6 +53,8 @@ public class ModulesValidation
             }
         }
 
+        List<FileInitializer> fileInitializers = BaseBuilder.getDefaultInitializers(modules.getBaseHome(), modules.getStartArgs());
+
         for (Module module : selectedModules)
         {
             try
@@ -112,8 +114,6 @@ public class ModulesValidation
 
                 if (!module.getFiles().isEmpty())
                 {
-                    List<FileInitializer> fileInitializers = BaseBuilder.getDefaultInitializers(modules.getBaseHome(), modules.getStartArgs());
-
                     for (String file : module.getFiles())
                     {
                         String fileRef = fullProps.expand(file);
