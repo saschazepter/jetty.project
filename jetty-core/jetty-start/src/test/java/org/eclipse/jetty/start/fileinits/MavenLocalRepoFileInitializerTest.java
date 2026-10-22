@@ -337,4 +337,123 @@ public class MavenLocalRepoFileInitializerTest
         Path localRepoFile = localRepoDir.resolve("org/eclipse/jetty/jetty-util/12.0.21/jetty-util-12.0.21.jar");
         assertThat("read-only local repo not populated", Files.exists(localRepoFile), is(false));
     }
+
+    @Test
+    public void testDownloadPreservesFreshMetadataWhenArtifactDownloadFails()
+        throws Exception
+    {
+        Path localRepoDir = testdir.resolve("snapshot-repo");
+        FS.ensureEmpty(localRepoDir);
+
+        MavenLocalRepoFileInitializer repo =
+            new MavenLocalRepoFileInitializer(baseHome, new StartArgs(baseHome), localRepoDir, "https://repo1.maven.org/maven2/")
+            {
+                @Override
+                protected void download(URI uri, Path destination) throws IOException
+                {
+                    if (destination.getFileName().toString().equals("maven-metadata.xml"))
+                        throw new AssertionError("fresh metadata must not be re-downloaded");
+                    // The artifact download fails.
+                    throw new IOException("simulated artifact download failure");
+                }
+            };
+
+        Coordinates coords = repo.getCoordinates(URI.create("maven://org.eclipse.jetty/jetty-foo/12.99.9-SNAPSHOT/jar"));
+        Path metadataFile = localRepoDir.resolve(coords.toMetadataPath());
+        FS.ensureDirExists(metadataFile.getParent());
+        // Metadata already present and fresh (dated far in the future), so it is not re-fetched.
+        String originalMetadata = snapshotMetadata("20991231000000", "pre-existing");
+        Files.writeString(metadataFile, originalMetadata, UTF_8);
+
+        Path artifact = localRepoDir.resolve("org/eclipse/jetty/jetty-foo/12.99.9-SNAPSHOT/jetty-foo-12.99.9-SNAPSHOT.jar");
+
+        IOException thrown = assertThrows(IOException.class, () -> repo.download(coords, artifact));
+
+        // The original failure is reported, not masked by any cleanup.
+        assertThat(thrown.getMessage(), containsString("simulated artifact download failure"));
+        // The valid cached metadata this call never touched is left exactly as it was.
+        assertThat("metadata preserved", Files.exists(metadataFile), is(true));
+        assertThat("metadata unchanged", Files.readString(metadataFile, UTF_8), is(originalMetadata));
+        assertThat("no partial artifact left behind", Files.exists(artifact), is(false));
+        assertThat("no backup left behind", hasBackupFile(metadataFile.getParent()), is(false));
+    }
+
+    @Test
+    public void testDownloadRestoresStaleMetadataWhenArtifactDownloadFails()
+        throws Exception
+    {
+        Path localRepoDir = testdir.resolve("snapshot-repo");
+        FS.ensureEmpty(localRepoDir);
+
+        MavenLocalRepoFileInitializer repo =
+            new MavenLocalRepoFileInitializer(baseHome, new StartArgs(baseHome), localRepoDir, "https://repo1.maven.org/maven2/")
+            {
+                @Override
+                protected void download(URI uri, Path destination) throws IOException
+                {
+                    if (destination.getFileName().toString().equals("maven-metadata.xml"))
+                    {
+                        // Overwrite the stale metadata with a fresh copy.
+                        FS.ensureDirExists(destination.getParent());
+                        Files.writeString(destination, snapshotMetadata("20991231000000", "freshly-downloaded"), UTF_8);
+                        return;
+                    }
+                    // The artifact download then fails, after the metadata was overwritten.
+                    throw new IOException("simulated artifact download failure");
+                }
+            };
+
+        Coordinates coords = repo.getCoordinates(URI.create("maven://org.eclipse.jetty/jetty-foo/12.99.9-SNAPSHOT/jar"));
+        Path metadataFile = localRepoDir.resolve(coords.toMetadataPath());
+        FS.ensureDirExists(metadataFile.getParent());
+        // Metadata present but stale (dated in the past), so it is re-downloaded (overwritten).
+        String originalMetadata = snapshotMetadata("20000101000000", "pre-existing-stale");
+        Files.writeString(metadataFile, originalMetadata, UTF_8);
+
+        Path artifact = localRepoDir.resolve("org/eclipse/jetty/jetty-foo/12.99.9-SNAPSHOT/jetty-foo-12.99.9-SNAPSHOT.jar");
+
+        IOException thrown = assertThrows(IOException.class, () -> repo.download(coords, artifact));
+
+        assertThat(thrown.getMessage(), containsString("simulated artifact download failure"));
+        // The overwrite is rolled back: the original (stale) metadata is restored, not deleted.
+        assertThat("metadata restored", Files.exists(metadataFile), is(true));
+        assertThat("metadata restored to original", Files.readString(metadataFile, UTF_8), is(originalMetadata));
+        assertThat("no partial artifact left behind", Files.exists(artifact), is(false));
+        assertThat("no backup left behind", hasBackupFile(metadataFile.getParent()), is(false));
+    }
+
+    private static boolean hasBackupFile(Path dir) throws IOException
+    {
+        try (var entries = Files.list(dir))
+        {
+            return entries.anyMatch(p -> p.getFileName().toString().contains(".bak."));
+        }
+    }
+
+    private static String snapshotMetadata(String lastUpdated, String marker)
+    {
+        return """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <metadata modelVersion="1.1.0">
+              <groupId>org.eclipse.jetty</groupId>
+              <artifactId>jetty-foo</artifactId>
+              <version>12.99.9-SNAPSHOT</version>
+              <!-- %s -->
+              <versioning>
+                <snapshot>
+                  <timestamp>20990101.000000</timestamp>
+                  <buildNumber>7</buildNumber>
+                </snapshot>
+                <lastUpdated>%s</lastUpdated>
+                <snapshotVersions>
+                  <snapshotVersion>
+                    <extension>jar</extension>
+                    <value>12.99.9-20990101.000000-7</value>
+                    <updated>20990101000000</updated>
+                  </snapshotVersion>
+                </snapshotVersions>
+              </versioning>
+            </metadata>
+            """.formatted(marker, lastUpdated);
+    }
 }

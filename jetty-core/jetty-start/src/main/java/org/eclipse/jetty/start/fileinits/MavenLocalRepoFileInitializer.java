@@ -28,7 +28,10 @@ import org.eclipse.jetty.start.FS;
 import org.eclipse.jetty.start.StartArgs;
 import org.eclipse.jetty.start.StartLog;
 import org.eclipse.jetty.start.Utils;
+import org.eclipse.jetty.util.ExceptionUtil;
 import org.xml.sax.SAXException;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Attempt to download a <code>maven://</code> URI, by first attempting to find
@@ -448,39 +451,85 @@ public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
             return;
         }
 
-        Path destinationFile = destination;
+        // Track what this call writes so a failure can restore the local repository to the
+        // state we found it in, rather than deleting valid cached content: the artifact never
+        // pre-exists here (callers only download when it is absent), but the SNAPSHOT metadata
+        // may already be present - and must not be deleted when this call did not touch it, or
+        // when overwriting it fails part way through.
+        Path metadataFile = null;
+        String metadataOriginal = null;  // existing metadata contents, held in memory before overwrite (UTF-8); null if none
+        boolean metadataWritten = false; // this call (re)downloaded the metadata
         try
         {
             if (coords.version.endsWith("-SNAPSHOT"))
             {
-                destinationFile = localRepositoryDir.resolve(coords.toMetadataPath());
-                if (isMetadataStale(destinationFile))
+                metadataFile = localRepositoryDir.resolve(coords.toMetadataPath());
+                if (isMetadataStale(metadataFile))
                 {
+                    // Hold any existing metadata in memory before overwriting it, so it can be
+                    // restored if a later step fails. Metadata files are small (well under 100k).
+                    if (Files.exists(metadataFile))
+                        metadataOriginal = Files.readString(metadataFile, UTF_8);
+                    metadataWritten = true;
+
                     // Grab a fresh copy of the metadata xml
                     URI mavenMetadataURI = coords.toSnapshotMetadataXmlURI();
-                    super.download(mavenMetadataURI, destinationFile);
+                    download(mavenMetadataURI, metadataFile);
                 }
 
-                if (Files.exists(destinationFile))
+                if (Files.exists(metadataFile))
                 {
                     // parse metadata to get actual SNAPSHOT version
-                    String actualVersion = getMetadataVersion(destinationFile, coords);
-                    super.download(coords.toCentralURI(actualVersion), destination);
+                    String actualVersion = getMetadataVersion(metadataFile, coords);
+                    download(coords.toCentralURI(actualVersion), destination);
                 }
             }
             else
             {
-                super.download(coords.toCentralURI(), destinationFile);
+                download(coords.toCentralURI(), destination);
             }
         }
         catch (Throwable t)
         {
-            // Delete bad download files (the artifact and, for SNAPSHOTs, the metadata)
-            if (Files.exists(destination))
-                Files.delete(destination);
-            if (!destinationFile.equals(destination) && Files.exists(destinationFile))
-                Files.delete(destinationFile);
+            // Restore the prior on-disk state without masking the original failure.
+            // Remove the partial artifact we created.
+            deleteFileWhileSuppressingErrors(destination, t);
+            // Only touch the metadata if this call wrote it: rewrite the contents we held in
+            // memory, or remove the file we created where none existed. Untouched (fresh)
+            // metadata is left exactly as we found it.
+            if (metadataWritten)
+            {
+                if (metadataOriginal != null)
+                    writeFileWhileSuppressingErrors(metadataFile, metadataOriginal, t);
+                else
+                    deleteFileWhileSuppressingErrors(metadataFile, t);
+            }
             throw (t instanceof IOException io) ? io : new IOException("Failed to download " + coords, t);
+        }
+    }
+
+    private static void deleteFileWhileSuppressingErrors(Path file, Throwable primary)
+    {
+        try
+        {
+            if (file != null)
+                Files.deleteIfExists(file);
+        }
+        catch (IOException e)
+        {
+            ExceptionUtil.addSuppressedIfNotAssociated(primary, e);
+        }
+    }
+
+    private static void writeFileWhileSuppressingErrors(Path file, String originalContents, Throwable primary)
+    {
+        try
+        {
+            Files.writeString(file, originalContents, UTF_8);
+        }
+        catch (IOException e)
+        {
+            ExceptionUtil.addSuppressedIfNotAssociated(primary, e);
         }
     }
 
