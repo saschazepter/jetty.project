@@ -363,7 +363,14 @@
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
-            <!-- we want to be sure all dependencies are available in the local repo -->
+            <!--
+              Prime the local repository with the third-party artifacts referenced by the
+              bundled modules' [files] sections, so DistributionTests.testValidateModules can
+              resolve every maven:// reference via a HEAD/local-repo check without downloading.
+              IMPORTANT: when a bundled module adds a new maven:// [files] coordinate (or bumps
+              a version), mirror it here (keeping the version property in step), otherwise
+              testValidateModules fails - especially offline - with "[files] Does not exist".
+            -->
             <id>copy-fake-deps</id>
             <goals>
               <goal>copy</goal>

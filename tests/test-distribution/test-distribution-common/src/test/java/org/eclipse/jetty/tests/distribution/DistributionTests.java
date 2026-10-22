@@ -1702,6 +1702,10 @@ public class DistributionTests extends AbstractJettyHomeTest
     @Test
     public void testValidateModules() throws Exception
     {
+        // --validate-modules resolves every maven:// reference in the bundled modules' [files]
+        // sections. Those third-party artifacts must already be in the local repository; the
+        // pom's "copy-fake-deps" execution primes them. If this test fails with a
+        // "[files] Does not exist" for a maven:// coordinate, add that artifact there.
         Path jettyBase = newTestJettyBaseDirectory();
         String jettyVersion = System.getProperty("jettyVersion");
         JettyHomeTester distribution = JettyHomeTester.Builder.newInstance()
