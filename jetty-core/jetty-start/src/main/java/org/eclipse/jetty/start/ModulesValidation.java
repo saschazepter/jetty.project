@@ -55,9 +55,6 @@ public class ModulesValidation
 
         for (Module module : selectedModules)
         {
-            if (module == null)
-                return;
-
             Props moduleProps = asProps(module);
             Main.initBaseProps(moduleProps, modules.getBaseHome(), VALIDATE_ORIGIN, VALIDATE_ORIGIN);
 
@@ -67,8 +64,6 @@ public class ModulesValidation
             loadDependentProps(modules, module, fullProps);
             fullProps.addAll(moduleProps);
 
-            Set<String> provides = module.getProvides();
-            provides.remove(module.getName());
             for (Props.Prop prop: moduleProps)
             {
                 String expandedValue = fullProps.expand(prop.value);
