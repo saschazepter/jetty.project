@@ -13,7 +13,6 @@
 
   <properties>
     <assembly-directory>${basedir}/target/jetty-ee11-home</assembly-directory>
-    <source-assembly-directory>${basedir}/target/jetty-ee11-home-sources</source-assembly-directory>
     <spotbugs.skip>true</spotbugs.skip>
   </properties>
 

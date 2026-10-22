@@ -13,7 +13,6 @@
   <properties>
     <assembly-directory>${basedir}/target/jetty-core-home</assembly-directory>
     <jetty-setuid-version>2.0.3</jetty-setuid-version>
-    <source-assembly-directory>${basedir}/target/jetty-home-sources</source-assembly-directory>
     <spotbugs.skip>true</spotbugs.skip>
   </properties>
 
