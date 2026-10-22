@@ -55,163 +55,184 @@ public class ModulesValidation
 
         for (Module module : selectedModules)
         {
-            Props moduleProps = asProps(module);
-            Main.initBaseProps(moduleProps, modules.getBaseHome(), VALIDATE_ORIGIN, VALIDATE_ORIGIN);
-
-            Props fullProps = new Props();
-            // Load the dependencies' [ini] values first, then the module's own on top,
-            // so the module's own values take precedence over those of its dependencies.
-            loadDependentProps(modules, module, fullProps);
-            fullProps.addAll(moduleProps);
-
-            for (Props.Prop prop: moduleProps)
+            try
             {
-                String expandedValue = fullProps.expand(prop.value);
-                if (expandedValue.contains("$") || expandedValue.contains("@"))
-                    failures.add("%s - [ini] Bad/Unexpandable property [%s=%s]".formatted(module.getName(), prop.key, prop.value));
-            }
-            if (!module.getDepends().isEmpty())
-            {
-                for (String parent : module.getDepends())
+                Props moduleProps = asProps(module);
+                Main.initBaseProps(moduleProps, modules.getBaseHome(), VALIDATE_ORIGIN, VALIDATE_ORIGIN);
+
+                Props fullProps = new Props();
+                // Load the dependencies' [ini] values first, then the module's own on top,
+                // so the module's own values take precedence over those of its dependencies.
+                loadDependentProps(modules, module, fullProps);
+                fullProps.addAll(moduleProps);
+
+                for (Props.Prop prop: moduleProps)
                 {
-                    // Check the raw name for the conditional '?' prefix before it is stripped.
-                    boolean conditional = Module.isConditionalDependency(parent);
-                    parent = Module.normalizeModuleName(parent);
-                    String expandedParent = fullProps.expand(parent);
-                    if (!conditional && !hasDependency(modules, expandedParent))
-                    {
-                        failures.add("%s - [depends] Does not exist '%s'".formatted(module.getName(), parent));
-                    }
+                    String expandedValue = fullProps.expand(prop.value);
+                    if (expandedValue.contains("$") || expandedValue.contains("@"))
+                        failures.add("%s - [ini] Bad/Unexpandable property [%s=%s]".formatted(module.getName(), prop.key, prop.value));
                 }
-            }
-            if (!module.getBefore().isEmpty())
-            {
-                for (String before : module.getBefore())
+                if (!module.getDepends().isEmpty())
                 {
-                    if (!hasDependency(modules, before))
+                    for (String parent : module.getDepends())
                     {
-                        failures.add("%s - [before] Does not exist '%s'".formatted(module.getName(), before));
-                    }
-                }
-            }
-            if (!module.getAfter().isEmpty())
-            {
-                for (String after : module.getAfter())
-                {
-                    if (!hasDependency(modules, after))
-                    {
-                        failures.add("%s - [after] Does not exist '%s'".formatted(module.getName(), after));
-                    }
-                }
-            }
-
-            // List of [files] destination locations
-            List<String> filesLocations = new ArrayList<>();
-
-            if (!module.getFiles().isEmpty())
-            {
-                List<FileInitializer> fileInitializers = BaseBuilder.getDefaultInitializers(modules.getBaseHome(), modules.getStartArgs());
-
-                for (String file : module.getFiles())
-                {
-                    String fileRef = fullProps.expand(file);
-                    if (fileRef.contains("${") || fileRef.contains("@")) // didn't properly expand
-                    {
-                        failures.add("%s - [files] Unable to expand property '%s'".formatted(module.getName(), file));
-                    }
-                    else
-                    {
-                        FileArg fileArg = new FileArg(module, fileRef);
-                        URI fileURI = fileArg.uri == null ? null : URI.create(fileArg.uri);
-                        if (fileURI != null)
+                        // Check the raw name for the conditional '?' prefix before it is stripped.
+                        boolean conditional = Module.isConditionalDependency(parent);
+                        parent = Module.normalizeModuleName(parent);
+                        String expandedParent = fullProps.expand(parent);
+                        if (!conditional && !hasDependency(modules, expandedParent))
                         {
-                            boolean applicable = false;
-                            for (FileInitializer finit : fileInitializers)
-                            {
-                                if (finit.isApplicable(fileURI))
-                                {
-                                    applicable = true;
-                                    try
-                                    {
-                                        if (!finit.exists(fileURI))
-                                            failures.add("%s - [files] Does not exist '%s'".formatted(module.getName(), file));
-                                        else
-                                        {
-                                            String destLocation = moduleProps.expand(fileArg.location);
-                                            filesLocations.add(destLocation);
-                                        }
-                                    }
-                                    catch (Throwable e)
-                                    {
-                                        failures.add("%s - [files] Invalid '%s' : %s".formatted(module.getName(), file, Utils.asString(e)));
-                                    }
-                                }
-                            }
-                            // No initializer handles this URI's scheme (e.g. a typo like
-                            // 'mavne://...'); normal processing would throw "Unable to create".
-                            if (!applicable)
-                                failures.add("%s - [files] Unable to create '%s'".formatted(module.getName(), file));
+                            failures.add("%s - [depends] Does not exist '%s'".formatted(module.getName(), parent));
+                        }
+                    }
+                }
+                if (!module.getBefore().isEmpty())
+                {
+                    for (String before : module.getBefore())
+                    {
+                        if (!hasDependency(modules, before))
+                        {
+                            failures.add("%s - [before] Does not exist '%s'".formatted(module.getName(), before));
+                        }
+                    }
+                }
+                if (!module.getAfter().isEmpty())
+                {
+                    for (String after : module.getAfter())
+                    {
+                        if (!hasDependency(modules, after))
+                        {
+                            failures.add("%s - [after] Does not exist '%s'".formatted(module.getName(), after));
+                        }
+                    }
+                }
+
+                // List of [files] destination locations
+                List<String> filesLocations = new ArrayList<>();
+
+                if (!module.getFiles().isEmpty())
+                {
+                    List<FileInitializer> fileInitializers = BaseBuilder.getDefaultInitializers(modules.getBaseHome(), modules.getStartArgs());
+
+                    for (String file : module.getFiles())
+                    {
+                        String fileRef = fullProps.expand(file);
+                        if (fileRef.contains("${") || fileRef.contains("@")) // didn't properly expand
+                        {
+                            failures.add("%s - [files] Unable to expand property '%s'".formatted(module.getName(), file));
                         }
                         else
                         {
-                            // Just a raw location reference (no URI)
-                            String destLocation = moduleProps.expand(fileArg.location);
-                            filesLocations.add(destLocation);
+                            FileArg fileArg;
+                            URI fileURI;
+                            try
+                            {
+                                fileArg = new FileArg(module, fileRef);
+                                fileURI = fileArg.uri == null ? null : URI.create(fileArg.uri);
+                            }
+                            catch (Throwable e)
+                            {
+                                // Malformed [files] entry (bad syntax or illegal URI): record it and
+                                // carry on with this module's remaining files, rather than aborting.
+                                failures.add("%s - [files] Invalid '%s' : %s".formatted(module.getName(), file, Utils.asString(e)));
+                                continue;
+                            }
+                            if (fileURI != null)
+                            {
+                                boolean applicable = false;
+                                for (FileInitializer finit : fileInitializers)
+                                {
+                                    if (finit.isApplicable(fileURI))
+                                    {
+                                        applicable = true;
+                                        try
+                                        {
+                                            if (!finit.exists(fileURI))
+                                                failures.add("%s - [files] Does not exist '%s'".formatted(module.getName(), file));
+                                            else
+                                            {
+                                                String destLocation = moduleProps.expand(fileArg.location);
+                                                filesLocations.add(destLocation);
+                                            }
+                                        }
+                                        catch (Throwable e)
+                                        {
+                                            failures.add("%s - [files] Invalid '%s' : %s".formatted(module.getName(), file, Utils.asString(e)));
+                                        }
+                                    }
+                                }
+                                // No initializer handles this URI's scheme (e.g. a typo like
+                                // 'mavne://...'); normal processing would throw "Unable to create".
+                                if (!applicable)
+                                    failures.add("%s - [files] Unable to create '%s'".formatted(module.getName(), file));
+                            }
+                            else
+                            {
+                                // Just a raw location reference (no URI)
+                                String destLocation = moduleProps.expand(fileArg.location);
+                                filesLocations.add(destLocation);
+                            }
                         }
                     }
+                }
+
+                for (String lib : module.getLibs())
+                {
+                    boolean found = false;
+                    String expandedLib = fullProps.expand(lib);
+                    if (expandedLib.endsWith("*.jar"))
+                    {
+                        if (!expandedLib.endsWith("/**.jar"))
+                            failures.add("%s - [lib] Bad glob definition (should end in `/**.jar`) %s".formatted(module.getName(), lib));
+                        found = true;
+                    }
+                    if (filesLocations.contains(expandedLib))
+                    {
+                        // Found in [files] section
+                        found = true;
+                    }
+                    else
+                    {
+                        for (Path libPath : modules.getBaseHome().getPaths(expandedLib))
+                        {
+                            if (Files.exists(libPath))
+                            {
+                                found = true;
+                            }
+                        }
+                    }
+                    if (!found)
+                        failures.add("%s - [lib] Does not exist '%s'".formatted(module.getName(), lib));
+                }
+
+                for (String xml : module.getXmls())
+                {
+                    boolean found = false;
+                    xml = fullProps.expand(xml);
+                    if (filesLocations.contains(xml))
+                    {
+                        // Found in [files] section
+                        found = true;
+                    }
+                    else
+                    {
+                        for (Path xmlPath : modules.getBaseHome().getPaths(xml))
+                        {
+                            if (Files.exists(xmlPath))
+                            {
+                                found = true;
+                            }
+                        }
+                    }
+                    if (!found)
+                        failures.add("%s - [xml] Does not exist '%s'".formatted(module.getName(), xml));
                 }
             }
-
-            for (String lib : module.getLibs())
+            catch (Throwable e)
             {
-                boolean found = false;
-                String expandedLib = fullProps.expand(lib);
-                if (expandedLib.endsWith("*.jar"))
-                {
-                    if (!expandedLib.endsWith("/**.jar"))
-                        failures.add("%s - [lib] Bad glob definition (should end in `/**.jar`) %s".formatted(module.getName(), lib));
-                    found = true;
-                }
-                if (filesLocations.contains(expandedLib))
-                {
-                    // Found in [files] section
-                    found = true;
-                }
-                else
-                {
-                    for (Path libPath : modules.getBaseHome().getPaths(expandedLib))
-                    {
-                        if (Files.exists(libPath))
-                        {
-                            found = true;
-                        }
-                    }
-                }
-                if (!found)
-                    failures.add("%s - [lib] Does not exist '%s'".formatted(module.getName(), lib));
-            }
-
-            for (String xml : module.getXmls())
-            {
-                boolean found = false;
-                xml = fullProps.expand(xml);
-                if (filesLocations.contains(xml))
-                {
-                    // Found in [files] section
-                    found = true;
-                }
-                else
-                {
-                    for (Path xmlPath : modules.getBaseHome().getPaths(xml))
-                    {
-                        if (Files.exists(xmlPath))
-                        {
-                            found = true;
-                        }
-                    }
-                }
-                if (!found)
-                    failures.add("%s - [xml] Does not exist '%s'".formatted(module.getName(), xml));
+                // Safety net: a single malformed module must never abort validation of the rest,
+                // so that --validate-modules can report every problem in one pass.
+                failures.add("%s - Unable to validate : %s".formatted(module.getName(), Utils.asString(e)));
             }
         }
 

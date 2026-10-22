@@ -663,6 +663,50 @@ public class ModuleValidationTest extends AbstractUseCase
         }
     }
 
+    /**
+     * Test that a malformed [files] entry (here, too many '|'-separated parts, which FileArg
+     * rejects with an unchecked exception) is recorded as a failure for its own module rather
+     * than aborting the whole run: validation must continue and still report the problem in a
+     * subsequent module. Guards the accumulate-all design against exceptions thrown while
+     * parsing a module's [files] entries.
+     */
+    @Test
+    public void testMalformedFilesEntryDoesNotAbortValidation() throws IOException
+    {
+        setupStandardHomeDir();
+
+        FS.ensureDirExists(baseDir.resolve("modules"));
+        Files.writeString(baseDir.resolve("modules/badfiles.mod"),
+            """
+            [files]
+            # Too many '|' parts: FileArg rejects this with an IllegalArgumentException
+            basehome:modules/foo.xml|etc/foo.xml|etc/extra.xml
+            """, UTF_8);
+        Files.writeString(baseDir.resolve("modules/other.mod"),
+            """
+            [xml]
+            etc/missing.xml
+            """, UTF_8);
+
+        List<String> runArgs = List.of(
+            "--validate-modules=badfiles,other"
+        );
+        ExecResults results = exec(runArgs, false);
+        try (PrintCapture capture = new PrintCapture())
+        {
+            assertThrows(IllegalStateException.class, () -> results.main.validateModules(capture, results.startArgs));
+            String validationOutput = capture.asString();
+            // Both modules were validated (the malformed one did not abort the run), and both
+            // failures are reported - including the one from the module after the malformed one.
+            assertThat(validationOutput, allOf(
+                containsString("Validated 2 module(s)"),
+                containsString("There are 2 failed module validations"),
+                containsString("badfiles - [files] Invalid 'basehome:modules/foo.xml|etc/foo.xml|etc/extra.xml'"),
+                containsString("Unrecognized [file] argument"),
+                containsString("other - [xml] Does not exist 'etc/missing.xml'")));
+        }
+    }
+
     public static class PrintCapture extends PrintStream
     {
         private final ByteArrayOutputStream byteStream;
