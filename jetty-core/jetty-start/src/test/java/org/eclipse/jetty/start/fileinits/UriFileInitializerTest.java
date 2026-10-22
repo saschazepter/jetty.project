@@ -14,9 +14,14 @@
 package org.eclipse.jetty.start.fileinits;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import org.eclipse.jetty.start.BaseHome;
 import org.eclipse.jetty.start.StartArgs;
 import org.eclipse.jetty.start.config.ConfigSources;
@@ -31,7 +36,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @ExtendWith(WorkDirExtension.class)
 public class UriFileInitializerTest
@@ -65,5 +72,116 @@ public class UriFileInitializerTest
         UriFileInitializer initializer = new UriFileInitializer(new StartArgs(baseHome), baseHome);
         URI uri = URI.create("https://jetty.org/_/img/favicon.ico");
         assertThat("exists", initializer.exists(uri), is(true));
+    }
+
+    @Test
+    public void testExistsInsecureHttpThrows()
+    {
+        // Insecure http:// is rejected before any network access (downloads not allowed).
+        UriFileInitializer initializer = newInitializer(false);
+        URI uri = URI.create("http://example.org/foo.txt");
+        IOException x = assertThrows(IOException.class, () -> initializer.exists(uri));
+        assertThat(x.getMessage(), containsString("Insecure HTTP download not allowed"));
+    }
+
+    @Test
+    public void testExistsHeadOkReturnsTrue() throws Exception
+    {
+        HttpServer server = startServer(exchange -> respond(exchange, 200, false));
+        try
+        {
+            UriFileInitializer initializer = newInitializer(true);
+            assertThat("exists", initializer.exists(uriFor(server, "/foo.txt")), is(true));
+        }
+        finally
+        {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void testExistsHeadNotFoundReturnsFalse() throws Exception
+    {
+        HttpServer server = startServer(exchange -> respond(exchange, 404, false));
+        try
+        {
+            UriFileInitializer initializer = newInitializer(true);
+            assertThat("exists", initializer.exists(uriFor(server, "/missing.txt")), is(false));
+        }
+        finally
+        {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void testExistsHeadMethodNotAllowedFallsBackToGet() throws Exception
+    {
+        // A server that rejects HEAD (405) but serves GET: exists() must fall back to the
+        // GET-based check rather than reporting the resource as missing.
+        HttpServer server = startServer(exchange ->
+        {
+            if ("HEAD".equals(exchange.getRequestMethod()))
+                respond(exchange, 405, false);
+            else
+                respond(exchange, 200, true);
+        });
+        try
+        {
+            UriFileInitializer initializer = newInitializer(true);
+            assertThat("exists", initializer.exists(uriFor(server, "/head-unsupported.txt")), is(true));
+        }
+        finally
+        {
+            server.stop(0);
+        }
+    }
+
+    private UriFileInitializer newInitializer(boolean allowInsecureHttpDownloads)
+    {
+        return new UriFileInitializer(new StartArgs(baseHome), baseHome)
+        {
+            @Override
+            protected boolean allowInsecureHttpDownloads()
+            {
+                return allowInsecureHttpDownloads;
+            }
+        };
+    }
+
+    private HttpServer startServer(HttpHandler handler) throws IOException
+    {
+        // jetty-start is the standalone bootstrap module and cannot depend on the Jetty Server
+        // (that would be a layering violation, and jetty-server is not available here anyway), so
+        // these tests use the JVM-provided com.sun.net.httpserver.HttpServer instead.
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", handler);
+        server.start();
+        return server;
+    }
+
+    private URI uriFor(HttpServer server, String path)
+    {
+        return URI.create("http://127.0.0.1:" + server.getAddress().getPort() + path);
+    }
+
+    private static void respond(com.sun.net.httpserver.HttpExchange exchange, int status, boolean withBody) throws IOException
+    {
+        try (exchange)
+        {
+            if (withBody)
+            {
+                byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(status, body.length);
+                try (OutputStream out = exchange.getResponseBody())
+                {
+                    out.write(body);
+                }
+            }
+            else
+            {
+                exchange.sendResponseHeaders(status, -1);
+            }
+        }
     }
 }
