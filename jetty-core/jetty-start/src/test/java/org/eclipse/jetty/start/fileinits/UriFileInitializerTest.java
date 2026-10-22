@@ -115,21 +115,28 @@ public class UriFileInitializerTest
     }
 
     @Test
-    public void testExistsHeadMethodNotAllowedFallsBackToGet() throws Exception
+    public void testExistsHeadMethodNotAllowedReturnsFalse() throws Exception
     {
-        // A server that rejects HEAD (405) but serves GET: exists() must fall back to the
-        // GET-based check rather than reporting the resource as missing.
+        // Existence is checked with a HEAD only. A server that rejects HEAD (405) is reported
+        // as "does not exist" rather than falling back to a full GET that downloads the body.
+        boolean[] getRequested = {false};
         HttpServer server = startServer(exchange ->
         {
             if ("HEAD".equals(exchange.getRequestMethod()))
+            {
                 respond(exchange, 405, false);
+            }
             else
+            {
+                getRequested[0] = true;
                 respond(exchange, 200, true);
+            }
         });
         try
         {
             UriFileInitializer initializer = newInitializer(true);
-            assertThat("exists", initializer.exists(uriFor(server, "/head-unsupported.txt")), is(true));
+            assertThat("exists", initializer.exists(uriFor(server, "/head-unsupported.txt")), is(false));
+            assertThat("no GET fallback performed", getRequested[0], is(false));
         }
         finally
         {

@@ -15,9 +15,6 @@ package org.eclipse.jetty.start.fileinits;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -39,47 +36,6 @@ public class UriFileInitializer extends DownloadFileInitializer
     protected boolean allowInsecureHttpDownloads()
     {
         return _allowInsecureHttpDownloads;
-    }
-
-    @Override
-    public boolean exists(URI uri) throws IOException
-    {
-        // Apply the same insecure-http check that create()/download() enforces, so a
-        // plain http:// entry fails validation rather than passing here only to be
-        // refused by --create-files.
-        if ("http".equalsIgnoreCase(uri.getScheme()) && !allowInsecureHttpDownloads())
-            throw new IOException("Insecure HTTP download not allowed (use " + StartArgs.ARG_ALLOW_INSECURE_HTTP_DOWNLOADS + " to bypass): " + uri);
-
-        HttpClient httpClient = getHttpClient();
-
-        try
-        {
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(uri)
-                .method("HEAD", HttpRequest.BodyPublishers.noBody())
-                .build();
-
-            HttpResponse<Void> response =
-                httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-
-            int status = response.statusCode();
-
-            // Definitive answers from the cheap HEAD request.
-            if (status == 200)
-                return true;
-            if (status == 404)
-                return false;
-
-            // Anything else is ambiguous: a 3xx redirect to an insecure location, or a
-            // 405 because the server does not support HEAD. Fall back to the GET-based
-            // check, which surfaces the real cause instead of a misleading "Does not exist".
-            return super.exists(uri);
-        }
-        catch (InterruptedException e)
-        {
-            Thread.currentThread().interrupt();
-            throw new IOException("Failed to HEAD: " + uri, e);
-        }
     }
 
     @Override

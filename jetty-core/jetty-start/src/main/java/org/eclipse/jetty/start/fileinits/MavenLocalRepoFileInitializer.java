@@ -15,9 +15,6 @@ package org.eclipse.jetty.start.fileinits;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -420,26 +417,9 @@ public class MavenLocalRepoFileInitializer extends DownloadFileInitializer
     protected boolean existsOnCentralRepo(Coordinates coords)
         throws IOException
     {
-        HttpClient httpClient = getHttpClient();
-        URI uri = coords.toCentralURI();
-
-        try
-        {
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(uri)
-                .method("HEAD", HttpRequest.BodyPublishers.noBody())
-                .build();
-
-            HttpResponse<Void> response =
-                httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-
-            return response.statusCode() == 200;
-        }
-        catch (InterruptedException e)
-        {
-            Thread.currentThread().interrupt();
-            throw new IOException("Failed to HEAD: " + uri, e);
-        }
+        // Verify remotely with a HEAD request (shared with DownloadFileInitializer), so the
+        // local repository is never written to.
+        return existsViaHead(coords.toCentralURI());
     }
 
     protected void download(Coordinates coords, Path destination)

@@ -15,7 +15,6 @@ package org.eclipse.jetty.start.fileinits;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -54,10 +53,39 @@ public abstract class DownloadFileInitializer extends FileInitializer
         if ("http".equalsIgnoreCase(uri.getScheme()) && !allowInsecureHttpDownloads())
             throw new IOException("Insecure HTTP download not allowed (use " + StartArgs.ARG_ALLOW_INSECURE_HTTP_DOWNLOADS + " to bypass): " + uri);
 
-        download(uri, (inputStream) ->
-            inputStream.transferTo(OutputStream.nullOutputStream()));
+        // A cheap HEAD request: existence is a 200 response; anything else (404, 405, a 3xx
+        // redirect, ...) is treated as "does not exist" rather than downloading the whole
+        // body with a GET.
+        return existsViaHead(uri);
+    }
 
-        return true;
+    /**
+     * Check for the existence of a remote resource with a HEAD request, without downloading it.
+     *
+     * @param uri the resource to check
+     * @return true if the server answered the HEAD with a 200 status, false otherwise
+     * @throws IOException if the request could not be performed
+     */
+    protected boolean existsViaHead(URI uri) throws IOException
+    {
+        HttpClient httpClient = getHttpClient();
+        try
+        {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(uri)
+                .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                .build();
+
+            HttpResponse<Void> response =
+                httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+
+            return response.statusCode() == 200;
+        }
+        catch (InterruptedException e)
+        {
+            Thread.currentThread().interrupt();
+            throw new IOException("Failed to HEAD: " + uri, e);
+        }
     }
 
     protected void download(URI uri, Path destination) throws IOException
