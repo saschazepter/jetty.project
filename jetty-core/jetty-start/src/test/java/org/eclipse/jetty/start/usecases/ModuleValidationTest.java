@@ -574,6 +574,95 @@ public class ModuleValidationTest extends AbstractUseCase
         }
     }
 
+    /**
+     * Test of validation, where a module name passed on the command-line does not
+     * resolve to any known module.
+     */
+    @Test
+    public void testUnknownModuleName() throws IOException
+    {
+        setupStandardHomeDir();
+
+        List<String> runArgs = List.of(
+            "--validate-modules=does-not-exist"
+        );
+        ExecResults results = exec(runArgs, false);
+        try (PrintCapture capture = new PrintCapture())
+        {
+            assertThrows(IllegalStateException.class, () -> results.main.validateModules(capture, results.startArgs));
+            String validationOutput = capture.asString();
+            assertThat(validationOutput, allOf(
+                containsString("Validated 0 module(s)"),
+                containsString("There are 1 failed module validations"),
+                containsString("does-not-exist - [command-line] Unknown module name")));
+        }
+    }
+
+    /**
+     * Test of validation using the bare {@code --validate-modules} form (no module name),
+     * which selects every known module. This is the form the distribution build runs.
+     */
+    @Test
+    public void testValidateAllModules() throws IOException
+    {
+        setupStandardHomeDir();
+
+        List<String> runArgs = List.of(
+            "--validate-modules"
+        );
+        ExecResults results = exec(runArgs, false);
+        try (PrintCapture capture = new PrintCapture())
+        {
+            try
+            {
+                results.main.validateModules(capture, results.startArgs);
+            }
+            catch (IllegalStateException e)
+            {
+                fail(results.output + capture.asString(), e);
+            }
+            String validationOutput = capture.asString();
+            assertThat(validationOutput, allOf(
+                containsString("Validated 4 module(s)"),
+                containsString("No failure detected")));
+        }
+    }
+
+    /**
+     * Test that multiple validation failures within a single module are reported in the
+     * summary, sorted and numbered.
+     */
+    @Test
+    public void testMultipleFailuresAreNumbered() throws IOException
+    {
+        setupStandardHomeDir();
+
+        FS.ensureDirExists(baseDir.resolve("modules"));
+        Files.writeString(baseDir.resolve("modules/feature.mod"),
+            """
+            [lib]
+            # Bad glob (should end in `/**.jar`)
+            lib/feature/*.jar
+            [xml]
+            etc/missing.xml
+            """, UTF_8);
+
+        List<String> runArgs = List.of(
+            "--validate-modules=feature"
+        );
+        ExecResults results = exec(runArgs, false);
+        try (PrintCapture capture = new PrintCapture())
+        {
+            assertThrows(IllegalStateException.class, () -> results.main.validateModules(capture, results.startArgs));
+            String validationOutput = capture.asString();
+            assertThat(validationOutput, allOf(
+                containsString("Validated 1 module(s)"),
+                containsString("There are 2 failed module validations"),
+                containsString("  1  : feature - [lib] Bad glob definition (should end in `/**.jar`) lib/feature/*.jar"),
+                containsString("  2  : feature - [xml] Does not exist 'etc/missing.xml'")));
+        }
+    }
+
     public static class PrintCapture extends PrintStream
     {
         private final ByteArrayOutputStream byteStream;
