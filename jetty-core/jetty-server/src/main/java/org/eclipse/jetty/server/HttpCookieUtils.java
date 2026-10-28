@@ -263,9 +263,21 @@ public final class HttpCookieUtils
         }
         else
         {
-            // Append Expires attribute (optional attribute in RFC 6265)
+            // Append Expires attribute (optional attribute in RFC 6265).
             if (declaredExpires != null)
+            {
                 builder.append("; Expires=").append(declaredExpires);
+            }
+            else if (maxAge > 0)
+            {
+                // Although RFC 6265 §4.1.2.2 makes Max-Age sufficient on its own (and gives it precedence
+                // over Expires), the Servlet TCK requires that a synthetic Expires attribute also be emitted
+                // when only a positive max-age was configured. See the Jakarta Servlet TCK test
+                // servlet.tck.api.jakarta_servlet_http.sessioncookieconfig.SessionCookieConfigTests#constructortest1,
+                // whose SetCookieHandler asserts the response Set-Cookie header contains an "Expires=" attribute.
+                // The Expires value is derived from maxAge so the two attributes stay consistent.
+                builder.append("; Expires=").append(HttpCookie.formatExpires(Instant.now().plusSeconds(maxAge)));
+            }
             if (maxAge > 0)
                 builder.append("; Max-Age=").append(maxAge);
         }
