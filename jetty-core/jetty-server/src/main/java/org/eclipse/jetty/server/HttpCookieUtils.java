@@ -276,6 +276,7 @@ public final class HttpCookieUtils
                 // servlet.tck.api.jakarta_servlet_http.sessioncookieconfig.SessionCookieConfigTests#constructortest1,
                 // whose SetCookieHandler asserts the response Set-Cookie header contains an "Expires=" attribute.
                 // The Expires value is derived from maxAge so the two attributes stay consistent.
+                // See past TCK challenge at https://github.com/jakartaee/servlet/issues/493
                 builder.append("; Expires=").append(HttpCookie.formatExpires(Instant.now().plusSeconds(maxAge)));
             }
             if (maxAge > 0)
