@@ -138,12 +138,12 @@ public class HttpCookieTest
 
     public static List<Arguments> invalidAttributes()
     {
+        // Secure/HttpOnly/Partitioned are RFC 6265 flags and are lenient (see testFlagAttributesAreLenient
+        // and HttpCookie.isAttributeTrue), so they are not listed here as invalid.
         return List.of(
             Arguments.of("Expires", "blah", IllegalArgumentException.class),
-            Arguments.of("HttpOnly", "blah", IllegalArgumentException.class),
             Arguments.of("Max-Age", "blah", IllegalArgumentException.class),
-            Arguments.of("SameSite", "blah", IllegalArgumentException.class),
-            Arguments.of("Secure", "blah", IllegalArgumentException.class)
+            Arguments.of("SameSite", "blah", IllegalArgumentException.class)
         );
     }
 
@@ -318,13 +318,37 @@ public class HttpCookieTest
         // from(Map) validates known attribute values; an invalid value throws IllegalArgumentException.
         assertThrows(IllegalArgumentException.class, () -> HttpCookie.from("n", "v", Map.of("Max-Age", "blah")));
         assertThrows(IllegalArgumentException.class, () -> HttpCookie.from("n", "v", Map.of("Expires", "blah")));
-        assertThrows(IllegalArgumentException.class, () -> HttpCookie.from("n", "v", Map.of("Secure", "blah")));
         assertThrows(IllegalArgumentException.class, () -> HttpCookie.from("n", "v", Map.of("SameSite", "blah")));
 
         // The Max-Age failure is a descriptive IllegalArgumentException, not a bare NumberFormatException.
         IllegalArgumentException x = assertThrows(IllegalArgumentException.class,
             () -> HttpCookie.from("n", "v", Map.of("Max-Age", "blah")));
         assertTrue(x.getMessage().contains("Invalid Max-Age"), "message: " + x.getMessage());
+    }
+
+    @Test
+    public void testAttributesAreLenient()
+    {
+        // Secure/HttpOnly/Partitioned are RFC 6265 flags: present and not "false" means enabled, any
+        // other value included. See HttpCookie.isAttributeTrue(String). They do not throw on non-boolean
+        // values, consistent with the wire parser and the attribute getters.
+        assertTrue(HttpCookie.from("n", "v", Map.of("Secure", "blah")).isSecure());
+        assertTrue(HttpCookie.from("n", "v", Map.of("HttpOnly", "yes")).isHttpOnly());
+        assertTrue(HttpCookie.from("n", "v", Map.of("Partitioned", "1")).isPartitioned());
+        // An explicit "false" (ASCII, case-insensitive) disables the flag.
+        assertFalse(HttpCookie.from("n", "v", Map.of("Secure", "false")).isSecure());
+        assertFalse(HttpCookie.from("n", "v", Map.of("HttpOnly", "FALSE")).isHttpOnly());
+    }
+
+    @Test
+    public void testIsAttributeTrue()
+    {
+        assertFalse(HttpCookie.isAttributeTrue(null));
+        assertTrue(HttpCookie.isAttributeTrue(""));
+        assertTrue(HttpCookie.isAttributeTrue("true"));
+        assertTrue(HttpCookie.isAttributeTrue("anything"));
+        assertFalse(HttpCookie.isAttributeTrue("false"));
+        assertFalse(HttpCookie.isAttributeTrue("False"));
     }
 
     public static List<Arguments> expiries()

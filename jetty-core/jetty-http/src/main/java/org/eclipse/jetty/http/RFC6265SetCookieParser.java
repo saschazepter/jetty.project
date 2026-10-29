@@ -263,9 +263,9 @@ public class RFC6265SetCookieParser implements SetCookieParser
                 }
                 // RFC 6265, sections 5.2.5 (Secure) and 5.2.6 (HttpOnly): the attribute is a flag whose
                 // presence enables it; an invalid value keeps the cookie rather than rejecting it.
-                case "secure" -> cookie.secure(parseFlag(value));
-                case "httponly" -> cookie.httpOnly(parseFlag(value));
-                case "partitioned" -> cookie.partitioned(parseFlag(value));
+                case "secure" -> cookie.secure(HttpCookie.isAttributeTrue(value));
+                case "httponly" -> cookie.httpOnly(HttpCookie.isAttributeTrue(value));
+                case "partitioned" -> cookie.partitioned(HttpCookie.isAttributeTrue(value));
                 case "samesite" ->
                 {
                     // RFC 6265bis, section 5.4.7: a blank or unknown SameSite value falls back to the
@@ -301,21 +301,6 @@ public class RFC6265SetCookieParser implements SetCookieParser
     {
         OptionalLong maxAge = HttpCookie.Builder.parseMaxAgeValue(value);
         return maxAge.isPresent() ? Math.max(0, maxAge.getAsLong()) : -1;
-    }
-
-    /**
-     * <p>Interprets the value of a flag attribute ({@code Secure}, {@code HttpOnly}, and
-     * {@code Partitioned}) per RFC 6265 sections 5.2.5 and 5.2.6: the attribute's presence enables the
-     * flag and its value is otherwise ignored. Jetty additionally honors an explicit {@code false} to
-     * disable the flag; any other (including invalid) value enables it rather than rejecting the
-     * cookie.</p>
-     *
-     * @param value the attribute value (possibly empty)
-     * @return whether the flag is enabled
-     */
-    private static boolean parseFlag(String value)
-    {
-        return !"false".equalsIgnoreCase(value);
     }
 
     /**

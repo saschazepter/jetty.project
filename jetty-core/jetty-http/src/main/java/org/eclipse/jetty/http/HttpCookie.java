@@ -166,7 +166,18 @@ public interface HttpCookie
 
     private boolean isSetToNotFalse(String attribute)
     {
-        String value = getAttributes().get(attribute);
+        return isAttributeTrue(getAttributes().get(attribute));
+    }
+
+    /**
+     * <p>Interprets a boolean-like cookie attribute value, such as {@code Secure}, {@code HttpOnly}
+     * or {@code Partitioned}.</p>
+     *
+     * @param value the attribute value, or {@code null} if the attribute is absent
+     * @return whether the flag is enabled, i.e. the attribute is present and not explicitly {@code false}
+     */
+    static boolean isAttributeTrue(String value)
+    {
         return value != null && !StringUtil.asciiEqualsIgnoreCase("false", value);
     }
 
@@ -571,8 +582,9 @@ public interface HttpCookie
          * @param value the attribute value
          * @return this builder
          * @throws IllegalArgumentException if a known attribute has an invalid value: a non-integer
-         *         {@code Max-Age}, an unparsable {@code Expires} date, a non-boolean {@code Secure},
-         *         {@code HttpOnly} or {@code Partitioned}, or an unknown {@code SameSite}
+         *         {@code Max-Age}, an unparsable {@code Expires} date, or an unknown {@code SameSite}.
+         *         The boolean-like flags {@code Secure}, {@code HttpOnly} and {@code Partitioned} do
+         *         not throw: they follow {@link #isAttributeTrue(String)} (present and not {@code false}).
          */
         public Builder attribute(String name, String value)
         {
@@ -582,26 +594,15 @@ public interface HttpCookie
             switch (name.toLowerCase(Locale.ROOT))
             {
                 case "expires" -> expires(StringUtil.isBlank(value) ? null : parseExpires(value));
-                case "httponly" -> httpOnly(asBoolean("httponly", value));
+                case "httponly" -> httpOnly(isAttributeTrue(value));
                 case "max-age" -> maxAge(StringUtil.isBlank(value) ? -1
                     : parseMaxAgeValue(value).orElseThrow(() -> new IllegalArgumentException("Invalid Max-Age: " + value)));
                 case "samesite" -> sameSite(SameSite.from(value));
-                case "secure" -> secure(asBoolean("secure", value));
-                case "partitioned" -> partitioned(asBoolean("partitioned", value));
+                case "secure" -> secure(isAttributeTrue(value));
+                case "partitioned" -> partitioned(isAttributeTrue(value));
                 default -> _attributes = lazyAttributePut(_attributes, name, value);
             }
             return this;
-        }
-
-        private boolean asBoolean(String attribute, String value)
-        {
-            if (value == null)
-                return false;
-            if (value.isEmpty() || "true".equalsIgnoreCase(value))
-                return true;
-            if ("false".equalsIgnoreCase(value))
-                return false;
-            throw new IllegalArgumentException("Invalid value for " + attribute);
         }
 
         /**
