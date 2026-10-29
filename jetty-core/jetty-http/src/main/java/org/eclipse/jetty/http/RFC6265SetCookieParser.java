@@ -15,6 +15,7 @@ package org.eclipse.jetty.http;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,8 @@ import org.slf4j.LoggerFactory;
 public class RFC6265SetCookieParser implements SetCookieParser
 {
     private static final Logger LOG = LoggerFactory.getLogger(RFC6265SetCookieParser.class);
+    // RFC 6265, section 5.2.2: a Max-Age value is an optional leading '-' followed by one or more digits.
+    private static final Pattern MAX_AGE_PATTERN = Pattern.compile("-?\\d+");
 
     @Override
     public HttpCookie parse(String setCookieValue)
@@ -286,11 +289,12 @@ public class RFC6265SetCookieParser implements SetCookieParser
     }
 
     /**
-     * <p>Parses an RFC 6265 (section 5.2.2) {@code Max-Age} value using a character scan, so that an
-     * all-digit value that overflows a {@code long} is clamped to {@link Long#MAX_VALUE} rather than
-     * throwing a {@link NumberFormatException}.</p>
-     * <p>A valid value is an optional leading {@code '-'} followed by one or more ASCII digits; a
-     * value of zero or less means the cookie is already expired and is returned as {@code 0}.</p>
+     * <p>Parses an RFC 6265 (section 5.2.2) {@code Max-Age} value: an optional leading {@code '-'}
+     * followed by one or more ASCII digits.</p>
+     * <p>A value of zero or less means the cookie is already expired and is returned as {@code 0}. An
+     * all-digit value that overflows a {@code long} is clamped (to {@link Long#MAX_VALUE} for a
+     * far-future, non-expiring cookie, or to {@code 0} for an overflowing negative) rather than
+     * dropping the cookie.</p>
      *
      * @param value the {@code Max-Age} attribute value
      * @return the Max-Age in seconds, clamped to the range {@code [0, Long.MAX_VALUE]}; or {@code -1}
@@ -298,34 +302,18 @@ public class RFC6265SetCookieParser implements SetCookieParser
      */
     private static long parseMaxAge(String value)
     {
-        if (value == null || value.isEmpty())
+        if (value == null || !MAX_AGE_PATTERN.matcher(value).matches())
             return -1;
-        int i = 0;
-        boolean negative = value.charAt(0) == '-';
-        if (negative)
+        try
         {
-            // A lone '-' is not a valid number.
-            if (value.length() == 1)
-                return -1;
-            i = 1;
+            // RFC 6265, section 5.2.2: a Max-Age of zero or less means the cookie is already expired.
+            return Math.max(0, Long.parseLong(value));
         }
-        long seconds = 0;
-        for (; i < value.length(); i++)
+        catch (NumberFormatException e)
         {
-            char c = value.charAt(i);
-            if (c < '0' || c > '9')
-                return -1;
-            if (!negative)
-            {
-                int digit = c - '0';
-                // Clamp on overflow: a huge Max-Age represents a far-future (non-expiring) cookie.
-                if (seconds > (Long.MAX_VALUE - digit) / 10)
-                    return Long.MAX_VALUE;
-                seconds = seconds * 10 + digit;
-            }
+            // Overflow: a negative is an already-expired cookie (0), a positive is far-future (non-expiring).
+            return value.charAt(0) == '-' ? 0 : Long.MAX_VALUE;
         }
-        // RFC 6265, section 5.2.2: a Max-Age of zero or less means the cookie is already expired.
-        return negative ? 0 : seconds;
     }
 
     /**

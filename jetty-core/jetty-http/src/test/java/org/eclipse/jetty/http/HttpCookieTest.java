@@ -62,6 +62,7 @@ public class HttpCookieTest
             Arguments.of("A=B; Max-Age=-1", HttpCookie.build("A", "B").maxAge(0).build()),
             Arguments.of("A=B; Max-Age=0", HttpCookie.build("A", "B").maxAge(0).build()),
             Arguments.of("A=B; Max-Age=1", HttpCookie.build("A", "B").maxAge(1).build()),
+            Arguments.of("A=B; Max-Age=10", HttpCookie.build("A", "B").maxAge(10).build()),
             // Quoted cookie.
             Arguments.of("A=\"1\"", HttpCookie.build("A", "1").build()),
             Arguments.of("A=\"1\"; HttpOnly", HttpCookie.build("A", "1").httpOnly(true).build()),
@@ -103,6 +104,9 @@ public class HttpCookieTest
             Arguments.of("A=B; Max-Age=NaN", HttpCookie.build("A", "B").build()),
             Arguments.of("A=B; Max-Age=-123.45", HttpCookie.build("A", "B").build()),
             Arguments.of("A=B; Max-Age=0.00", HttpCookie.build("A", "B").build()),
+            // A leading '+' is not permitted (only an optional '-'), and a lone '-' has no digits; both ignored.
+            Arguments.of("A=B; Max-Age=+10", HttpCookie.build("A", "B").build()),
+            Arguments.of("A=B; Max-Age=-", HttpCookie.build("A", "B").build()),
             Arguments.of("A=B; Max-Age=\"blah\"", HttpCookie.build("A", "B").build()),
             Arguments.of("A=B; Max-Age=blah; Secure", HttpCookie.build("A", "B").secure(true).build()),
             // An all-digit Max-Age that overflows long is clamped, not dropped (section 5.2.2).
@@ -169,6 +173,8 @@ public class HttpCookieTest
         assertThat(cookie.getSameSite(), is(HttpCookie.SameSite.STRICT));
         assertThat(cookie.isSecure(), is(true));
         assertThat(cookie.isPartitioned(), is(true));
+        // The positive Max-Age takes precedence over the past Expires (RFC 6265 section 5.3), so not expired.
+        assertThat(cookie.isExpired(), is(false));
 
         HttpCookie noAttributes = HttpCookie.build(cookie)
             .expires(null)
@@ -184,6 +190,8 @@ public class HttpCookieTest
         assertThat(noAttributes.getSameSite(), nullValue());
         assertThat(noAttributes.isSecure(), is(false));
         assertThat(noAttributes.isPartitioned(), is(false));
+        // No Max-Age and no Expires: a session cookie, which does not expire on its own.
+        assertThat(noAttributes.isExpired(), is(false));
 
         noAttributes = HttpCookie.build(cookie)
             .attribute(HttpCookie.EXPIRES_ATTRIBUTE, null)
@@ -199,6 +207,8 @@ public class HttpCookieTest
         assertThat(noAttributes.getSameSite(), nullValue());
         assertThat(noAttributes.isSecure(), is(false));
         assertThat(noAttributes.isPartitioned(), is(false));
+        // No Max-Age and no Expires: a session cookie, which does not expire on its own.
+        assertThat(noAttributes.isExpired(), is(false));
     }
 
     @Test
@@ -209,11 +219,14 @@ public class HttpCookieTest
         HttpCookie cookie = HttpCookie.build("A", "B").maxAge(-1).build();
         assertThat(cookie.getAttributes().size(), is(0));
         assertThat(cookie.getMaxAge(), is(-1L));
+        // An absent Max-Age (and no Expires) is a session cookie, not an expired one.
+        assertThat(cookie.isExpired(), is(false));
 
         // Negative max-age in builder usage, means to remove the attribute.
         cookie = HttpCookie.build("A", "B").attribute("max-age", "-2").build();
         assertThat(cookie.getAttributes().size(), is(0));
         assertThat(cookie.getMaxAge(), is(-1L)); // absent
+        assertThat(cookie.isExpired(), is(false));
     }
 
     @Test
@@ -259,6 +272,18 @@ public class HttpCookieTest
         assertTrue(cookie.getAttributes().isEmpty());
         assertThat(cookie.getMaxAge(), is(-1L));
         assertFalse(cookie.isExpired());
+    }
+
+    @Test
+    public void testParseNegativeMaxAgeIsExpired()
+    {
+        // RFC 6265 section 5.2.2: a Max-Age of zero or less means the cookie is already expired.
+        // The parser normalizes a negative Max-Age to 0 and keeps the cookie, so the parsed cookie
+        // must report isExpired() == true.
+        SetCookieParser parser = SetCookieParser.newInstance();
+        HttpCookie cookie = parser.parse("A=B; Max-Age=-2");
+        assertThat(cookie.getMaxAge(), is(0L));
+        assertTrue(cookie.isExpired());
     }
 
     @Test
