@@ -230,6 +230,32 @@ public class HttpCookieTest
     }
 
     @Test
+    public void testAttributeMaxAgeOverflowIsClamped()
+    {
+        // An all-digit Max-Age that overflows a long is clamped (as the RFC 6265 parser does) rather
+        // than throwing: a positive value becomes a far-future (non-expiring) cookie.
+        HttpCookie cookie = HttpCookie.build("A", "B").attribute("max-age", "99999999999999999999").build();
+        assertThat(cookie.getMaxAge(), is(Long.MAX_VALUE));
+        assertThat(cookie.isExpired(), is(false));
+
+        // A negative overflow stays negative ("not specified"), i.e. a session cookie.
+        cookie = HttpCookie.build("A", "B").attribute("max-age", "-99999999999999999999").build();
+        assertThat(cookie.getAttributes().containsKey(HttpCookie.MAX_AGE_ATTRIBUTE), is(false));
+        assertThat(cookie.getMaxAge(), is(-1L));
+    }
+
+    @Test
+    public void testAttributeMaxAgeRejectsLeadingPlusAndNonDigits()
+    {
+        // RFC 6265 section 5.2.2 permits only an optional leading '-'; a leading '+' is rejected.
+        assertThrows(IllegalArgumentException.class, () -> HttpCookie.build("A", "B").attribute("max-age", "+10").build());
+        // A lone '-' and non-numeric values are rejected.
+        assertThrows(IllegalArgumentException.class, () -> HttpCookie.build("A", "B").attribute("max-age", "-").build());
+        assertThrows(IllegalArgumentException.class, () -> HttpCookie.build("A", "B").attribute("max-age", "blah").build());
+        assertThrows(IllegalArgumentException.class, () -> HttpCookie.build("A", "B").attribute("max-age", "0.00").build());
+    }
+
+    @Test
     public void testBuildFromJavaNetSessionCookieIsNotExpired()
     {
         // java.net.HttpCookie defaults to a max-age of -1 (MAX_AGE_UNSPECIFIED), i.e. a session cookie.

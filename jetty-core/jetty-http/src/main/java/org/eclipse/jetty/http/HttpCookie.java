@@ -18,7 +18,9 @@ import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 import org.eclipse.jetty.util.Index;
 import org.eclipse.jetty.util.StringUtil;
@@ -547,6 +549,9 @@ public interface HttpCookie
      */
     class Builder
     {
+        // RFC 6265, section 5.2.2: a Max-Age value is an optional leading '-' followed by one or more digits.
+        private static final Pattern MAX_AGE_PATTERN = Pattern.compile("-?\\d+");
+
         private final String _name;
         private final String _value;
         private final int _version;
@@ -578,17 +583,8 @@ public interface HttpCookie
             {
                 case "expires" -> expires(StringUtil.isBlank(value) ? null : parseExpires(value));
                 case "httponly" -> httpOnly(asBoolean("httponly", value));
-                case "max-age" ->
-                {
-                    try
-                    {
-                        maxAge(StringUtil.isBlank(value) ? -1 : Long.parseLong(value));
-                    }
-                    catch (NumberFormatException x)
-                    {
-                        throw new IllegalArgumentException("Invalid Max-Age: " + value, x);
-                    }
-                }
+                case "max-age" -> maxAge(StringUtil.isBlank(value) ? -1
+                    : parseMaxAgeValue(value).orElseThrow(() -> new IllegalArgumentException("Invalid Max-Age: " + value)));
                 case "samesite" -> sameSite(SameSite.from(value));
                 case "secure" -> secure(asBoolean("secure", value));
                 case "partitioned" -> partitioned(asBoolean("partitioned", value));
@@ -606,6 +602,32 @@ public interface HttpCookie
             if ("false".equalsIgnoreCase(value))
                 return false;
             throw new IllegalArgumentException("Invalid value for " + attribute);
+        }
+
+        /**
+         * <p>Parses a {@code Max-Age} value per RFC 6265 (section 5.2.2): an optional leading {@code '-'}
+         * followed by one or more ASCII digits (a leading {@code '+'} is not permitted). An all-digit
+         * value that overflows a {@code long} is clamped in magnitude to {@link Long#MAX_VALUE} (positive)
+         * or {@link Long#MIN_VALUE} (negative); the sign is always preserved, leaving each caller to apply
+         * its own policy for non-positive values. Shared with {@link RFC6265SetCookieParser}.</p>
+         *
+         * @param value the raw {@code Max-Age} value
+         * @return the Max-Age in seconds (sign preserved, magnitude clamped on overflow), or an empty
+         *         {@link OptionalLong} if the value is not a valid {@code Max-Age}
+         */
+        static OptionalLong parseMaxAgeValue(String value)
+        {
+            if (value == null || !MAX_AGE_PATTERN.matcher(value).matches())
+                return OptionalLong.empty();
+            try
+            {
+                return OptionalLong.of(Long.parseLong(value));
+            }
+            catch (NumberFormatException x)
+            {
+                // An all-digit value that overflows a long: clamp the magnitude, preserve the sign.
+                return OptionalLong.of(value.charAt(0) == '-' ? Long.MIN_VALUE : Long.MAX_VALUE);
+            }
         }
 
         public Builder comment(String comment)
