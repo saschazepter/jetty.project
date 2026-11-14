@@ -16,7 +16,7 @@
 
   <dependencyManagement>
     <dependencies>
-      <!-- Holds transitively-pulled OpenTelemetry (via google-cloud-core) to a patched line; not a direct dep, do not remove as unused. -->
+      <!-- Force the latest opentelemetry transitive dependency. -->
       <dependency>
         <groupId>io.opentelemetry</groupId>
         <artifactId>opentelemetry-bom</artifactId>
